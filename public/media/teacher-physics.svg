@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="880" viewBox="0 0 700 880" role="img" aria-label="পদার্থবিজ্ঞান">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="rgb(6,73,112)" />
+      <stop offset="0.55" stop-color="#0ea5e9" />
+      <stop offset="1" stop-color="rgb(54,199,251)" />
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.45" stop-color="rgba(6,30,20,0)" />
+      <stop offset="1" stop-color="rgba(6,30,20,0.62)" />
+    </linearGradient>
+  </defs>
+  <rect width="700" height="880" fill="url(#bg)" />
+  <rect x="0" y="712" width="700" height="15" fill="rgba(14,165,233,0.18)" transform="skewY(1.4)" /><rect x="0" y="558" width="700" height="17" fill="rgba(14,165,233,0.18)" transform="skewY(-1.4)" /><rect x="0" y="349" width="700" height="21" fill="rgba(14,165,233,0.18)" transform="skewY(1.4)" /><rect x="0" y="296" width="700" height="23" fill="rgba(14,165,233,0.18)" transform="skewY(-1.4)" />
+  <circle cx="213" cy="712" r="159" fill="rgba(255,255,255,0.05)" /><circle cx="335" cy="592" r="169" fill="rgba(255,255,255,0.07)" /><circle cx="258" cy="462" r="137" fill="rgba(255,255,255,0.09)" /><circle cx="398" cy="767" r="182" fill="rgba(255,255,255,0.11)" /><circle cx="102" cy="418" r="88" fill="rgba(255,255,255,0.13)" />
+  <g opacity="0.5"><rect x="56" y="533" width="32" height="206" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="119" y="520" width="32" height="219" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="182" y="572" width="32" height="167" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="245" y="495" width="32" height="244" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="308" y="668" width="32" height="71" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="371" y="634" width="32" height="105" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="434" y="482" width="32" height="257" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="497" y="517" width="32" height="222" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="560" y="557" width="32" height="182" rx="3" fill="rgba(255,255,255,0.28)" /></g>
+  <rect width="700" height="880" fill="url(#shade)" />
+  <g font-family="'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif">
+    <text x="42" y="814" fill="rgba(255,255,255,0.96)" font-size="53" font-weight="600">পদার্থবিজ্ঞান</text>
+    <text x="42" y="739" fill="rgba(255,255,255,0.62)" font-size="27" letter-spacing="2">OKGS · ওমর কিন্ডারগার্টেন স্কুল</text>
+  </g>
+</svg>

@@ -1,37 +1,50 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
-import { normalizeClubDomain, resourceFields, resourceRequired, slugify } from "@/lib/content-config";
-import { db, ensureDatabase, resourceTable } from "@/lib/db";
+import { deleteRow, deleteWhere, findUniqueConflict, getRow, resolveSlug, updateRow } from "@/lib/db";
 import type { ResourceName } from "@/lib/types";
+import { resourceSchema } from "@/lib/content-config";
+import { buildPayload, validatePayload, validateReferences, clubChildResources } from "../route";
 
-const resources = new Set(Object.keys(resourceFields));
+const knownResources = new Set<string>(Object.keys(resourceSchema));
 
-function validResource(value: string): value is ResourceName {
-  return resources.has(value);
+function unauthorized(error: unknown) {
+  return error instanceof Error && error.message === "UNAUTHORIZED";
 }
 
-function databaseValue(field: string, value: unknown) {
-  if (field === "is_active" || field === "is_featured") return value === true || value === 1 || value === "true" ? 1 : 0;
-  if (field === "sort_order") return Number.isFinite(Number(value)) ? Number(value) : 0;
-  if (value === null || value === undefined) return "";
-  return String(value);
+async function parseParams(context: { params: Promise<{ resource: string; id: string }> }) {
+  const { resource, id } = await context.params;
+  if (!knownResources.has(resource)) return null;
+  return { resource: resource as ResourceName, id: decodeURIComponent(id) };
 }
 
-function cleanPayload(resource: ResourceName, raw: Record<string, unknown>) {
-  const payload: Record<string, string | number> = {};
-  for (const field of resourceFields[resource]) {
-    if (!(field in raw)) continue;
-    let value = raw[field];
-    if (resource === "news" && field === "slug" && !value && raw.title) value = slugify(String(raw.title));
-    payload[field] = databaseValue(field, value);
+/** Re-point every club-scoped row (plus tagged news/notices) when a club slug is renamed. */
+async function renameClubSlug(from: string, to: string) {
+  if (!from || from === to) return;
+  const { db } = await import("@/lib/db");
+  await Promise.all(
+    [...clubChildResources, "news", "notices"].map((resource) =>
+      db.execute({ sql: `UPDATE "${resource}" SET "club_slug" = ? WHERE "club_slug" = ?`, args: [to, from] }),
+    ),
+  );
+}
+
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ resource: string; id: string }> },
+) {
+  try {
+    await requireAdmin();
+    const parsed = await parseParams(context);
+    if (!parsed) return NextResponse.json({ error: "অজানা কনটেন্ট টাইপ।" }, { status: 404 });
+
+    const item = await getRow(parsed.resource, parsed.id);
+    if (!item) return NextResponse.json({ error: "আইটেমটি খুঁজে পাওয়া যায়নি।" }, { status: 404 });
+    return NextResponse.json({ item });
+  } catch (error) {
+    if (unauthorized(error)) return NextResponse.json({ error: "লগইন প্রয়োজন।" }, { status: 401 });
+    console.error("[admin:read-one]", error);
+    return NextResponse.json({ error: "তথ্য লোড করা যায়নি।" }, { status: 500 });
   }
-  return payload;
-}
-
-function validate(resource: ResourceName, payload: Record<string, string | number>) {
-  const missing = resourceRequired[resource].find((field) => field in payload && !String(payload[field] ?? "").trim());
-  if (missing) return `Please provide ${missing.replaceAll("_", " ")}.`;
-  return null;
 }
 
 export async function PATCH(
@@ -40,38 +53,45 @@ export async function PATCH(
 ) {
   try {
     await requireAdmin();
-    const { resource, id } = await context.params;
-    if (!validResource(resource)) return NextResponse.json({ error: "Unknown content type." }, { status: 404 });
+    const parsed = await parseParams(context);
+    if (!parsed) return NextResponse.json({ error: "অজানা কনটেন্ট টাইপ।" }, { status: 404 });
+    const { resource, id } = parsed;
+
+    const existing = await getRow(resource, id);
+    if (!existing) return NextResponse.json({ error: "আইটেমটি খুঁজে পাওয়া যায়নি।" }, { status: 404 });
 
     const raw = (await request.json()) as Record<string, unknown>;
-    const payload = cleanPayload(resource, raw);
-    const problem = validate(resource, payload);
-    if (problem) return NextResponse.json({ error: problem }, { status: 422 });
-    if (resource === "clubs" && (payload.slug || payload.domain)) {
-      payload.domain = normalizeClubDomain(String(payload.domain || ""), String(payload.slug || ""));
+    const payload = buildPayload(resource, raw, false);
+    if (!Object.keys(payload).length) return NextResponse.json({ error: "পরিবর্তনের মতো কিছু নেই।" }, { status: 422 });
+
+    // Guards duplicate slugs (409) and generates one when it was cleared.
+    const slugProblem = await resolveSlug(resource, payload, id);
+    if (slugProblem) return NextResponse.json(slugProblem, { status: slugProblem.status });
+
+    const problem = validatePayload(resource, payload);
+    if (problem) return NextResponse.json(problem, { status: problem.status });
+
+    const referenceProblem = await validateReferences(resource, payload);
+    if (referenceProblem) return NextResponse.json(referenceProblem, { status: referenceProblem.status });
+
+    const clash = await findUniqueConflict(resource, payload, id);
+    if (clash) return NextResponse.json(clash, { status: clash.status });
+
+    const result = await updateRow(resource, id, payload);
+    if (!result.updated || !result.row) return NextResponse.json({ error: "আইটেমটি খুঁজে পাওয়া যায়নি।" }, { status: 404 });
+
+    if (resource === "clubs" && payload.slug && String(payload.slug) !== String(existing.slug)) {
+      await renameClubSlug(String(existing.slug), String(payload.slug));
     }
-    if (Object.keys(payload).length === 0) return NextResponse.json({ error: "Nothing to update." }, { status: 422 });
-
-    await ensureDatabase();
-    const updates = Object.keys(payload).map((field) => `${field} = ?`);
-    const args = Object.values(payload);
-    updates.push("updated_at = ?");
-    args.push(new Date().toISOString());
-    args.push(id);
-    const result = await db.execute({
-      sql: `UPDATE ${resourceTable(resource)} SET ${updates.join(", ")} WHERE id = ?`,
-      args,
-    });
-    if (Number(result.rowsAffected) === 0) return NextResponse.json({ error: "Item not found." }, { status: 404 });
-
-    const updated = await db.execute({ sql: `SELECT * FROM ${resourceTable(resource)} WHERE id = ?`, args: [id] });
-    return NextResponse.json({ item: updated.rows[0] });
+    return NextResponse.json({ item: result.row });
   } catch (error) {
-    if (error instanceof Error && error.message === "UNAUTHORIZED") {
-      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-    }
-    console.error(error);
-    return NextResponse.json({ error: "Unable to update this item. Check that unique fields are not duplicated." }, { status: 500 });
+    if (unauthorized(error)) return NextResponse.json({ error: "লগইন প্রয়োজন।" }, { status: 401 });
+    console.error("[admin:update]", error);
+    const message =
+      error instanceof Error && /UNIQUE/i.test(error.message)
+        ? "এই মানটি আগেই ব্যবহৃত হয়েছে।"
+        : "আপডেট করা যায়নি। আবার চেষ্টা করুন।";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -81,17 +101,24 @@ export async function DELETE(
 ) {
   try {
     await requireAdmin();
-    const { resource, id } = await context.params;
-    if (!validResource(resource)) return NextResponse.json({ error: "Unknown content type." }, { status: 404 });
-    await ensureDatabase();
-    const result = await db.execute({ sql: `DELETE FROM ${resourceTable(resource)} WHERE id = ?`, args: [id] });
-    if (Number(result.rowsAffected) === 0) return NextResponse.json({ error: "Item not found." }, { status: 404 });
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    if (error instanceof Error && error.message === "UNAUTHORIZED") {
-      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    const parsed = await parseParams(context);
+    if (!parsed) return NextResponse.json({ error: "অজানা কনটেন্ট টাইপ।" }, { status: 404 });
+    const { resource, id } = parsed;
+
+    const club = resource === "clubs" ? await getRow(resource, id) : null;
+    const removed = await deleteRow(resource, id);
+    if (!removed) return NextResponse.json({ error: "আইটেমটি খুঁজে পাওয়া যায়নি।" }, { status: 404 });
+
+    let cascade = 0;
+    if (club?.slug) {
+      const slug = String(club.slug);
+      const removedCounts = await Promise.all(clubChildResources.map((child) => deleteWhere(child, "club_slug", slug)));
+      cascade = removedCounts.reduce((total, count) => total + count, 0);
     }
-    console.error(error);
-    return NextResponse.json({ error: "Unable to delete this item." }, { status: 500 });
+    return NextResponse.json({ ok: true, cascade });
+  } catch (error) {
+    if (unauthorized(error)) return NextResponse.json({ error: "লগইন প্রয়োজন।" }, { status: 401 });
+    console.error("[admin:delete]", error);
+    return NextResponse.json({ error: "মুছে ফেলা যায়নি।" }, { status: 500 });
   }
 }

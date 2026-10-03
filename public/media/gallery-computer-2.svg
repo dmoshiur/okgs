@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="680" viewBox="0 0 900 680" role="img" aria-label="কম্পিউটার ক্লাব — 2">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="rgb(6,73,112)" />
+      <stop offset="0.55" stop-color="#0ea5e9" />
+      <stop offset="1" stop-color="rgb(54,199,251)" />
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.45" stop-color="rgba(6,30,20,0)" />
+      <stop offset="1" stop-color="rgba(6,30,20,0.62)" />
+    </linearGradient>
+  </defs>
+  <rect width="900" height="680" fill="url(#bg)" />
+  <rect x="0" y="475" width="900" height="27" fill="rgba(14,165,233,0.18)" transform="skewY(1.4)" /><rect x="0" y="81" width="900" height="8" fill="rgba(14,165,233,0.18)" transform="skewY(-1.4)" /><rect x="0" y="229" width="900" height="19" fill="rgba(14,165,233,0.18)" transform="skewY(1.4)" /><rect x="0" y="404" width="900" height="17" fill="rgba(14,165,233,0.18)" transform="skewY(-1.4)" />
+  <circle cx="158" cy="185" r="127" fill="rgba(255,255,255,0.05)" /><circle cx="559" cy="158" r="122" fill="rgba(255,255,255,0.07)" /><circle cx="600" cy="117" r="125" fill="rgba(255,255,255,0.09)" /><circle cx="200" cy="209" r="125" fill="rgba(255,255,255,0.11)" /><circle cx="215" cy="477" r="53" fill="rgba(255,255,255,0.13)" />
+  <g opacity="0.5"><rect x="72" y="411" width="41" height="160" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="153" y="399" width="41" height="172" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="234" y="470" width="41" height="101" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="315" y="394" width="41" height="177" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="396" y="451" width="41" height="120" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="477" y="440" width="41" height="131" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="558" y="514" width="41" height="57" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="639" y="390" width="41" height="181" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="720" y="417" width="41" height="154" rx="3" fill="rgba(255,255,255,0.28)" /></g>
+  <rect width="900" height="680" fill="url(#shade)" />
+  <g font-family="'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif">
+    <text x="54" y="629" fill="rgba(255,255,255,0.96)" font-size="51" font-weight="600">কম্পিউটার ক্লাব — 2</text>
+    <text x="54" y="571" fill="rgba(255,255,255,0.62)" font-size="26" letter-spacing="2">OKGS · ওমর কিন্ডারগার্টেন স্কুল</text>
+  </g>
+</svg>

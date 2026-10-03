@@ -1,0 +1,102 @@
+const bnNumber = new Intl.NumberFormat("bn-BD");
+
+/** 12 → ১২ */
+export function bn(value: number | string) {
+  const numeric = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numeric) ? bnNumber.format(numeric) : String(value ?? "");
+}
+
+/** 3 → ০৩ (for the two-digit indices used throughout the design) */
+export function bnIndex(value: number) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return String(value);
+  return numeric < 10 ? `০${bn(numeric)}` : bn(numeric);
+}
+
+const longDate = new Intl.DateTimeFormat("bn-BD", { day: "numeric", month: "long", year: "numeric" });
+const shortDate = new Intl.DateTimeFormat("bn-BD", { day: "numeric", month: "short", year: "numeric" });
+const monthDay = new Intl.DateTimeFormat("bn-BD", { day: "numeric", month: "short" });
+const yearOnly = new Intl.DateTimeFormat("bn-BD", { year: "numeric" });
+
+function safeDate(value: unknown) {
+  const date = new Date(String(value ?? ""));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function formatDate(value: unknown, style: "long" | "short" = "long") {
+  const date = safeDate(value);
+  if (!date) return "";
+  return (style === "long" ? longDate : shortDate).format(date);
+}
+
+export function formatMonthDay(value: unknown) {
+  const date = safeDate(value);
+  return date ? monthDay.format(date) : "";
+}
+
+const monthLong = new Intl.DateTimeFormat("bn-BD", { month: "long", timeZone: "UTC" });
+
+/** Accepts either a plain year (2009) or a full date string. */
+export function yearLabel(value: unknown) {
+  const text = String(value ?? "").trim();
+  if (!text || text === "0000") return "";
+  if (/^\d{4}$/.test(text)) return bn(Number(text));
+  const date = safeDate(text.slice(0, 10));
+  return date ? yearOnly.format(date) : text;
+}
+
+export function formatYear(value: unknown) {
+  const date = safeDate(value);
+  return date ? yearOnly.format(date) : String(value ?? "");
+}
+
+/** “১৮” — day number for the calendar block. */
+export function formatDayNumber(value: unknown) {
+  const date = safeDate(String(value ?? "").slice(0, 10));
+  return date ? bn(date.getUTCDate()) : "";
+}
+
+export function formatMonthName(value: unknown, style: "long" | "short" = "short") {
+  const date = safeDate(String(value ?? "").slice(0, 10));
+  if (!date) return "";
+  return new Intl.DateTimeFormat("bn-BD", {
+    month: style === "long" ? "long" : "short",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+export function isoDate(value: Date = new Date()) {
+  return value.toISOString().slice(0, 10);
+}
+
+/** Day difference from today — drives “আজ” / “আগামীকাল” labels. */
+export function daysUntil(dateString: unknown) {
+  const target = safeDate(`${String(dateString ?? "").slice(0, 10)}T00:00:00Z`);
+  if (!target) return Number.NaN;
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+}
+
+export function relativeDay(dateString: unknown) {
+  const diff = daysUntil(dateString);
+  if (!Number.isFinite(diff)) return "";
+  if (diff === 0) return "আজ";
+  if (diff === 1) return "আগামীকাল";
+  if (diff === -1) return "গতকাল";
+  if (diff > 1 && diff <= 14) return `${bn(diff)} দিন পরে`;
+  if (diff < -1 && diff >= -14) return `${bn(Math.abs(diff))} দিন আগে`;
+  return "";
+}
+
+export function isUpcoming(dateString: unknown) {
+  const value = String(dateString ?? "").slice(0, 10);
+  return Boolean(value) && value >= isoDate();
+}
+
+export function initialsOf(value: unknown) {
+  const text = String(value ?? "").trim();
+  if (!text) return "●";
+  const words = text.split(/\s+/);
+  return words.length > 1 ? `${words[0][0]}${words[1][0]}` : text.slice(0, 1);
+}

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="ART ODYSSEY">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="rgb(76,37,4)" />
+      <stop offset="0.55" stop-color="#b45309" />
+      <stop offset="1" stop-color="rgb(220,117,27)" />
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.45" stop-color="rgba(6,30,20,0)" />
+      <stop offset="1" stop-color="rgba(6,30,20,0.62)" />
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)" />
+  <rect x="0" y="226" width="1600" height="15" fill="rgba(180,83,9,0.18)" transform="skewY(1.4)" /><rect x="0" y="382" width="1600" height="16" fill="rgba(180,83,9,0.18)" transform="skewY(-1.4)" /><rect x="0" y="197" width="1600" height="8" fill="rgba(180,83,9,0.18)" transform="skewY(1.4)" /><rect x="0" y="773" width="1600" height="15" fill="rgba(180,83,9,0.18)" transform="skewY(-1.4)" />
+  <circle cx="875" cy="478" r="249" fill="rgba(255,255,255,0.05)" /><circle cx="600" cy="633" r="145" fill="rgba(255,255,255,0.07)" /><circle cx="287" cy="456" r="70" fill="rgba(255,255,255,0.09)" /><circle cx="205" cy="234" r="82" fill="rgba(255,255,255,0.11)" /><circle cx="1223" cy="606" r="115" fill="rgba(255,255,255,0.13)" />
+  <g opacity="0.5"><rect x="128" y="581" width="72" height="175" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="272" y="492" width="72" height="264" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="416" y="562" width="72" height="194" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="560" y="672" width="72" height="84" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="704" y="609" width="72" height="147" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="848" y="684" width="72" height="72" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="992" y="566" width="72" height="190" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="1136" y="520" width="72" height="236" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="1280" y="527" width="72" height="229" rx="3" fill="rgba(255,255,255,0.28)" /></g>
+  <rect width="1600" height="900" fill="url(#shade)" />
+  <g font-family="'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif">
+    <text x="96" y="832" fill="rgba(255,255,255,0.96)" font-size="68" font-weight="600">ART ODYSSEY</text>
+    <text x="96" y="755" fill="rgba(255,255,255,0.62)" font-size="34" letter-spacing="2">OKGS · ওমর কিন্ডারগার্টেন স্কুল</text>
+  </g>
+</svg>

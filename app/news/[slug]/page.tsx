@@ -1,18 +1,36 @@
 import type { Metadata } from "next";
-import { ArrowLeft, ArrowUpRight, CalendarDays, Mail } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays, Mail, User } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getPublicContent } from "@/lib/db";
-import { OfficialLogo } from "@/components/public/OfficialLogo";
+import { clubPath } from "@/lib/club-data";
+import { paragraphs } from "@/lib/content-config";
+import { formatDate } from "@/lib/format";
+import { PublicChrome } from "@/components/public/Chrome";
+import { SmartImage } from "@/components/public/Media";
+import { JsonLd } from "@/components/public/JsonLd";
+import { breadcrumbSchema, newsArticleSchema } from "@/lib/schema";
 
 export const dynamic = "force-dynamic";
 type NewsPageProps = { params: Promise<{ slug: string }> };
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://okgs.info";
 
 export async function generateMetadata({ params }: NewsPageProps): Promise<Metadata> {
   const { slug } = await params;
   const content = await getPublicContent();
   const story = content.news.find((item) => item.slug === slug);
   if (!story) return { title: "সংবাদ পাওয়া যায়নি" };
-  return { title: story.title, description: story.excerpt, openGraph: { title: story.title, description: story.excerpt, images: story.image_url ? [story.image_url] : undefined } };
+  return {
+    title: story.title,
+    description: story.excerpt,
+    alternates: { canonical: `${siteUrl}/news/${story.slug}` },
+    openGraph: {
+      title: story.title,
+      description: story.excerpt,
+      images: story.image_url ? [story.image_url] : undefined,
+      type: "article",
+    },
+  };
 }
 
 export default async function NewsStoryPage({ params }: NewsPageProps) {
@@ -20,8 +38,85 @@ export default async function NewsStoryPage({ params }: NewsPageProps) {
   const content = await getPublicContent();
   const story = content.news.find((item) => item.slug === slug);
   if (!story) notFound();
-  const email = content.settings.find((setting) => setting.key === "email")?.value || "okgs2003@gmail.com";
-  const date = new Intl.DateTimeFormat("bn-BD", { day: "numeric", month: "long", year: "numeric" }).format(new Date(story.published_at));
 
-  return <div className="story-page public-site"><header className="site-header page-width"><a href="/" className="brand" aria-label="হোম"><OfficialLogo /><span className="brand-copy"><strong>ওমর কিন্ডারগার্টেন স্কুল</strong><small>ওমর গার্টেন একাডেমি · কালাই, জয়পুরহাট</small></span></a><nav className="main-nav" aria-label="প্রধান মেনু"><a href="/#about">আমাদের সম্পর্কে</a><a href="/#facilities">সুবিধাসমূহ</a><a href="/#clubs">ক্লাবসমূহ</a><a href="/news">সংবাদ</a></nav><a className="button button-green button-small" href={`mailto:${email}`}>যোগাযোগ <ArrowUpRight size={14} /></a></header><main><div className="page-width story-article"><a className="back-story" href="/news"><ArrowLeft size={15} /> সংবাদে ফিরুন</a><div className="story-article-heading"><div><p className="eyebrow"><span className="eyebrow-dot" />{story.category}</p><h1>{story.title}</h1><div className="story-article-meta"><span><CalendarDays size={14} /> {date}</span><span>{story.author}</span></div></div><span className="article-number">ওকেজিএস / সংবাদ</span></div><div className="article-hero" style={{ backgroundImage: `url("${story.image_url}")` }} /><div className="article-body"><p className="article-lead">{story.excerpt}</p><div className="article-copy"><p>{story.body || story.excerpt}</p><p>ওমর কিন্ডারগার্টেন স্কুলে শিক্ষার্থীদের শেখা, সৃজনশীলতা ও নেতৃত্ব বিকাশের প্রতিটি সুযোগকে গুরুত্ব দেওয়া হয়।</p></div></div><div className="article-footer"><span>এই সংবাদ সম্পর্কে জানতে চান?</span><a className="text-link" href={`mailto:${email}`}>{email} <Mail size={14} /></a></div></div></main><footer className="site-footer"><div className="page-width footer-bottom"><span>© ২০২৬ ওমর কিন্ডারগার্টেন স্কুল</span><a href="/">হোম <ArrowUpRight size={13} /></a><span>সবার জন্য মানসম্মত শিক্ষা</span></div></footer></div>;
+  const club = story.club_slug ? content.clubs.find((item) => item.slug === story.club_slug) : undefined;
+  const blocks = paragraphs(story.body);
+  const related = content.news
+    .filter((item) => item.id !== story.id && (item.category === story.category || item.club_slug === story.club_slug))
+    .slice(0, 2);
+  const email = content.settings.find((setting) => setting.key === "email")?.value || "";
+
+  return (
+    <PublicChrome content={content} active="news">
+      <JsonLd schema={[newsArticleSchema(story, club), breadcrumbSchema([{ name: "সংবাদ", url: "/news" }, { name: story.title, url: `/news/${story.slug}` }])]} />
+      <main className="story-page">
+        <div className="page-width story-article">
+          <a className="back-story" href="/news"><ArrowLeft size={15} /> সংবাদে ফিরুন</a>
+          <div className="story-article-heading">
+            <div>
+              <p className="eyebrow"><span className="eyebrow-dot" />{story.category || "সংবাদ"}</p>
+              <h1>{story.title}</h1>
+              <div className="story-article-meta">
+                <span><CalendarDays size={14} /> {formatDate(story.published_at)}</span>
+                {story.author ? <span><User size={14} /> {story.author}</span> : null}
+              </div>
+            </div>
+            <span className="article-number">ওকেজিএস / সংবাদ</span>
+          </div>
+
+          <div className="article-hero">
+            <SmartImage src={story.image_url} alt={story.title} priority transform={{ width: 1600, fit: "cover" }} label={story.title} accent="#e7c27e" />
+          </div>
+
+          <div className="article-body">
+            <div className="article-copy">
+              {story.excerpt ? <p className="article-lead">{story.excerpt}</p> : null}
+              {blocks.length ? blocks.map((block, index) => <p key={index}>{block}</p>) : <p>{story.excerpt}</p>}
+
+              {club ? (
+                <aside className="article-club-box">
+                  <span className="article-club-eyebrow">সম্পর্কিত ক্লাব</span>
+                  <h3>{club.name}</h3>
+                  {club.tagline ? <p>{club.tagline}</p> : null}
+                  <div className="article-club-actions">
+                    <a className="text-link" href={clubPath(club.slug)}>ক্লাবের পাতা <ArrowRight size={14} /></a>
+                    <a className="text-link" href={clubPath(club.slug, "events")}>আয়োজন <ArrowUpRight size={13} /></a>
+                  </div>
+                </aside>
+              ) : null}
+            </div>
+
+            <aside className="article-side">
+              <div className="article-side-card">
+                <h3>এই বিভাগে আরও</h3>
+                {related.length ? (
+                  <ul className="article-side-list">
+                    {related.map((item) => (
+                      <li key={item.id}>
+                        <a href={`/news/${item.slug}`}>
+                          <strong>{item.title}</strong>
+                          <small>{formatDate(item.published_at, "short")}</small>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="empty-note">এই মুহূর্তে সম্পর্কিত সংবাদ নেই।</p>}
+              </div>
+              {email ? (
+                <div className="article-side-card">
+                  <h3>যোগাযোগ</h3>
+                  <a className="text-link" href={`mailto:${email}`}><Mail size={14} /> {email}</a>
+                </div>
+              ) : null}
+            </aside>
+          </div>
+
+          <div className="article-footer">
+            <span>{story.title}</span>
+            <a className="text-link" href="/news">সব সংবাদ <ArrowRight size={14} /></a>
+          </div>
+        </div>
+      </main>
+    </PublicChrome>
+  );
 }

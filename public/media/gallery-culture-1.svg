@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="680" viewBox="0 0 900 680" role="img" aria-label="বিতর্ক ও সংস্কৃতি — 1">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="rgb(71,37,119)" />
+      <stop offset="0.55" stop-color="#a855f7" />
+      <stop offset="1" stop-color="rgb(208,119,255)" />
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.45" stop-color="rgba(6,30,20,0)" />
+      <stop offset="1" stop-color="rgba(6,30,20,0.62)" />
+    </linearGradient>
+  </defs>
+  <rect width="900" height="680" fill="url(#bg)" />
+  <rect x="0" y="244" width="900" height="31" fill="rgba(168,85,247,0.18)" transform="skewY(1.4)" /><rect x="0" y="129" width="900" height="24" fill="rgba(168,85,247,0.18)" transform="skewY(-1.4)" /><rect x="0" y="513" width="900" height="28" fill="rgba(168,85,247,0.18)" transform="skewY(1.4)" /><rect x="0" y="389" width="900" height="21" fill="rgba(168,85,247,0.18)" transform="skewY(-1.4)" />
+  <circle cx="147" cy="186" r="121" fill="rgba(255,255,255,0.05)" /><circle cx="548" cy="334" r="157" fill="rgba(255,255,255,0.07)" /><circle cx="192" cy="554" r="57" fill="rgba(255,255,255,0.09)" /><circle cx="299" cy="239" r="115" fill="rgba(255,255,255,0.11)" /><circle cx="535" cy="212" r="118" fill="rgba(255,255,255,0.13)" />
+  <g opacity="0.5"><rect x="72" y="474" width="41" height="97" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="153" y="429" width="41" height="142" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="234" y="497" width="41" height="74" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="315" y="418" width="41" height="153" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="396" y="447" width="41" height="124" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="477" y="448" width="41" height="123" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="558" y="400" width="41" height="171" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="639" y="389" width="41" height="182" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="720" y="381" width="41" height="190" rx="3" fill="rgba(255,255,255,0.28)" /></g>
+  <rect width="900" height="680" fill="url(#shade)" />
+  <g font-family="'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif">
+    <text x="54" y="629" fill="rgba(255,255,255,0.96)" font-size="51" font-weight="600">বিতর্ক ও সংস্কৃতি — 1</text>
+    <text x="54" y="571" fill="rgba(255,255,255,0.62)" font-size="26" letter-spacing="2">OKGS · ওমর কিন্ডারগার্টেন স্কুল</text>
+  </g>
+</svg>

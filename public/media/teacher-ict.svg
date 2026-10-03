@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="880" viewBox="0 0 700 880" role="img" aria-label="আইসিটি">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="rgb(42,45,116)" />
+      <stop offset="0.55" stop-color="#6366f1" />
+      <stop offset="1" stop-color="rgb(139,136,255)" />
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.45" stop-color="rgba(6,30,20,0)" />
+      <stop offset="1" stop-color="rgba(6,30,20,0.62)" />
+    </linearGradient>
+  </defs>
+  <rect width="700" height="880" fill="url(#bg)" />
+  <rect x="0" y="268" width="700" height="22" fill="rgba(99,102,241,0.18)" transform="skewY(1.4)" /><rect x="0" y="592" width="700" height="10" fill="rgba(99,102,241,0.18)" transform="skewY(-1.4)" /><rect x="0" y="743" width="700" height="12" fill="rgba(99,102,241,0.18)" transform="skewY(1.4)" /><rect x="0" y="113" width="700" height="24" fill="rgba(99,102,241,0.18)" transform="skewY(-1.4)" />
+  <circle cx="220" cy="455" r="114" fill="rgba(255,255,255,0.05)" /><circle cx="393" cy="550" r="50" fill="rgba(255,255,255,0.07)" /><circle cx="437" cy="215" r="120" fill="rgba(255,255,255,0.09)" /><circle cx="197" cy="395" r="156" fill="rgba(255,255,255,0.11)" /><circle cx="492" cy="576" r="118" fill="rgba(255,255,255,0.13)" />
+  <g opacity="0.5"><rect x="56" y="629" width="32" height="110" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="119" y="528" width="32" height="211" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="182" y="522" width="32" height="217" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="245" y="587" width="32" height="152" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="308" y="523" width="32" height="216" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="371" y="540" width="32" height="199" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="434" y="525" width="32" height="214" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="497" y="592" width="32" height="147" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="560" y="632" width="32" height="107" rx="3" fill="rgba(255,255,255,0.28)" /></g>
+  <rect width="700" height="880" fill="url(#shade)" />
+  <g font-family="'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif">
+    <text x="42" y="814" fill="rgba(255,255,255,0.96)" font-size="53" font-weight="600">আইসিটি</text>
+    <text x="42" y="739" fill="rgba(255,255,255,0.62)" font-size="27" letter-spacing="2">OKGS · ওমর কিন্ডারগার্টেন স্কুল</text>
+  </g>
+</svg>
