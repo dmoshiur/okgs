@@ -20,6 +20,7 @@
   --line: #e3ebe4;
   --serif: "Noto Serif Bengali", Georgia, serif;
   --sans: "Hind Siliguri", sans-serif;
+  --mono: "Hind Siliguri", sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -188,3 +189,129 @@ img { max-width: 100%; display: block; }
 @media (max-width: 760px) { .story-page .main-nav { display: none; }.story-article { padding-top: 35px; }.back-story { margin-bottom: 45px; }.story-article-heading { display: block; margin-bottom: 35px; }.story-article-heading h1 { font-size: 55px; }.article-number { display: block; margin-top: 20px; }.article-hero { height: 320px; }.article-body { grid-template-columns: 1fr; gap: 27px; margin: 45px auto 60px; }.article-lead { font-size: 24px; }.article-footer { align-items: start; flex-direction: column; gap: 13px; }.journal-index-hero { padding: 75px 0 80px; }.journal-index-hero h1 { font-size: 64px; }.journal-index-grid { grid-template-columns: 1fr; gap: 55px; padding-top: 57px; padding-bottom: 85px; }.index-news-card:nth-child(3n+1) .index-news-image, .index-news-image { height: 300px; }.index-news-copy h2 { font-size: 28px; } }
 
 .mobile-nav-panel { position: fixed; z-index: 12; inset: 0; display: flex; flex-direction: column; padding: 25px 20px 28px; background: var(--ink-deep); color: #fff; animation: mobile-nav-in .25s ease both; }.mobile-nav-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 28px; border-bottom: 1px solid rgba(255,255,255,.15); }.mobile-nav-label { color: var(--gold-soft); font: 9px var(--mono); letter-spacing: .12em; text-transform: uppercase; }.mobile-nav-close { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid rgba(255,255,255,.25); background: transparent; color: #fff; }.mobile-nav-panel nav { display: flex; flex-direction: column; padding: 24px 0; }.mobile-nav-panel nav a { display: flex; align-items: center; justify-content: space-between; padding: 17px 0; border-bottom: 1px solid rgba(255,255,255,.12); font: 500 34px/.95 var(--serif); }.mobile-nav-panel nav a svg { color: var(--gold); }.mobile-nav-panel > .button { margin-top: auto; width: 100%; }.mobile-menu { color: var(--ink); }.mobile-menu svg { display: block; } @keyframes mobile-nav-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Final visual cleanup: compact Bengali school experience */
+.public-site { min-height: 100vh; overflow-x: hidden; background: #fff; }
+.public-site .page-width { width: min(1200px, calc(100% - 56px)); }
+.public-site .topline { font-size: 12px; }
+.public-site .topline-inner { min-height: 38px; }
+.public-site .site-header { position: sticky; top: 0; width: min(1200px, calc(100% - 56px)); min-height: 76px; margin: 0 auto; padding: 10px 0; background: rgba(255,255,255,.96); border-bottom: 1px solid #e4ece5; backdrop-filter: blur(14px); }
+.public-site .official-logo, .public-site .official-logo-fallback { width: 48px; height: 48px; flex-basis: 48px; }
+.public-site .brand-copy strong { font-size: 16px; }
+.public-site .brand-copy small { font-size: 10px; }
+.public-site .main-nav { gap: 1px; }
+.public-site .main-nav a { padding: 7px 10px; font-size: 13px; }
+.public-site .header-actions { gap: 12px; }
+.public-site .header-admin { font-size: 12px; }
+.public-site .hero-section { padding: 22px 22px 0; }
+.public-site .hero-carousel { width: min(1400px, 100%); height: clamp(520px, 70vh, 680px); margin: 0 auto; border-radius: 22px; box-shadow: 0 20px 50px rgba(11,58,37,.12); }
+.public-site .hero-shade { background: linear-gradient(90deg, rgba(5,36,21,.9) 0%, rgba(5,36,21,.66) 48%, rgba(5,36,21,.12) 100%), linear-gradient(0deg, rgba(5,36,21,.72), transparent 55%); }
+.public-site .hero-copy h1 { max-width: 730px; font-size: clamp(40px, 5.8vw, 72px); line-height: 1.12; }
+.public-site .hero-description { font-size: 16px; }
+.public-site .hero-footer { width: min(1200px, calc(100% - 56px)); }
+.public-site .notice-ribbon-inner { min-height: 54px; }
+.public-site .section { padding-top: 82px; }
+.public-site .section-heading { grid-template-columns: minmax(0, 1fr) minmax(220px, 330px) auto; gap: 24px; margin-bottom: 34px; }
+.public-site .section-heading h2 { font-size: clamp(30px, 3.8vw, 46px); line-height: 1.18; }
+.public-site .section-intro { font-size: 14px; }
+.public-site .about-grid { gap: 52px; }
+.public-site .about-image { min-height: 360px; border-radius: 16px; box-shadow: 0 18px 40px rgba(20,83,45,.12); }
+.public-site .about-copy .about-lead { font-size: 22px; line-height: 1.55; }
+.public-site .stats-strip { margin-top: 74px; }
+.public-site .stats-grid > div { min-height: 116px; }
+.public-site .facility-grid { grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.public-site .facility-card { min-height: 178px; padding: 22px; background: #fff; border-radius: 14px; }
+.public-site .facility-card h3 { font-size: 18px; }
+.public-site .admission-section { margin-top: 0; }
+.public-site .admission-grid { gap: 58px; padding-top: 68px; padding-bottom: 68px; }
+.public-site .admission-image { border-radius: 16px; min-height: 310px; }
+.public-site .notice-item { min-height: 110px; }
+.public-site .clubs-section { background: #f5faf6; }
+.public-site .clubs-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+.public-site .club-card { border-color: #dfebe1; border-radius: 14px; }
+.public-site .club-photo { height: 180px; }
+.public-site .club-card-copy { padding: 18px 16px 19px; }
+.public-site .club-card h3 { font-size: 17px; }
+.public-site .news-layout { gap: 32px; }
+.public-site .news-image { min-height: 310px; border-radius: 14px; }
+.public-site .news-side-list .news-image { min-height: 170px; }
+.public-site .news-card h3 { font-size: 24px; }
+.public-site .updates-section { background: #fbfdfb; }
+.public-site .update-row { min-height: 96px; }
+.public-site .teacher-grid { gap: 20px; }
+.public-site .teacher-photo { height: 270px; border-radius: 14px; }
+.public-site .gallery-grid { gap: 14px; }
+.public-site .gallery-grid a { border-radius: 12px; }
+.public-site .gallery-grid img { height: 195px; }
+.public-site .quote-section { margin-top: 4px; }
+.public-site .closing-cta { min-height: 240px; }
+.public-site .site-footer { padding-top: 62px; }
+.public-site .story-page .site-header { margin-bottom: 0; }
+.public-site .story-page .story-article { padding-top: 48px; }
+.public-site .story-page .article-hero { border-radius: 16px; }
+.public-site .story-page .journal-index-hero { background: linear-gradient(135deg, #f0fdf4 0%, #fef3c7 100%); }
+.public-site .story-page .journal-index-grid { gap: 50px 24px; }
+.public-site .story-page .index-news-image { border-radius: 14px; }
+
+@media (max-width: 1080px) {
+  .public-site .main-nav a { padding-inline: 7px; }
+  .public-site .header-actions { gap: 8px; }
+  .public-site .header-admin { display: none; }
+  .public-site .clubs-grid { grid-template-columns: repeat(3, 1fr); }
+  .public-site .club-card:nth-child(n+4) { margin-top: 0; }
+}
+@media (max-width: 760px) {
+  .public-site .page-width { width: calc(100% - 32px); }
+  .public-site .topline-inner { min-height: 0; padding: 7px 0; }
+  .public-site .topline-inner > span { font-size: 11px; }
+  .public-site .topline-inner > a { font-size: 11px; }
+  .public-site .site-header { width: calc(100% - 32px); min-height: 68px; padding: 8px 0; }
+  .public-site .official-logo, .public-site .official-logo-fallback { width: 43px; height: 43px; flex-basis: 43px; }
+  .public-site .brand-copy strong { font-size: 14px; }
+  .public-site .brand-copy small { display: none; }
+  .public-site .mobile-menu { display: grid; }
+  .public-site .hero-section { padding: 0; }
+  .public-site .hero-carousel { height: 610px; min-height: 610px; border-radius: 0; box-shadow: none; }
+  .public-site .hero-content-wrap { width: calc(100% - 32px); height: calc(100% - 88px); padding-bottom: 62px; }
+  .public-site .hero-copy { width: 100%; }
+  .public-site .hero-copy h1 { max-width: 470px; font-size: clamp(39px, 11.5vw, 56px); }
+  .public-site .hero-description { max-width: 340px; font-size: 14px; }
+  .public-site .hero-footer { width: calc(100% - 32px); bottom: 18px; }
+  .public-site .hero-actions { gap: 12px; }
+  .public-site .notice-ribbon-inner { min-height: 0; padding: 10px 0; }
+  .public-site .notice-ribbon p { line-height: 1.4; }
+  .public-site .section { padding-top: 64px; }
+  .public-site .section-heading { display: block; margin-bottom: 28px; }
+  .public-site .section-heading h2 { font-size: 36px; }
+  .public-site .section-intro { margin-top: 8px; }
+  .public-site .section-action { margin-top: 13px; }
+  .public-site .about-grid, .public-site .admission-grid, .public-site .news-layout, .public-site .article-body { gap: 27px; }
+  .public-site .about-image { min-height: 285px; }
+  .public-site .stats-strip { margin-top: 58px; }
+  .public-site .facility-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .public-site .facility-card { min-height: 160px; padding: 17px 14px; }
+  .public-site .facility-card h3 { font-size: 16px; }
+  .public-site .facility-card p { font-size: 12px; }
+  .public-site .admission-grid { padding-top: 52px; padding-bottom: 52px; }
+  .public-site .admission-copy h2 { font-size: 40px; }
+  .public-site .admission-image { min-height: 235px; }
+  .public-site .clubs-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .public-site .club-photo { height: 155px; }
+  .public-site .club-card-copy { padding: 14px 12px 16px; }
+  .public-site .club-card h3 { font-size: 16px; }
+  .public-site .club-card p { min-height: 71px; font-size: 11px; }
+  .public-site .news-image { min-height: 270px; }
+  .public-site .teacher-photo { height: 220px; }
+  .public-site .gallery-grid img { height: 145px; }
+  .public-site .closing-cta { min-height: 260px; }
+  .public-site .story-page .story-article { padding-top: 34px; }
+  .public-site .story-page .story-article-heading h1 { font-size: 45px; }
+  .public-site .story-page .article-hero { min-height: 280px; }
+}
+@media (max-width: 430px) {
+  .public-site .topline-inner > span { max-width: 100%; }
+  .public-site .facility-grid, .public-site .clubs-grid { grid-template-columns: 1fr; }
+  .public-site .club-photo { height: 185px; }
+  .public-site .club-card p { min-height: 0; }
+  .public-site .hero-copy h1 { font-size: 40px; }
+}
