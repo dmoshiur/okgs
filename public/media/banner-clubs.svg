@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="700" viewBox="0 0 1400 700" role="img" aria-label="সব ক্লাবের খবর">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="rgb(9,56,29)" />
+      <stop offset="0.55" stop-color="#15803d" />
+      <stop offset="1" stop-color="rgb(61,162,79)" />
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.45" stop-color="rgba(6,30,20,0)" />
+      <stop offset="1" stop-color="rgba(6,30,20,0.62)" />
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="700" fill="url(#bg)" />
+  <rect x="0" y="603" width="1400" height="8" fill="rgba(21,128,61,0.18)" transform="skewY(1.4)" /><rect x="0" y="499" width="1400" height="21" fill="rgba(21,128,61,0.18)" transform="skewY(-1.4)" /><rect x="0" y="353" width="1400" height="13" fill="rgba(21,128,61,0.18)" transform="skewY(1.4)" /><rect x="0" y="541" width="1400" height="10" fill="rgba(21,128,61,0.18)" transform="skewY(-1.4)" />
+  <circle cx="343" cy="286" r="117" fill="rgba(255,255,255,0.05)" /><circle cx="757" cy="580" r="60" fill="rgba(255,255,255,0.07)" /><circle cx="247" cy="399" r="145" fill="rgba(255,255,255,0.09)" /><circle cx="447" cy="474" r="72" fill="rgba(255,255,255,0.11)" /><circle cx="1072" cy="610" r="171" fill="rgba(255,255,255,0.13)" />
+  <g opacity="0.5"><rect x="112" y="492" width="63" height="96" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="238" y="468" width="63" height="120" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="364" y="426" width="63" height="162" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="490" y="506" width="63" height="82" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="616" y="383" width="63" height="205" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="742" y="500" width="63" height="88" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="868" y="466" width="63" height="122" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="994" y="385" width="63" height="203" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="1120" y="395" width="63" height="193" rx="3" fill="rgba(255,255,255,0.28)" /></g>
+  <rect width="1400" height="700" fill="url(#shade)" />
+  <g font-family="'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif">
+    <text x="84" y="647" fill="rgba(255,255,255,0.96)" font-size="53" font-weight="600">সব ক্লাবের খবর</text>
+    <text x="84" y="587" fill="rgba(255,255,255,0.62)" font-size="27" letter-spacing="2">OKGS · ওমর কিন্ডারগার্টেন স্কুল</text>
+  </g>
+</svg>

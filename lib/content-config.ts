@@ -1,96 +1,708 @@
-import type { ResourceName } from "@/lib/types";
+import type { FieldOption, ResourceName } from "@/lib/types";
 
-export const resourceFields: Record<ResourceName, string[]> = {
-  slides: [
-    "eyebrow",
-    "title",
-    "description",
-    "cta_label",
-    "cta_href",
-    "image_url",
-    "accent",
-    "sort_order",
-    "is_active",
-  ],
-  notices: ["title", "body", "type", "published_at", "is_active"],
-  banners: [
-    "label",
-    "title",
-    "description",
-    "cta_label",
-    "cta_href",
-    "image_url",
-    "accent",
-    "sort_order",
-    "is_active",
-  ],
-  news: [
-    "slug",
-    "title",
-    "excerpt",
-    "body",
-    "image_url",
-    "category",
-    "author",
-    "published_at",
-    "is_featured",
-    "is_active",
-  ],
-  updates: ["title", "description", "date", "kind", "is_active"],
-  clubs: [
-    "name",
-    "slug",
-    "tagline",
-    "description",
-    "accent",
-    "icon",
-    "image_url",
-    "domain",
-    "sort_order",
-    "is_active",
-  ],
-  settings: ["key", "label", "value", "description"],
-};
+/* ------------------------------------------------------------------ *
+ * The single source of truth for OKGS content.
+ *
+ * Add a field here and it automatically appears in:
+ *   - the SQLite/Turso schema (lib/db.ts reads these definitions)
+ *   - the admin editor form, table + validation (schema-driven)
+ *   - the public club pages
+ * ------------------------------------------------------------------ */
 
-export const resourceLabels: Record<ResourceName, string> = {
-  slides: "হিরো স্লাইড",
-  notices: "নোটিশ",
-  banners: "ব্যানার",
-  news: "সংবাদ",
-  updates: "সর্বশেষ আপডেট",
-  clubs: "ক্লাবসমূহ",
-  settings: "স্কুল পরিচিতি",
-};
+export type { ResourceName };
 
-export const resourceSingular: Record<ResourceName, string> = {
-  slides: "স্লাইড",
-  notices: "নোটিশ",
-  banners: "ব্যানার",
-  news: "সংবাদ",
-  updates: "আপডেট",
-  clubs: "ক্লাব",
-  settings: "সেটিং",
-};
+const iconOptions: FieldOption[] = [
+  { label: "Atom — বিজ্ঞান", value: "Atom" },
+  { label: "BookOpen — সাহিত্য", value: "BookOpen" },
+  { label: "Monitor — কম্পিউটার", value: "Monitor" },
+  { label: "Trophy — খেলাধুলা", value: "Trophy" },
+  { label: "MessagesSquare — বিতর্ক", value: "MessagesSquare" },
+  { label: "Palette — চারুকলা", value: "Palette" },
+  { label: "Sprout — নার্সারি", value: "Sprout" },
+  { label: "Leaf — পরিবেশ", value: "Leaf" },
+  { label: "Music — সংগীত", value: "Music" },
+  { label: "HeartHandshake — সমাজসেবা", value: "HeartHandshake" },
+  { label: "ShieldCheck — নিরাপত্তা", value: "ShieldCheck" },
+  { label: "Sparkles — সাধারণ", value: "Sparkles" },
+];
 
-export const resourceRequired: Record<ResourceName, string[]> = {
-  slides: ["title"],
-  notices: ["title"],
-  banners: ["title"],
-  news: ["title"],
-  updates: ["title"],
-  clubs: ["name", "slug"],
-  settings: ["key", "label"],
-};
+export const clubIconOptions = iconOptions;
 
-export function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+const clubOptions: FieldOption[] = [
+  { label: "ম্যাথ এন্ড সাইন্স ক্লাব", value: "science" },
+  { label: "ভাষা ও সাহিত্য ক্লাব", value: "language" },
+  { label: "কম্পিউটার ক্লাব", value: "computer" },
+  { label: "স্পোর্টিং ক্লাব", value: "sports" },
+  { label: "বিতর্ক ও সংস্কৃতি ক্লাব", value: "culture" },
+  { label: "নার্সারি ও প্রি-কিউট ক্লাব", value: "junior" },
+];
+
+/** Live options are read from the database; these are the admin defaults. */
+export const defaultClubOptions = clubOptions;
+
+interface FieldDef {
+  name: string;
+  label: string;
+  type:
+    | "text"
+    | "textarea"
+    | "url"
+    | "image"
+    | "color"
+    | "number"
+    | "date"
+    | "datetime"
+    | "boolean"
+    | "select"
+    | "reference";
+  required?: boolean;
+  help?: string;
+  placeholder?: string;
+  options?: FieldOption[];
+  /** Which table a `reference` points at. */
+  reference?: "clubs";
+  /** Renders as its own block in the editor instead of a two-column row. */
+  full?: boolean;
+  rows?: number;
+  /** Fieldset heading inside the editor modal. */
+  group?: string;
+  /** Regex the stored value must match (validated in the API and the form). */
+  pattern?: string;
+  patternError?: string;
+  default?: string | number | boolean;
+  sql?: string;
 }
 
-export function normalizeClubDomain(domain: string, slug: string) {
-  const value = domain.trim() || `${slug}.okgs.info`;
-  return /^https?:\/\//i.test(value) ? value : `https://${value.replace(/^\/\//, "")}`;
+export type { FieldDef };
+
+const groupBasics = "মূল তথ্য";
+const groupMedia = "ছবি ও মিডিয়া";
+const groupContact = "যোগাযোগ ও লিংক";
+
+const sortField: FieldDef = {
+  name: "sort_order",
+  label: "ক্রম",
+  type: "number",
+  group: groupBasics,
+  help: "ছোট সংখ্যা আগে দেখানো হবে।",
+  default: 0,
+};
+
+const activeField: FieldDef = {
+  name: "is_active",
+  label: "প্রকাশিত",
+  type: "boolean",
+  group: groupBasics,
+  help: "বন্ধ করলে সাইটে দেখাবে না।",
+  default: true,
+};
+
+export const isActiveField = activeField;
+
+const featuredField: FieldDef = {
+  name: "is_featured",
+  label: "বিশেষ / হাইলাইট",
+  type: "boolean",
+  group: groupBasics,
+  help: "ক্লাব পাতার উপরে প্রথম দেখানো হবে।",
+  default: false,
+};
+
+const clubField: FieldDef = {
+  name: "club_slug",
+  label: "ক্লাব",
+  type: "reference",
+  reference: "clubs",
+  required: true,
+  group: groupBasics,
+  help: "এই তথ্যটি কোন ক্লাবের — ক্লাবের নিজস্ব পাতায় দেখানো হবে।",
+  options: clubOptions,
+};
+
+const publishDateField: FieldDef = {
+  name: "published_at",
+  label: "প্রকাশের তারিখ",
+  type: "datetime",
+  group: groupBasics,
+};
+
+export const resourceSchema: Record<ResourceName, FieldDef[]> = {
+  slides: [
+    { name: "eyebrow", label: "উপরের লেবেল", type: "text", group: groupBasics, placeholder: "ওমর কিন্ডারগার্টেন স্কুল" },
+    { name: "title", label: "শিরোনাম", type: "text", required: true, full: true, group: groupBasics },
+    { name: "description", label: "বিবরণ", type: "textarea", full: true, group: groupBasics, rows: 3 },
+    { name: "cta_label", label: "বোতামের লেখা", type: "text", group: groupBasics, default: "ভর্তি তথ্য" },
+    { name: "cta_href", label: "বোতামের লিংক", type: "text", group: groupBasics, placeholder: "#admission বা /clubs", default: "#admission" },
+    { name: "image_url", label: "স্লাইডের ছবি", type: "image", full: true, group: groupMedia },
+    { name: "accent", label: "অ্যাকসেন্ট রং", type: "color", group: groupBasics, default: "#e7c27e" },
+    sortField,
+    activeField,
+  ],
+  notices: [
+    { ...clubField, required: false, help: "চাইলে কোনো ক্লাবের সাথে যুক্ত করুন (খালি রাখলে স্কুলের সাধারণ নোটিশ)।" },
+    { name: "title", label: "নোটিশের শিরোনাম", type: "text", required: true, full: true, group: groupBasics },
+    { name: "body", label: "বিস্তারিত", type: "textarea", full: true, group: groupBasics, rows: 5 },
+    {
+      name: "type",
+      label: "নোটিশের ধরন",
+      type: "select",
+      group: groupBasics,
+      default: "সাধারণ",
+      options: [
+        { label: "সাধারণ", value: "সাধারণ" },
+        { label: "ভর্তি", value: "ভর্তি" },
+        { label: "আবাসিক", value: "আবাসিক" },
+        { label: "পরীক্ষা", value: "পরীক্ষা" },
+        { label: "কার্যক্রম", value: "কার্যক্রম" },
+        { label: "জরুরি", value: "জরুরি" },
+      ],
+    },
+    publishDateField,
+    activeField,
+  ],
+  banners: [
+    { name: "label", label: "ছোট লেবেল", type: "text", group: groupBasics },
+    { name: "title", label: "শিরোনাম", type: "text", required: true, full: true, group: groupBasics },
+    { name: "description", label: "বিবরণ", type: "textarea", full: true, group: groupBasics, rows: 3 },
+    { name: "cta_label", label: "বোতামের লেখা", type: "text", group: groupBasics, default: "বিস্তারিত" },
+    { name: "cta_href", label: "বোতামের লিংক", type: "text", group: groupBasics, default: "#admission" },
+    { name: "image_url", label: "ব্যানারের ছবি", type: "image", full: true, group: groupMedia },
+    { name: "accent", label: "অ্যাকসেন্ট রং", type: "color", group: groupBasics, default: "#102d2a" },
+    sortField,
+    activeField,
+  ],
+  news: [
+    { name: "title", label: "শিরোনাম", type: "text", required: true, full: true, group: groupBasics },
+    {
+      name: "slug",
+      label: "ইউআরএল স্লাগ",
+      type: "text",
+      group: groupBasics,
+      help: "খালি রাখলে শিরোনাম থেকে তৈরি হবে।",
+      pattern: "^[\\p{Letter}\\p{Number}][\\p{Letter}\\p{Number}-]{1,80}$",
+      patternError: "স্লাগে স্পেস বা / \ ? # চিহ্ন দেওয়া যাবে না।",
+    },
+    { ...clubField, required: false, help: "কোনো ক্লাব বেছে নিলে সংবাদটি সেই ক্লাবের পাতায়ও দেখাবে।" },
+    { name: "excerpt", label: "সংক্ষিপ্ত লেখা", type: "textarea", full: true, group: groupBasics, rows: 2 },
+    { name: "body", label: "বিস্তারিত লেখা", type: "textarea", full: true, group: groupBasics, rows: 8 },
+    { name: "image_url", label: "ছবি", type: "image", full: true, group: groupMedia },
+    {
+      name: "category",
+      label: "বিভাগ",
+      type: "select",
+      group: groupBasics,
+      default: "ক্যাম্পাস",
+      options: [
+        { label: "ক্যাম্পাস", value: "ক্যাম্পাস" },
+        { label: "শিক্ষা", value: "শিক্ষা" },
+        { label: "বিজ্ঞান মেলা", value: "বিজ্ঞান মেলা" },
+        { label: "সাংস্কৃতিক", value: "সাংস্কৃতিক" },
+        { label: "খেলাধুলা", value: "খেলাধুলা" },
+        { label: "সেবা", value: "সেবা" },
+      ],
+    },
+    { name: "author", label: "লিখেছে", type: "text", group: groupBasics, default: "ওকেজিএস বার্তা" },
+    publishDateField,
+    featuredField,
+    activeField,
+  ],
+  updates: [
+    { name: "title", label: "শিরোনাম", type: "text", required: true, full: true, group: groupBasics },
+    { name: "description", label: "বিবরণ", type: "textarea", full: true, group: groupBasics, rows: 3 },
+    { name: "date", label: "তারিখ", type: "date", group: groupBasics },
+    {
+      name: "kind",
+      label: "ধরন",
+      type: "select",
+      group: groupBasics,
+      default: "কার্যক্রম",
+      options: [
+        { label: "ভর্তি", value: "ভর্তি" },
+        { label: "ক্লাব", value: "ক্লাব" },
+        { label: "ক্যাম্পাস", value: "ক্যাম্পাস" },
+        { label: "বিজ্ঞান", value: "বিজ্ঞান" },
+        { label: "ফলাফল", value: "ফলাফল" },
+      ],
+    },
+    activeField,
+  ],
+  clubs: [
+    { name: "name", label: "ক্লাবের নাম", type: "text", required: true, full: true, group: groupBasics, placeholder: "ম্যাথ এন্ড সাইন্স ক্লাব" },
+    {
+      name: "slug",
+      label: "ইউআরএল স্লাগ",
+      type: "text",
+      required: true,
+      group: groupBasics,
+      help: "/clubs/এই-স্লাগ ঠিকানায় পাতাটি তৈরি হবে — ইংরেজি ছোট হাতের অক্ষর, সংখ্যা বা হাইফেন।",
+      pattern: "^[a-z0-9][a-z0-9-]{1,40}$",
+      patternError: "স্লাগ ইংরেজি ছোট হাতের অক্ষর, সংখ্যা বা হাইফেন (-) দিয়ে লিখুন, যেমন science বা math-club।",
+    },
+    { name: "tagline", label: "ট্যাগলাইন", type: "text", full: true, group: groupBasics },
+    { name: "description", label: "সংক্ষিপ্ত পরিচিতি", type: "textarea", full: true, group: groupBasics, rows: 3, help: "হোমপেজের কার্ড ও ক্লাব তালিকায় দেখানো হবে।" },
+    { name: "history", label: "ক্লাবের ইতিহাস", type: "textarea", full: true, group: groupBasics, rows: 6, help: "ক্লাব পাতার ‘পরিচিতি’ অংশে দেখানো হবে।" },
+    { name: "mission", label: "লক্ষ্য ও উদ্দেশ্য", type: "textarea", full: true, group: groupBasics, rows: 4 },
+    {
+      name: "objectives",
+      label: "মূল কার্যক্রম (এক লাইনে একটি)",
+      type: "textarea",
+      full: true,
+      group: groupBasics,
+      rows: 5,
+      help: "প্রতিটি লাইন একটি করে বুলেট পয়েন্ট হিসেবে দেখানো হবে।",
+    },
+    { name: "icon", label: "আইকন", type: "select", group: groupBasics, default: "Atom", options: iconOptions },
+    { name: "accent", label: "নিজস্ব রং", type: "color", group: groupBasics, default: "#e7c27e", help: "কার্ড, হেডার ও ট্যাবে এই রং ব্যবহৃত হবে।" },
+    { name: "image_url", label: "কার্ডের ছবি", type: "image", full: true, group: groupMedia, help: "হোমপেজ ও ক্লাব তালিকার ছবি।" },
+    { name: "cover_image_url", label: "কভার / হিরো ছবি", type: "image", full: true, group: groupMedia, help: "ক্লাব পাতার উপরের বড় ছবি।" },
+    { name: "founded_year", label: "যাত্রা শুরু (সাল)", type: "number", group: groupBasics, default: 0 },
+    { name: "member_count", label: "সদস্য সংখ্যা", type: "number", group: groupBasics, default: 0 },
+    { name: "meeting_day", label: "সভার দিন", type: "text", group: groupBasics, placeholder: "প্রতি বৃহস্পতিবার" },
+    { name: "meeting_time", label: "সভার সময়", type: "text", group: groupBasics, placeholder: "বিকাল ৪টা – ৫টা" },
+    { name: "meeting_place", label: "সভার স্থান", type: "text", group: groupBasics, placeholder: "স্কুল ল্যাব / মিলনায়তন" },
+    { name: "coordinator", label: "উপদেষ্টা শিক্ষক", type: "text", group: groupContact },
+    { name: "coordinator_phone", label: "উপদেষ্টার মোবাইল", type: "text", group: groupContact },
+    { name: "president", label: "সভাপতি (শিক্ষার্থী)", type: "text", group: groupContact },
+    { name: "email", label: "ক্লাবের ইমেইল", type: "text", group: groupContact },
+    { name: "facebook_url", label: "ফেসবুক পেজ", type: "url", full: true, group: groupContact },
+    { name: "domain", label: "নিজস্ব ওয়েবসাইট", type: "url", full: true, group: groupContact, help: "ক্লাবের আলাদা সাইট থাকলে লিংক দিন; খালি রাখলে লিংক দেখাবে না।" },
+    { name: "join_info", label: "কীভাবে যোগ দেবেন", type: "textarea", full: true, group: groupContact, rows: 3 },
+    sortField,
+    activeField,
+  ],
+  club_events: [
+    clubField,
+    { name: "title", label: "আয়োজনের নাম", type: "text", required: true, full: true, group: groupBasics },
+    { name: "description", label: "বিবরণ", type: "textarea", full: true, group: groupBasics, rows: 4 },
+    { name: "event_date", label: "তারিখ", type: "date", required: true, group: groupBasics },
+    { name: "event_time", label: "সময়", type: "text", group: groupBasics, placeholder: "সকাল ১০টা" },
+    { name: "venue", label: "স্থান", type: "text", group: groupBasics, placeholder: "স্কুল মিলনায়তন" },
+    {
+      name: "event_type",
+      label: "ধরন",
+      type: "select",
+      group: groupBasics,
+      default: "আয়োজন",
+      options: [
+        { label: "আয়োজন", value: "আয়োজন" },
+        { label: "ওয়ার্কশপ", value: "ওয়ার্কশপ" },
+        { label: "প্রতিযোগিতা", value: "প্রতিযোগিতা" },
+        { label: "বিশেষ অতিথি", value: "বিশেষ অতিথি" },
+        { label: "প্রদর্শনী", value: "প্রদর্শনী" },
+        { label: "সভা", value: "সভা" },
+      ],
+    },
+    { name: "registration_deadline", label: "নিবন্ধনের শেষ তারিখ", type: "date", group: groupBasics },
+    { name: "registration_link", label: "নিবন্ধনের লিংক", type: "url", full: true, group: groupContact },
+    { name: "image_url", label: "পোস্টার / ছবি", type: "image", full: true, group: groupMedia },
+    featuredField,
+    sortField,
+    activeField,
+  ],
+  club_posts: [
+    clubField,
+    { name: "title", label: "শিরোনাম", type: "text", required: true, full: true, group: groupBasics },
+    {
+      name: "slug",
+      label: "ইউআরএল স্লাগ",
+      type: "text",
+      group: groupBasics,
+      help: "খালি রাখলে শিরোনাম থেকে তৈরি হবে।",
+      pattern: "^[\\p{Letter}\\p{Number}][\\p{Letter}\\p{Number}-]{1,80}$",
+      patternError: "স্লাগে স্পেস বা / \ ? # চিহ্ন দেওয়া যাবে না।",
+    },
+    { name: "excerpt", label: "সংক্ষিপ্ত লেখা", type: "textarea", full: true, group: groupBasics, rows: 2 },
+    { name: "body", label: "বিস্তারিত লেখা", type: "textarea", full: true, group: groupBasics, rows: 10, help: "ফাঁকা লাইন দিয়ে অনুচ্ছেদ আলাদা করুন।" },
+    { name: "image_url", label: "ছবি", type: "image", full: true, group: groupMedia },
+    {
+      name: "category",
+      label: "বিভাগ",
+      type: "select",
+      group: groupBasics,
+      default: "রিপোর্ট",
+      options: [
+        { label: "রিপোর্ট", value: "রিপোর্ট" },
+        { label: "টিউটোরিয়াল", value: "টিউটোরিয়াল" },
+        { label: "অভিজ্ঞতা", value: "অভিজ্ঞতা" },
+        { label: "সম্পাদকীয়", value: "সম্পাদকীয়" },
+        { label: "ফলাফল", value: "ফলাফল" },
+      ],
+    },
+    { name: "author", label: "লিখেছে", type: "text", group: groupBasics },
+    { name: "note", label: "ক্লাবের নোট", type: "text", full: true, group: groupBasics, help: "লেখার নিচে দেখানো হবে।" },
+    publishDateField,
+    featuredField,
+    activeField,
+  ],
+  club_gallery: [
+    clubField,
+    { name: "caption", label: "ছবির বিবরণ", type: "text", full: true, group: groupBasics },
+    { name: "image_url", label: "ছবি", type: "image", required: true, full: true, group: groupMedia },
+    { name: "event_name", label: "কোন আয়োজন", type: "text", group: groupBasics, placeholder: "বার্ষিক বিজ্ঞান মেলা" },
+    { name: "taken_on", label: "তোলা হয়েছে", type: "date", group: groupBasics },
+    sortField,
+    activeField,
+  ],
+  club_members: [
+    clubField,
+    { name: "name", label: "নাম", type: "text", required: true, group: groupBasics },
+    {
+      name: "role",
+      label: "পদবি",
+      type: "select",
+      required: true,
+      group: groupBasics,
+      default: "সদস্য",
+      options: [
+        { label: "উপদেষ্টা", value: "উপদেষ্টা" },
+        { label: "সভাপতি", value: "সভাপতি" },
+        { label: "সহ-সভাপতি", value: "সহ-সভাপতি" },
+        { label: "সাধারণ সম্পাদক", value: "সাধারণ সম্পাদক" },
+        { label: "সহ-সম্পাদক", value: "সহ-সম্পাদক" },
+        { label: "তহবিল সম্পাদক", value: "তহবিল সম্পাদক" },
+        { label: "কার্যকরী সদস্য", value: "কার্যকরী সদস্য" },
+        { label: "সদস্য", value: "সদস্য" },
+      ],
+    },
+    { name: "class_room", label: "শ্রেণি", type: "text", group: groupBasics, placeholder: "ষষ্ঠ শ্রেণি" },
+    { name: "photo_url", label: "ছবি", type: "image", full: true, group: groupMedia },
+    { name: "bio", label: "সংক্ষিপ্ত পরিচিতি", type: "textarea", full: true, group: groupBasics, rows: 3 },
+    { name: "achievement", label: "অর্জন / বিশেষত্ব", type: "text", full: true, group: groupBasics },
+    sortField,
+    activeField,
+  ],
+  club_achievements: [
+    clubField,
+    { name: "title", label: "অর্জনের নাম", type: "text", required: true, full: true, group: groupBasics },
+    { name: "description", label: "বিবরণ", type: "textarea", full: true, group: groupBasics, rows: 3 },
+    { name: "awarded_to", label: "পেয়েছেন", type: "text", group: groupBasics, placeholder: "মোঃ সাকিব হাসান, অষ্টম শ্রেণি" },
+    { name: "achieved_on", label: "তারিখ / সাল", type: "date", group: groupBasics },
+    {
+      name: "level",
+      label: "পর্যায়",
+      type: "select",
+      group: groupBasics,
+      default: "উপজেলা",
+      options: [
+        { label: "স্কুল", value: "স্কুল" },
+        { label: "উপজেলা", value: "উপজেলা" },
+        { label: "জেলা", value: "জেলা" },
+        { label: "জাতীয়", value: "জাতীয়" },
+        { label: "আন্তর্জাতিক", value: "আন্তর্জাতিক" },
+      ],
+    },
+    { name: "position", label: "অবস্থান", type: "text", group: groupBasics, placeholder: "১ম স্থান / শীল্ড" },
+    { name: "certificate_url", label: "ছবি / সনদ", type: "image", full: true, group: groupMedia },
+    sortField,
+    activeField,
+  ],
+  facilities: [
+    { name: "title", label: "সুবিধার নাম", type: "text", required: true, group: groupBasics, placeholder: "বাস সার্ভিস" },
+    { name: "description", label: "বিবরণ", type: "textarea", full: true, group: groupBasics, rows: 2 },
+    { name: "icon", label: "আইকন", type: "select", group: groupBasics, default: "Sparkles", options: iconOptions },
+    { name: "image_url", label: "ছবি (ঐচ্ছিক)", type: "image", full: true, group: groupMedia },
+    sortField,
+    activeField,
+  ],
+  teachers: [
+    { name: "name", label: "নাম", type: "text", required: true, group: groupBasics },
+    { name: "role", label: "পদবি", type: "text", required: true, group: groupBasics, placeholder: "সহকারী প্রধান শিক্ষক" },
+    { name: "subject", label: "বিষয় / দায়িত্ব", type: "text", group: groupBasics },
+    {
+      name: "kind",
+      label: "তালিকা",
+      type: "select",
+      group: groupBasics,
+      default: "teacher",
+      help: "শিক্ষক, শিক্ষিকা বা কর্মচারী — হোমপেজে একই গ্রিডে দেখানো হবে।",
+      options: [
+        { label: "শিক্ষক", value: "teacher" },
+        { label: "শিক্ষিকা", value: "female-teacher" },
+        { label: "কর্মচারী", value: "staff" },
+        { label: "গভর্নিং বডি", value: "governor" },
+      ],
+    },
+    { name: "photo_url", label: "ছবি", type: "image", full: true, group: groupMedia },
+    { name: "bio", label: "সংক্ষিপ্ত পরিচিতি", type: "textarea", full: true, group: groupBasics, rows: 3 },
+    { name: "qualification", label: "শিক্ষাগত যোগ্যতা", type: "text", full: true, group: groupBasics },
+    { name: "phone", label: "যোগাযোগ নম্বর", type: "text", group: groupContact },
+    { name: "email", label: "ইমেইল", type: "text", group: groupContact },
+    sortField,
+    activeField,
+  ],
+  gallery: [
+    { name: "caption", label: "ছবির বিবরণ", type: "text", full: true, group: groupBasics },
+    { name: "image_url", label: "ছবি", type: "image", required: true, full: true, group: groupMedia },
+    { name: "event_name", label: "কোন আয়োজন", type: "text", group: groupBasics, placeholder: "বার্ষিক বিজ্ঞান মেলা" },
+    { ...clubField, required: false, help: "চাইলে কোনো ক্লাবের সঙ্গে যুক্ত করুন — সেই ক্লাবের গ্যালারিতেও দেখাবে।" },
+    { name: "taken_on", label: "তোলা হয়েছে", type: "date", group: groupBasics },
+    sortField,
+    activeField,
+  ],
+  stats: [
+    { name: "label", label: "বিষয়", type: "text", required: true, group: groupBasics, placeholder: "মোট শিক্ষার্থী" },
+    { name: "value", label: "মান", type: "text", required: true, group: groupBasics, placeholder: "১১০০+" },
+    { name: "note", label: "টিপ্পনী", type: "text", full: true, group: groupBasics },
+    { name: "icon", label: "আইকন", type: "select", group: groupBasics, default: "Sparkles", options: iconOptions },
+    sortField,
+    activeField,
+  ],
+  settings: [
+    {
+      name: "key",
+      label: "সেটিং কী",
+      type: "text",
+      required: true,
+      group: groupBasics,
+      placeholder: "site_name",
+      pattern: "^[a-z0-9_]{2,40}$",
+      patternError: "কী-তে ছোট হাতের অক্ষর, সংখ্যা বা আন্ডারস্কোর (_) ব্যবহার করুন।",
+    },
+    { name: "label", label: "দৃশ্যমান নাম", type: "text", required: true, group: groupBasics },
+    {
+      name: "field_kind",
+      label: "মানের ধরন",
+      type: "select",
+      group: groupBasics,
+      default: "text",
+      help: "‘ছবি’ বেছে নিলে মান ঘরে সরাসরি Cloudinary-তে আপলোড করা যাবে।",
+      options: [
+        { label: "সংক্ষিপ্ত লেখা", value: "text" },
+        { label: "দীর্ঘ লেখা", value: "textarea" },
+        { label: "ছবি (আপলোড)", value: "image" },
+        { label: "লিংক", value: "url" },
+      ],
+    },
+    { name: "value", label: "মান", type: "textarea", full: true, group: groupBasics, rows: 4 },
+    { name: "description", label: "ব্যবহার", type: "text", full: true, group: groupBasics },
+    { name: "image_url", label: "ছবি (যেমন লোগো)", type: "image", full: true, group: groupMedia },
+  ],
+};
+
+export const resourceMeta: Record<
+  ResourceName,
+  {
+    label: string;
+    singular: string;
+    icon: string;
+    group: "site" | "clubs" | "school";
+    description: string;
+    titleField: string;
+    parent?: "clubs";
+    reorderable?: boolean;
+  }
+> = {
+  slides: { label: "হিরো স্লাইড", singular: "স্লাইড", icon: "Images", group: "site", description: "হোমপেজের উপরের স্লাইডার।", titleField: "title", reorderable: true },
+  notices: { label: "নোটিশ", singular: "নোটিশ", icon: "BellRing", group: "site", description: "স্কুল ও ক্লাবের নোটিশ।", titleField: "title" },
+  banners: { label: "ব্যানার", singular: "ব্যানার", icon: "Megaphone", group: "site", description: "হোমপেজের প্রচার ব্যানার।", titleField: "title", reorderable: true },
+  news: { label: "সংবাদ", singular: "সংবাদ", icon: "Newspaper", group: "site", description: "স্কুলের সংবাদ ও প্রতিবেদন।", titleField: "title" },
+  updates: { label: "সর্বশেষ আপডেট", singular: "আপডেট", icon: "Activity", group: "site", description: "হোমপেজের ছোট আপডেট লিস্ট।", titleField: "title" },
+  clubs: { label: "ক্লাব তালিকা", singular: "ক্লাব", icon: "Trophy", group: "clubs", description: "ক্লাব তৈরি করুন, সাজান ও পূর্ণ তথ্য দিন।", titleField: "name", reorderable: true },
+  club_events: { label: "ক্লাব আয়োজন", singular: "আয়োজন", icon: "CalendarDays", group: "clubs", description: "প্রতিটি ক্লাবের অনুষ্ঠান ও প্রতিযোগিতা।", titleField: "title", parent: "clubs", reorderable: true },
+  club_posts: { label: "ক্লাব লেখা", singular: "লেখা", icon: "FileText", group: "clubs", description: "ক্লাবের ম্যাগাজিন, রিপোর্ট ও টিউটোরিয়াল।", titleField: "title", parent: "clubs" },
+  club_gallery: { label: "ক্লাব গ্যালারি", singular: "ছবি", icon: "Image", group: "clubs", description: "ক্লাবের ছবি — সরাসরি Cloudinary-তে আপলোড করুন।", titleField: "caption", parent: "clubs", reorderable: true },
+  club_members: { label: "ক্লাব সদস্য", singular: "সদস্য", icon: "Users", group: "clubs", description: "ক্লাব কমিটি ও সদস্য তালিকা।", titleField: "name", parent: "clubs", reorderable: true },
+  club_achievements: { label: "ক্লাব অর্জন", singular: "অর্জন", icon: "Award", group: "clubs", description: "পুরস্কার, শীল্ড ও সাফল্যের তালিকা।", titleField: "title", parent: "clubs", reorderable: true },
+  facilities: { label: "ক্যাম্পাস সুবিধা", singular: "সুবিধা", icon: "ShieldCheck", group: "school", description: "হোমপেজের ‘শেখার জন্য সুন্দর পরিবেশ’ কার্ডগুলো।", titleField: "title", reorderable: true },
+  teachers: { label: "শিক্ষক-কর্মচারী", singular: "শিক্ষক", icon: "Users", group: "school", description: "শিক্ষকমণ্ডলী ও স্টাফের তালিকা।", titleField: "name", reorderable: true },
+  gallery: { label: "স্কুল গ্যালারি", singular: "ছবি", icon: "Image", group: "school", description: "হোমপেজের ক্যাম্পাস ছবি।", titleField: "caption", reorderable: true },
+  stats: { label: "পরিসংখ্যান", singular: "সংখ্যা", icon: "Activity", group: "school", description: "হোমপেজের সংখ্যা-ব্যান্ড (শিক্ষার্থী, পাশের হার)।", titleField: "label", reorderable: true },
+  settings: { label: "স্কুল তথ্য", singular: "সেটিং", icon: "Settings2", group: "school", description: "নাম, ফোন, ঠিকানা সহ সাইটের মূল তথ্য।", titleField: "label" },
+};
+
+export const resourceOrder = Object.keys(resourceSchema) as ResourceName[];
+
+export const studioGroups: { id: "site" | "clubs" | "school"; label: string; resources: ResourceName[] }[] = [
+  { id: "clubs", label: "ক্লাব তথ্যকেন্দ্র", resources: ["clubs", "club_events", "club_posts", "club_gallery", "club_members", "club_achievements"] },
+  { id: "site", label: "হোমপেজ ও প্রকাশনা", resources: ["slides", "notices", "banners", "news", "updates"] },
+  { id: "school", label: "প্রতিষ্ঠান", resources: ["settings", "teachers", "facilities", "gallery", "stats"] },
+];
+
+/** Legacy/simple accessors kept so existing code keeps working. */
+export const resourceFields: Record<ResourceName, string[]> = Object.fromEntries(
+  resourceOrder.map((resource) => [resource, resourceSchema[resource].map((field) => field.name)]),
+) as Record<ResourceName, string[]>;
+
+export const resourceLabels: Record<ResourceName, string> = Object.fromEntries(
+  resourceOrder.map((resource) => [resource, resourceMeta[resource].label]),
+) as Record<ResourceName, string>;
+
+export const resourceSingular: Record<ResourceName, string> = Object.fromEntries(
+  resourceOrder.map((resource) => [resource, resourceMeta[resource].singular]),
+) as Record<ResourceName, string>;
+
+export const resourceRequired: Record<ResourceName, string[]> = Object.fromEntries(
+  resourceOrder.map((resource) => [resource, resourceSchema[resource].filter((field) => field.required).map((field) => field.name)]),
+) as Record<ResourceName, string[]>;
+
+export function fieldsFor(resource: ResourceName) {
+  return resourceSchema[resource] ?? [];
+}
+
+export function fieldDef(resource: ResourceName, name: string): FieldDef | undefined {
+  return fieldsFor(resource).find((field) => field.name === name);
+}
+
+export const booleanFieldNames = new Set(
+  resourceOrder.flatMap((resource) => fieldsFor(resource).filter((field) => field.type === "boolean").map((field) => field.name)),
+);
+
+export const numberFieldNames = new Set(
+  resourceOrder.flatMap((resource) => fieldsFor(resource).filter((field) => field.type === "number").map((field) => field.name)),
+);
+
+export const imageFieldNames = new Set(
+  resourceOrder.flatMap((resource) => fieldsFor(resource).filter((field) => field.type === "image").map((field) => field.name)),
+);
+
+export const dateFieldNames = new Set(
+  resourceOrder.flatMap((resource) =>
+    fieldsFor(resource).filter((field) => field.type === "date" || field.type === "datetime").map((field) => field.name),
+  ),
+);
+
+export function isBooleanField(field: string) {
+  return booleanFieldNames.has(field);
+}
+
+/** SQLite stores 0/1 and NULL — turn a raw row value into something UI-friendly. */
+export function normalizeRowFlags(key: string, value: unknown) {
+  if (booleanFieldNames.has(key)) return Number(value) === 1;
+  if (numberFieldNames.has(key)) return Number(value ?? 0);
+  return value === null || value === undefined ? "" : value;
+}
+
+export function coerceFieldValue(field: FieldDef, value: unknown): string | number {
+  if (field.type === "boolean") return value === true || value === 1 || value === "1" || value === "true" || value === "on" ? 1 : 0;
+  if (field.type === "number") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.round(parsed) : 0;
+  }
+  if (value === null || value === undefined) return "";
+  const text = String(value).trim();
+  if (field.type === "date") return text.slice(0, 10);
+  if (field.type === "datetime") return text.slice(0, 16);
+  if (field.type === "url") return text ? ensureProtocol(text) : "";
+  return text;
+}
+
+export function defaultValueFor(field: FieldDef): string | number {
+  if (field.default !== undefined) return field.default as string | number;
+  if (field.type === "boolean") return field.name === "is_active" ? 1 : 0;
+  if (field.type === "number") return 0;
+  if (field.type === "date") return new Date().toISOString().slice(0, 10);
+  if (field.type === "datetime") return new Date().toISOString().slice(0, 16);
+  return "";
+}
+
+/** SQL fragment for the column, derived from the field type and its default. */
+export function columnSql(field: FieldDef): string {
+  const seed = field.default !== undefined ? field.default : field.type === "boolean" ? field.name === "is_active" : "";
+  const fallback = String(coerceFieldValue(field, seed));
+  if (field.type === "boolean" || field.type === "number") {
+    // A newly added is_active column must not hide existing live rows.
+    return `INTEGER NOT NULL DEFAULT ${fallback === "1" ? 1 : 0}`;
+  }
+  return `TEXT NOT NULL DEFAULT '${fallback.replace(/'/g, "''")}'`;
+}
+
+export function ensureProtocol(value: string) {
+  const text = value.trim();
+  if (!text) return "";
+  return /^https?:\/\//i.test(text) ? text : `https://${text.replace(/^\/+/, "")}`;
+}
+
+/** Club "domain" is now optional — an empty value means "no separate website". */
+export function normalizeClubDomain(domain: string) {
+  return ensureProtocol(domain);
+}
+
+export function slugify(value: string) {
+  return String(value ?? "")
+    .toLowerCase()
+    .trim()
+    // \p{M} keeps combining signs (Bengali মাত্রা/হলান্ত) attached to their letter,
+    // otherwise “বার্ষিক” would slugify to “ব-র-ষ-ক”.
+    .replace(/\u200c|\u200d/g, "")
+    .replace(/[^\p{Letter}\p{Number}\p{M}]+/gu, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/* --- Bengali → Latin transliteration, used to suggest ASCII slugs --- */
+
+const bnConsonants: Record<string, string> = {
+  ক: "k", খ: "kh", গ: "g", ঘ: "gh", ঙ: "ng",
+  চ: "ch", ছ: "chh", জ: "j", ঝ: "jh", ঞ: "n",
+  ট: "t", ঠ: "th", ড: "d", ঢ: "dh", ণ: "n",
+  ত: "t", দ: "d", ধ: "dh", ন: "n",
+  প: "p", ফ: "ph", ব: "b", ভ: "bh", ম: "m",
+  য: "j", র: "r", ল: "l", শ: "sh", ষ: "sh", স: "s", হ: "h",
+  ড়: "r", ঢ়: "rh", য়: "y", ফ়: "f", জ়: "z",
+};
+
+const bnVowels: Record<string, string> = {
+  অ: "o", আ: "a", ই: "i", ঈ: "i", উ: "u", ঊ: "u", ঋ: "ri", এ: "e", ঐ: "oi", ও: "o", ঔ: "ou",
+  অা: "a",
+};
+
+const bnMatras: Record<string, string> = {
+  "া": "a", "ি": "i", "ী": "i", "ু": "u", "ূ": "u", "ৃ": "ri",
+  "ে": "e", "ৈ": "oi", "ো": "o", "ৌ": "ou",
+};
+
+/**
+ * Approximate but deterministic — enough to turn “ম্যাথ এন্ড সাইন্স ক্লাব” into a
+ * usable URL slug (`math-end-sains-club`) instead of forcing the admin to invent one.
+ */
+export function transliterateBn(value: string) {
+  const chars = Array.from(String(value));
+  const out: string[] = [];
+  for (let i = 0; i < chars.length; i += 1) {
+    const char = chars[i];
+    const next = chars[i + 1] ?? "";
+    if (char === "ৎ") { out.push("t"); continue; }
+    if (char === "ং") { out.push("ng"); continue; }
+    if (char === "ঃ") { continue; }
+    if (char === "্") { continue; }
+    if (char === "়") { continue; }
+    const consonant = bnConsonants[char];
+    if (consonant) {
+      if (next === "্") { out.push(consonant); i += 1; continue; }
+      const matra = bnMatras[next];
+      if (matra) { out.push(consonant + matra); i += 1; continue; }
+      // A bare consonant carries Bengali's inherent vowel.
+      out.push(`${consonant}a`);
+      continue;
+    }
+    const vowel = bnVowels[char];
+    if (vowel) { out.push(vowel); continue; }
+    const matra = bnMatras[char];
+    if (matra) { out.push(matra); continue; }
+    if (/[০-৯]/.test(char)) { out.push(String("০১২৩৪৫৬৭৮৯".indexOf(char))); continue; }
+    if (/[0-9a-zA-Z]/.test(char)) { out.push(char.toLowerCase()); continue; }
+    out.push(" ");
+  }
+  return out.join("").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+}
+
+/** Slug that is guaranteed to satisfy the club-slug pattern. */
+export function asciiSlug(value: string, fallback = "club") {
+  const slug = transliterateBn(value).replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  return slug.length >= 3 ? slug : `${fallback}-${Date.now().toString(36).slice(-5)}`;
+}
+
+/** Lines of a textarea become a list on the public site (club objectives). */
+export function toLines(value: unknown) {
+  return String(value ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-•*\d.)\s]+/, "").trim())
+    .filter(Boolean);
+}
+
+export function paragraphs(value: unknown) {
+  return String(value ?? "")
+    .split(/\r?\n\s*\r?\n/)
+    .map((block) => block.trim())
+    .filter(Boolean);
 }

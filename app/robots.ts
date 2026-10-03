@@ -1,8 +1,10 @@
 import type { MetadataRoute } from "next";
+import { siteUrl } from "@/lib/schema";
 
 export default function robots(): MetadataRoute.Robots {
+  const base = siteUrl();
   return {
     rules: [{ userAgent: "*", allow: ["/"], disallow: ["/admin", "/api/"] }],
-    sitemap: "https://okgs.info/sitemap.xml",
+    sitemap: `${base}/sitemap.xml`,
   };
 }

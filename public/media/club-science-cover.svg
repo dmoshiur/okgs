@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800" role="img" aria-label="ম্যাথ এন্ড সাইন্স ক্লাব">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="rgb(103,70,5)" />
+      <stop offset="0.55" stop-color="#f59e0b" />
+      <stop offset="1" stop-color="rgb(255,192,29)" />
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.45" stop-color="rgba(6,30,20,0)" />
+      <stop offset="1" stop-color="rgba(6,30,20,0.62)" />
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="800" fill="url(#bg)" />
+  <rect x="0" y="232" width="1600" height="33" fill="rgba(245,158,11,0.18)" transform="skewY(1.4)" /><rect x="0" y="431" width="1600" height="13" fill="rgba(245,158,11,0.18)" transform="skewY(-1.4)" /><rect x="0" y="124" width="1600" height="12" fill="rgba(245,158,11,0.18)" transform="skewY(1.4)" /><rect x="0" y="344" width="1600" height="32" fill="rgba(245,158,11,0.18)" transform="skewY(-1.4)" />
+  <circle cx="186" cy="615" r="122" fill="rgba(255,255,255,0.05)" /><circle cx="976" cy="468" r="220" fill="rgba(255,255,255,0.07)" /><circle cx="536" cy="235" r="62" fill="rgba(255,255,255,0.09)" /><circle cx="917" cy="304" r="234" fill="rgba(255,255,255,0.11)" /><circle cx="328" cy="399" r="118" fill="rgba(255,255,255,0.13)" />
+  <g opacity="0.5"><rect x="128" y="538" width="72" height="134" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="272" y="498" width="72" height="174" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="416" y="452" width="72" height="220" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="560" y="551" width="72" height="121" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="704" y="536" width="72" height="136" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="848" y="476" width="72" height="196" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="992" y="448" width="72" height="224" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="1136" y="444" width="72" height="228" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="1280" y="579" width="72" height="93" rx="3" fill="rgba(255,255,255,0.28)" /></g>
+  <rect width="1600" height="800" fill="url(#shade)" />
+  <g font-family="'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif">
+    <text x="96" y="740" fill="rgba(255,255,255,0.96)" font-size="60" font-weight="600">ম্যাথ এন্ড সাইন্স ক্লাব</text>
+    <text x="96" y="672" fill="rgba(255,255,255,0.62)" font-size="30" letter-spacing="2">OKGS · ওমর কিন্ডারগার্টেন স্কুল</text>
+  </g>
+</svg>

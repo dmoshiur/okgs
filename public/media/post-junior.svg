@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750" role="img" aria-label="রংতুলি উৎসব">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="rgb(99,32,73)" />
+      <stop offset="0.55" stop-color="#ec4899" />
+      <stop offset="1" stop-color="rgb(255,106,171)" />
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.45" stop-color="rgba(6,30,20,0)" />
+      <stop offset="1" stop-color="rgba(6,30,20,0.62)" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="750" fill="url(#bg)" />
+  <rect x="0" y="499" width="1200" height="29" fill="rgba(236,72,153,0.18)" transform="skewY(1.4)" /><rect x="0" y="259" width="1200" height="31" fill="rgba(236,72,153,0.18)" transform="skewY(-1.4)" /><rect x="0" y="632" width="1200" height="26" fill="rgba(236,72,153,0.18)" transform="skewY(1.4)" /><rect x="0" y="639" width="1200" height="20" fill="rgba(236,72,153,0.18)" transform="skewY(-1.4)" />
+  <circle cx="345" cy="228" r="77" fill="rgba(255,255,255,0.05)" /><circle cx="240" cy="555" r="199" fill="rgba(255,255,255,0.07)" /><circle cx="216" cy="309" r="197" fill="rgba(255,255,255,0.09)" /><circle cx="558" cy="483" r="213" fill="rgba(255,255,255,0.11)" /><circle cx="297" cy="112" r="195" fill="rgba(255,255,255,0.13)" />
+  <g opacity="0.5"><rect x="96" y="468" width="54" height="162" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="204" y="513" width="54" height="117" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="312" y="502" width="54" height="128" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="420" y="562" width="54" height="68" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="528" y="542" width="54" height="88" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="636" y="425" width="54" height="205" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="744" y="494" width="54" height="136" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="852" y="443" width="54" height="187" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="960" y="420" width="54" height="210" rx="3" fill="rgba(255,255,255,0.28)" /></g>
+  <rect width="1200" height="750" fill="url(#shade)" />
+  <g font-family="'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif">
+    <text x="72" y="694" fill="rgba(255,255,255,0.96)" font-size="56" font-weight="600">রংতুলি উৎসব</text>
+    <text x="72" y="630" fill="rgba(255,255,255,0.62)" font-size="29" letter-spacing="2">OKGS · ওমর কিন্ডারগার্টেন স্কুল</text>
+  </g>
+</svg>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="880" viewBox="0 0 700 880" role="img" aria-label="অফিস">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="rgb(76,37,4)" />
+      <stop offset="0.55" stop-color="#b45309" />
+      <stop offset="1" stop-color="rgb(220,117,27)" />
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.45" stop-color="rgba(6,30,20,0)" />
+      <stop offset="1" stop-color="rgba(6,30,20,0.62)" />
+    </linearGradient>
+  </defs>
+  <rect width="700" height="880" fill="url(#bg)" />
+  <rect x="0" y="215" width="700" height="26" fill="rgba(180,83,9,0.18)" transform="skewY(1.4)" /><rect x="0" y="759" width="700" height="33" fill="rgba(180,83,9,0.18)" transform="skewY(-1.4)" /><rect x="0" y="330" width="700" height="11" fill="rgba(180,83,9,0.18)" transform="skewY(1.4)" /><rect x="0" y="325" width="700" height="19" fill="rgba(180,83,9,0.18)" transform="skewY(-1.4)" />
+  <circle cx="437" cy="328" r="114" fill="rgba(255,255,255,0.05)" /><circle cx="588" cy="327" r="68" fill="rgba(255,255,255,0.07)" /><circle cx="117" cy="244" r="179" fill="rgba(255,255,255,0.09)" /><circle cx="311" cy="400" r="160" fill="rgba(255,255,255,0.11)" /><circle cx="333" cy="177" r="55" fill="rgba(255,255,255,0.13)" />
+  <g opacity="0.5"><rect x="56" y="610" width="32" height="129" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="119" y="548" width="32" height="191" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="182" y="590" width="32" height="149" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="245" y="659" width="32" height="80" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="308" y="616" width="32" height="123" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="371" y="650" width="32" height="89" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="434" y="518" width="32" height="221" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="497" y="496" width="32" height="243" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="560" y="586" width="32" height="153" rx="3" fill="rgba(255,255,255,0.28)" /></g>
+  <rect width="700" height="880" fill="url(#shade)" />
+  <g font-family="'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif">
+    <text x="42" y="814" fill="rgba(255,255,255,0.96)" font-size="53" font-weight="600">অফিস</text>
+    <text x="42" y="739" fill="rgba(255,255,255,0.62)" font-size="27" letter-spacing="2">OKGS · ওমর কিন্ডারগার্টেন স্কুল</text>
+  </g>
+</svg>

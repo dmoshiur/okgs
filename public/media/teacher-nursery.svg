@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="880" viewBox="0 0 700 880" role="img" aria-label="নার্সারি">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="rgb(99,32,73)" />
+      <stop offset="0.55" stop-color="#ec4899" />
+      <stop offset="1" stop-color="rgb(255,106,171)" />
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.45" stop-color="rgba(6,30,20,0)" />
+      <stop offset="1" stop-color="rgba(6,30,20,0.62)" />
+    </linearGradient>
+  </defs>
+  <rect width="700" height="880" fill="url(#bg)" />
+  <rect x="0" y="723" width="700" height="11" fill="rgba(236,72,153,0.18)" transform="skewY(1.4)" /><rect x="0" y="637" width="700" height="15" fill="rgba(236,72,153,0.18)" transform="skewY(-1.4)" /><rect x="0" y="342" width="700" height="25" fill="rgba(236,72,153,0.18)" transform="skewY(1.4)" /><rect x="0" y="371" width="700" height="30" fill="rgba(236,72,153,0.18)" transform="skewY(-1.4)" />
+  <circle cx="560" cy="439" r="68" fill="rgba(255,255,255,0.05)" /><circle cx="403" cy="773" r="133" fill="rgba(255,255,255,0.07)" /><circle cx="454" cy="273" r="200" fill="rgba(255,255,255,0.09)" /><circle cx="388" cy="167" r="175" fill="rgba(255,255,255,0.11)" /><circle cx="564" cy="139" r="119" fill="rgba(255,255,255,0.13)" />
+  <g opacity="0.5"><rect x="56" y="489" width="32" height="250" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="119" y="616" width="32" height="123" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="182" y="548" width="32" height="191" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="245" y="649" width="32" height="90" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="308" y="628" width="32" height="111" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="371" y="521" width="32" height="218" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="434" y="588" width="32" height="151" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="497" y="544" width="32" height="195" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="560" y="512" width="32" height="227" rx="3" fill="rgba(255,255,255,0.28)" /></g>
+  <rect width="700" height="880" fill="url(#shade)" />
+  <g font-family="'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif">
+    <text x="42" y="814" fill="rgba(255,255,255,0.96)" font-size="53" font-weight="600">নার্সারি</text>
+    <text x="42" y="739" fill="rgba(255,255,255,0.62)" font-size="27" letter-spacing="2">OKGS · ওমর কিন্ডারগার্টেন স্কুল</text>
+  </g>
+</svg>

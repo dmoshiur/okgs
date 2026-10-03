@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800" role="img" aria-label="ভাষা ও সাহিত্য ক্লাব">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="rgb(5,65,65)" />
+      <stop offset="0.55" stop-color="#0d9488" />
+      <stop offset="1" stop-color="rgb(53,182,154)" />
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.45" stop-color="rgba(6,30,20,0)" />
+      <stop offset="1" stop-color="rgba(6,30,20,0.62)" />
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="800" fill="url(#bg)" />
+  <rect x="0" y="450" width="1600" height="32" fill="rgba(13,148,136,0.18)" transform="skewY(1.4)" /><rect x="0" y="183" width="1600" height="16" fill="rgba(13,148,136,0.18)" transform="skewY(-1.4)" /><rect x="0" y="197" width="1600" height="22" fill="rgba(13,148,136,0.18)" transform="skewY(1.4)" /><rect x="0" y="298" width="1600" height="6" fill="rgba(13,148,136,0.18)" transform="skewY(-1.4)" />
+  <circle cx="962" cy="643" r="69" fill="rgba(255,255,255,0.05)" /><circle cx="406" cy="397" r="155" fill="rgba(255,255,255,0.07)" /><circle cx="989" cy="203" r="161" fill="rgba(255,255,255,0.09)" /><circle cx="644" cy="491" r="221" fill="rgba(255,255,255,0.11)" /><circle cx="1369" cy="205" r="83" fill="rgba(255,255,255,0.13)" />
+  <g opacity="0.5"><rect x="128" y="571" width="72" height="101" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="272" y="444" width="72" height="228" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="416" y="436" width="72" height="236" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="560" y="599" width="72" height="73" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="704" y="588" width="72" height="84" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="848" y="540" width="72" height="132" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="992" y="487" width="72" height="185" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="1136" y="570" width="72" height="102" rx="3" fill="rgba(255,255,255,0.28)" /><rect x="1280" y="482" width="72" height="190" rx="3" fill="rgba(255,255,255,0.28)" /></g>
+  <rect width="1600" height="800" fill="url(#shade)" />
+  <g font-family="'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif">
+    <text x="96" y="740" fill="rgba(255,255,255,0.96)" font-size="60" font-weight="600">ভাষা ও সাহিত্য ক্লাব</text>
+    <text x="96" y="672" fill="rgba(255,255,255,0.62)" font-size="30" letter-spacing="2">OKGS · ওমর কিন্ডারগার্টেন স্কুল</text>
+  </g>
+</svg>
