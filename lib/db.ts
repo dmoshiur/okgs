@@ -133,7 +133,7 @@ const seedSlides = [
     description: "২০০৩ সাল থেকে কালাই, জয়পুরহাটে মানসম্মত শিক্ষায় নিবেদিত।",
     cta_label: "ভর্তি তথ্য",
     cta_href: "#admission",
-    image_url: `${officialImage}/hero-building.jpg`,
+    image_url: `${officialImage}/mission.jpg`,
     accent: "#d97706",
     sort_order: 1,
   },

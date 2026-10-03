@@ -12,7 +12,7 @@ export function HeroCarousel({ slides }: { slides: Slide[] }) {
     description: "২০০৩ সাল থেকে কালাই, জয়পুরহাটে মানসম্মত শিক্ষায় নিবেদিত।",
     cta_label: "ভর্তি তথ্য",
     cta_href: "#admission",
-    image_url: "https://omarkgschool.com/images/hero-building.jpg",
+    image_url: "https://omarkgschool.com/images/mission.jpg",
     accent: "#d97706",
     sort_order: 1,
     is_active: true,

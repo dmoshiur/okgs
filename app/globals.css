@@ -315,3 +315,30 @@ img { max-width: 100%; display: block; }
   .public-site .club-card p { min-height: 0; }
   .public-site .hero-copy h1 { font-size: 40px; }
 }
+
+/* Preview-friendly responsive pass */
+.public-site .hero-actions .button,
+.public-site .hero-actions .hero-text-link { white-space: nowrap; }
+.public-site .hero-copy h1 { text-wrap: balance; }
+.public-site .hero-slide { background-color: var(--green-900); }
+@media (max-width: 900px) {
+  .public-site .site-header { width: calc(100% - 32px); }
+  .public-site .main-nav, .public-site .header-actions { display: none; }
+  .public-site .mobile-menu { display: grid; place-items: center; }
+  .public-site .hero-carousel { height: 540px; min-height: 540px; }
+  .public-site .hero-content-wrap { height: calc(100% - 80px); padding-bottom: 42px; }
+  .public-site .hero-copy { width: min(100%, 600px); }
+  .public-site .hero-copy h1 { max-width: 560px; font-size: clamp(38px, 7.7vw, 58px); }
+  .public-site .hero-description { max-width: 390px; font-size: 15px; }
+  .public-site .hero-badge { display: none; }
+  .public-site .hero-footer { bottom: 18px; }
+  .public-site .hero-progress, .public-site .hero-scroll { display: none; }
+}
+@media (max-width: 560px) {
+  .public-site .hero-carousel { height: 520px; min-height: 520px; }
+  .public-site .hero-content-wrap { padding-bottom: 42px; }
+  .public-site .hero-copy h1 { font-size: 39px; line-height: 1.16; }
+  .public-site .hero-description { max-width: 300px; font-size: 14px; }
+  .public-site .hero-actions { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .public-site .hero-actions .button { padding: 10px 16px; }
+}
