@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+tsconfig.tsbuildinfo
+local.db
+local.db-shm
+local.db-wal
+.env
+.env.local
+.env.*.local
+!.env.example
+npm-debug.log*
+.DS_Store
