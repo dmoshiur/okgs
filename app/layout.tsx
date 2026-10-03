@@ -3,15 +3,15 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "OKGS — A bright beginning for every possibility",
-    template: "%s | OKGS",
+    default: "ওমর কিন্ডারগার্টেন স্কুল | কালাই, জয়পুরহাট",
+    template: "%s | ওমর কিন্ডারগার্টেন স্কুল",
   },
   description:
-    "Omar Kindergarten School — a warm, future-facing school where curious minds grow generous futures.",
+    "ওমর কিন্ডারগার্টেন স্কুল এন্ড ওমর গার্টেন একাডেমি — ২০০৩ সাল থেকে কালাই, জয়পুরহাটে মানসম্মত শিক্ষায় নিবেদিত।",
   metadataBase: new URL("https://okgs.info"),
   openGraph: {
-    title: "OKGS — A bright beginning for every possibility",
-    description: "A school shaped by wonder, character and confident contribution.",
+    title: "ওমর কিন্ডারগার্টেন স্কুল এন্ড ওমর গার্টেন একাডেমি",
+    description: "কালাই, জয়পুরহাটে ২০০৩ সাল থেকে মানসম্মত শিক্ষা।",
     url: "https://okgs.info",
     siteName: "OKGS",
     type: "website",

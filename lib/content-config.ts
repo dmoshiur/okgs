@@ -53,23 +53,23 @@ export const resourceFields: Record<ResourceName, string[]> = {
 };
 
 export const resourceLabels: Record<ResourceName, string> = {
-  slides: "Hero slides",
-  notices: "Notices",
-  banners: "Banners",
-  news: "News",
-  updates: "Latest updates",
-  clubs: "Clubs",
-  settings: "School profile",
+  slides: "হিরো স্লাইড",
+  notices: "নোটিশ",
+  banners: "ব্যানার",
+  news: "সংবাদ",
+  updates: "সর্বশেষ আপডেট",
+  clubs: "ক্লাবসমূহ",
+  settings: "স্কুল পরিচিতি",
 };
 
 export const resourceSingular: Record<ResourceName, string> = {
-  slides: "slide",
-  notices: "notice",
-  banners: "banner",
-  news: "story",
-  updates: "update",
-  clubs: "club",
-  settings: "setting",
+  slides: "স্লাইড",
+  notices: "নোটিশ",
+  banners: "ব্যানার",
+  news: "সংবাদ",
+  updates: "আপডেট",
+  clubs: "ক্লাব",
+  settings: "সেটিং",
 };
 
 export const resourceRequired: Record<ResourceName, string[]> = {

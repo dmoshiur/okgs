@@ -43,14 +43,14 @@ type IconType = ComponentType<{ size?: number; strokeWidth?: number; className?:
 type NavItem = { id: ResourceName | "overview"; label: string; icon: IconType };
 
 const nav: NavItem[] = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "slides", label: "Hero slides", icon: Image },
-  { id: "notices", label: "Notices", icon: BellRing },
-  { id: "banners", label: "Banners", icon: Sparkles },
-  { id: "news", label: "News", icon: Newspaper },
-  { id: "updates", label: "Latest updates", icon: Activity },
-  { id: "clubs", label: "Clubs", icon: Trophy },
-  { id: "settings", label: "School profile", icon: Settings2 },
+  { id: "overview", label: "ওভারভিউ", icon: LayoutDashboard },
+  { id: "slides", label: "হিরো স্লাইড", icon: Image },
+  { id: "notices", label: "নোটিশ", icon: BellRing },
+  { id: "banners", label: "ব্যানার", icon: Sparkles },
+  { id: "news", label: "সংবাদ", icon: Newspaper },
+  { id: "updates", label: "সর্বশেষ আপডেট", icon: Activity },
+  { id: "clubs", label: "ক্লাবসমূহ", icon: Trophy },
+  { id: "settings", label: "স্কুল পরিচিতি", icon: Settings2 },
 ];
 
 const emptyData: Record<ResourceName, Item[]> = {
@@ -58,7 +58,7 @@ const emptyData: Record<ResourceName, Item[]> = {
 };
 
 const fieldLabels: Record<string, string> = {
-  eyebrow: "Eyebrow label", title: "Title", description: "Description", cta_label: "Button label", cta_href: "Button link", image_url: "Image URL", accent: "Accent color", sort_order: "Display order", is_active: "Published", body: "Body copy", type: "Notice type", published_at: "Publish date", label: "Small label", slug: "URL slug", excerpt: "Excerpt", category: "Category", author: "Author", is_featured: "Featured story", date: "Update date", kind: "Update type", name: "Club name", tagline: "Club tagline", icon: "Icon name", domain: "Club portal URL", key: "Setting key", value: "Value", key_description: "Description",
+  eyebrow: "উপরের লেবেল", title: "শিরোনাম", description: "বিবরণ", cta_label: "বোতামের লেখা", cta_href: "বোতামের লিংক", image_url: "ছবির লিংক", accent: "অ্যাকসেন্ট রং", sort_order: "ক্রম", is_active: "প্রকাশিত", body: "বিস্তারিত লেখা", type: "নোটিশের ধরন", published_at: "প্রকাশের তারিখ", label: "ছোট লেবেল", slug: "ইউআরএল স্লাগ", excerpt: "সংক্ষিপ্ত লেখা", category: "বিভাগ", author: "লেখক", is_featured: "বিশেষ সংবাদ", date: "আপডেটের তারিখ", kind: "আপডেটের ধরন", name: "ক্লাবের নাম", tagline: "ক্লাবের ট্যাগলাইন", icon: "আইকন", domain: "ক্লাব পোর্টাল লিংক", key: "সেটিং কী", value: "মান", key_description: "বিবরণ",
 };
 
 const textareaFields = new Set(["description", "body", "excerpt", "value"]);

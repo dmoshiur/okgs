@@ -30,40 +30,17 @@ export default function AdminLoginPage() {
       });
       const data = await response.json();
       if (!response.ok) {
-        setError(data.error || "Unable to sign in.");
+        setError(data.error || "ইমেইল বা পাসওয়ার্ড সঠিক নয়।");
         return;
       }
       router.push("/admin");
       router.refresh();
     } catch {
-      setError("Could not reach the admin service. Please try again.");
+      setError("অ্যাডমিন সার্ভারে যোগাযোগ করা যাচ্ছে না। আবার চেষ্টা করুন।");
     } finally {
       setBusy(false);
     }
   }
 
-  return (
-    <main className="login-page">
-      <section className="login-art">
-        <div className="login-art-shape shape-one" /><div className="login-art-shape shape-two" /><div className="login-art-shape shape-three" />
-        <a className="login-brand" href="/"><span className="brand-mark"><span>O</span></span><span><b>OKGS</b><small>Content studio</small></span></a>
-        <div className="login-art-copy"><p className="eyebrow eyebrow-light"><span className="eyebrow-dot" />The calm behind the scenes</p><h1>Make the<br /><em>good work</em><br />visible.</h1><p>One considered space for the stories, notices and people that make OKGS feel like OKGS.</p></div>
-        <div className="login-art-footer"><span><Sparkles size={14} /> Editorial control room</span><span>01 / 01</span></div>
-      </section>
-      <section className="login-form-side">
-        <div className="login-form-wrap">
-          <div className="login-mobile-brand"><a className="login-brand" href="/"><span className="brand-mark"><span>O</span></span><span><b>OKGS</b><small>Admin studio</small></span></a></div>
-          <div className="login-heading"><span className="login-kicker"><LockKeyhole size={14} /> Secure workspace</span><h2>Welcome back.</h2><p>Sign in to shape what the OKGS community sees next.</p></div>
-          <form className="login-form" onSubmit={submit}>
-            <label>Email address<input type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
-            <label>Password<div className="password-input"><input type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /><button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div></label>
-            {error ? <p className="form-error">{error}</p> : null}
-            <button className="button button-dark login-submit" type="submit" disabled={busy}>{busy ? "Checking access…" : "Enter studio"}<ArrowRight size={17} /></button>
-          </form>
-          <div className="login-note"><span>Good to know</span><p>Admin credentials are configured through your environment. If you are setting up OKGS locally, check your <code>.env.local</code>.</p></div>
-          <a className="back-home" href="/"><ArrowRight size={14} /> Back to public site</a>
-        </div>
-      </section>
-    </main>
-  );
+  return <main className="login-page"><section className="login-art"><div className="login-art-shape shape-one" /><div className="login-art-shape shape-two" /><div className="login-art-shape shape-three" /><a className="login-brand" href="/"><span className="brand-mark"><span>ও</span></span><span><b>ওকেজিএস</b><small>কনটেন্ট স্টুডিও</small></span></a><div className="login-art-copy"><p className="eyebrow eyebrow-light"><span className="eyebrow-dot" />পেছনের কাজের জন্য একটি শান্ত জায়গা</p><h1>ভালো কাজ<br /><em>সবার সামনে</em><br />আনুন।</h1><p>স্কুলের খবর, নোটিশ ও কার্যক্রম এক জায়গা থেকে সহজে পরিচালনা করুন।</p></div><div className="login-art-footer"><span><Sparkles size={14} /> সম্পাদকীয় নিয়ন্ত্রণ কক্ষ</span><span>০১ / ০১</span></div></section><section className="login-form-side"><div className="login-form-wrap"><div className="login-mobile-brand"><a className="login-brand" href="/"><span className="brand-mark"><span>ও</span></span><span><b>ওকেজিএস</b><small>অ্যাডমিন স্টুডিও</small></span></a></div><div className="login-heading"><span className="login-kicker"><LockKeyhole size={14} /> নিরাপদ ওয়ার্কস্পেস</span><h2>স্বাগতম।</h2><p>ওমর কিন্ডারগার্টেন স্কুলের তথ্য আপডেট করতে লগইন করুন।</p></div><form className="login-form" onSubmit={submit}><label>ইমেইল ঠিকানা<input type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required /></label><label>পাসওয়ার্ড<div className="password-input"><input type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /><button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখুন"}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div></label>{error ? <p className="form-error">{error}</p> : null}<button className="button button-dark login-submit" type="submit" disabled={busy}>{busy ? "যাচাই হচ্ছে…" : "স্টুডিওতে প্রবেশ করুন"}<ArrowRight size={17} /></button></form><div className="login-note"><span>জেনে রাখুন</span><p>অ্যাডমিন তথ্য আপনার environment-এ সংরক্ষিত। লোকাল সেটআপে <code>.env.local</code> ফাইল দেখুন।</p></div><a className="back-home" href="/"><ArrowRight size={14} /> পাবলিক সাইটে ফিরুন</a></div></section></main>;
 }

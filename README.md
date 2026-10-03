@@ -1,6 +1,6 @@
 # OKGS — Omar Kindergarten School
 
-A polished, content-managed school website built with Next.js App Router and Turso/libSQL.
+একটি বাংলা, সংক্ষিপ্ত ও কনটেন্ট-ম্যানেজড স্কুল ওয়েবসাইট — Next.js App Router এবং Turso/libSQL দিয়ে তৈরি। অফিসিয়াল `omarkgschool.com`-এর প্রকাশিত তথ্য, ছবি ও যোগাযোগের তথ্য অনুসরণ করে হোমপেজ সাজানো হয়েছে।
 
 ## Features
 
