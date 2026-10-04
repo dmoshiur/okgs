@@ -538,7 +538,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .hero-visual { position: relative; animation: rise-in .7s ease both; }
 .hero-stage {
   position: relative;
-  aspect-ratio: 5 / 4;
+  aspect-ratio: 16 / 10;
   overflow: hidden;
   border-radius: var(--r-xl);
   background: var(--surface-alt-2);
@@ -736,7 +736,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 }
 .club-photo {
   position: relative; display: block;
-  aspect-ratio: 3 / 2;
+  aspect-ratio: 16 / 10;
   background: var(--surface-alt-2) center/cover no-repeat;
 }
 .club-photo .smart-image, .club-photo .media-fallback { width: 100%; height: 100%; object-fit: cover; }
@@ -919,7 +919,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   position: relative;
   display: flex; flex-direction: column; justify-content: flex-end;
   overflow: hidden;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 3 / 2;
   padding: 22px;
   border-radius: var(--r-lg);
   background: var(--brand-deep) center/cover no-repeat;
@@ -1104,7 +1104,8 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .news-card:hover { box-shadow: var(--shadow-lg); border-color: var(--line-2); }
 .news-image {
   position: relative; display: block;
-  min-height: 300px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
   background: var(--surface-alt-2) center/cover no-repeat;
 }
 .news-image .smart-image, .news-image .media-fallback { width: 100%; height: 100%; min-height: inherit; object-fit: cover; }
@@ -1135,7 +1136,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .news-club-tag { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-family: var(--font-ui); font-size: 12.5px; }
 .news-club-tag:hover { color: var(--brand-mid); }
 .news-side-list .news-card { flex-direction: row; align-items: stretch; }
-.news-side-list .news-image { width: 40%; min-height: 100%; min-height: 200px; }
+.news-side-list .news-image { width: 40%; min-height: 200px; aspect-ratio: auto; }
 .news-side-list .news-card h3 { font-size: 1.0625rem; }
 
 /* ==================================================== updates =========== */
@@ -1177,7 +1178,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   transition: transform .24s ease, box-shadow .24s ease;
 }
 .teacher-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
-.teacher-photo { overflow: hidden; border-radius: var(--r); background: var(--surface-alt-2); aspect-ratio: 4 / 3; }
+.teacher-photo { overflow: hidden; border-radius: var(--r); background: var(--surface-alt-2); aspect-ratio: 3 / 4; }
 .teacher-photo .smart-image, .teacher-photo .media-fallback { width: 100%; height: 100%; object-fit: cover; }
 .teacher-card h3 { margin-top: 10px; font-size: 1.0625rem; }
 .teacher-card p { margin: 0; color: var(--brand-mid); font-family: var(--font-ui); font-size: 13.5px; font-weight: 600; }
@@ -2664,3 +2665,31 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   padding: 18px 24px; transition: background-color .18s ease;
 }
 .pulse-list-plain a:hover { background: var(--surface-alt); }
+
+/* ==========================================================================
+   Media focal point
+   The seeded illustrations (and any later upload) place their caption at the
+   bottom-left, so a cover-crop is anchored there: the artwork's own label is
+   never sliced in half by a narrower frame.
+   ========================================================================== */
+.hero-stage > *,
+.club-photo,
+.news-image,
+.gallery-tile,
+.gallery-tile img,
+.showcase-card,
+.showcase-card img,
+.post-photo,
+.post-photo img,
+.event-photo,
+.article-hero,
+.club-cover,
+.about-image,
+.admission-image,
+.teacher-photo,
+.club-hero-bg {
+  object-position: left center;
+  background-position: left center;
+}
+.showcase-card img.bg, .showcase-card .bg { object-position: left center; }
+.teacher-photo img, .member-photo img { object-position: center top; }
