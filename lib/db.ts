@@ -277,6 +277,38 @@ async function backfillClubLinks() {
   }
 }
 
+/**
+ * The default theme once shipped a green + gold palette. The refreshed design
+ * uses the deep-green/mint pair, so rows still holding the legacy defaults are
+ * repainted once — anything an admin has already customised is left alone.
+ */
+async function refreshDefaultTheme() {
+  const legacy = { accent: "#15803d", accent_2: "#d97706", radius: 18, ink: "#0f2e21" };
+  const row = await db.execute({
+    sql: `SELECT id, accent, accent_2, radius, ink FROM themes WHERE key = ? LIMIT 1`,
+    args: ["campus-green"],
+  });
+  if (!row.rows.length) return;
+  const current = row.rows[0] as unknown as { id: string; accent: string; accent_2: string; radius: number | string; ink: string };
+  const untouched =
+    String(current.accent || "").toLowerCase() === legacy.accent &&
+    String(current.accent_2 || "").toLowerCase() === legacy.accent_2;
+  if (!untouched) return;
+  await db.execute({
+    sql: `UPDATE themes SET accent = ?, accent_2 = ?, ink = ?, radius = ?, description = ?, updated_at = ? WHERE id = ?`,
+    args: [
+      "#008744",
+      "#36f293",
+      "#111111",
+      12,
+      "গভীর সবুজ ও মিন্ট অ্যাকসেন্ট — হোম ও ক্লাব পাতার ডিফল্ট, পেশাদার থিম।",
+      now(),
+      String(current.id),
+    ],
+  });
+  console.log("[okgs] default theme refreshed to the green/mint palette");
+}
+
 async function bootstrap() {
   await db.batch(schemaStatements(), "write");
   for (const resource of resourceOrder) {
@@ -284,6 +316,7 @@ async function bootstrap() {
   }
   await migrateLegacyClubs();
   await backfillClubLinks();
+  await refreshDefaultTheme();
   for (const plan of seeds) {
     await seedTable(plan.resource, plan.rows);
   }

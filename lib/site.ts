@@ -113,24 +113,54 @@ export function themeCss(theme: SiteTheme | null) {
   if (!theme) return "";
   const pair = fontPairs[theme.font_pair] ?? fontPairs["hind-noto"];
   const dark = theme.mode === "dark";
-  const radius = Number(theme.radius) || 18;
-  const surface = theme.surface || (dark ? "#0b1020" : "#ffffff");
-  const ink = theme.ink || (dark ? "#e2e8ff" : "#0f172a");
-  const accent = theme.accent || "#7c3aed";
-  const accent2 = theme.accent_2 || "#06b6d4";
+  const radius = Number(theme.radius) || 12;
+  const surface = theme.surface || (dark ? "#0b1f16" : "#ffffff");
+  const ink = theme.ink || (dark ? "#e8f5ec" : "#111111");
+  const accent = theme.accent || "#008744";
+  const accent2 = theme.accent_2 || "#36f293";
+  const away = dark ? "#ffffff" : "#000000";
+  const deepBase = dark ? "#02150b" : "#00230f";
 
-  // A soft tint of the accent for surfaces — mix with white (light) or the surface (dark).
-  const tint = dark ? `color-mix(in srgb, ${accent} 18%, ${surface})` : `color-mix(in srgb, ${accent} 10%, #ffffff)`;
+  // Soft tints used for cards, chips and hairlines.
   const line = dark ? `color-mix(in srgb, ${ink} 16%, ${surface})` : `color-mix(in srgb, ${ink} 12%, #ffffff)`;
-  const muted = dark ? `color-mix(in srgb, ${ink} 62%, ${surface})` : `color-mix(in srgb, ${ink} 62%, #ffffff)`;
+  const muted = `color-mix(in srgb, ${ink} 62%, ${surface})`;
+  const softAccent = `color-mix(in srgb, ${accent2} 12%, ${surface})`;
+  const softLine = `color-mix(in srgb, ${accent2} 34%, ${surface})`;
+  const softText = `color-mix(in srgb, ${accent} 72%, ${away})`;
+  const altSurface = dark ? `color-mix(in srgb, ${ink} 8%, ${surface})` : "#f0f4f2";
 
-  // The legacy design reads --green-*/--gold/--paper/--ink, so aliasing them here
-  // means a theme switch instantly repaints every existing section too.
+  // The stylesheet reads semantic tokens (brand / mint / surface …), so a theme
+  // switch repaints every section — public site, club pages and console alike.
   return `:root {
+  --brand: ${accent};
+  --brand-mid: ${accent};
+  --brand-hover: color-mix(in srgb, ${accent} 82%, ${away});
+  --brand-deep: color-mix(in srgb, ${accent} 22%, ${deepBase});
+  --brand-dark: color-mix(in srgb, ${accent} 30%, ${deepBase});
+  --brand-ink: color-mix(in srgb, ${accent} 38%, ${deepBase});
+  --mint: ${accent2};
+  --mint-hover: color-mix(in srgb, ${accent2} 84%, ${away});
+  --mint-soft: ${softAccent};
+  --mint-soft-2: ${softAccent};
+  --mint-line: ${softLine};
+  --mint-text: ${softText};
+  --surface: ${surface};
+  --surface-alt: ${altSurface};
+  --surface-alt-2: ${dark ? `color-mix(in srgb, ${ink} 5%, ${surface})` : "#f5f7fa"};
+  --ink: ${ink};
+  --ink-2: ${ink};
+  --body: ${muted};
+  --muted: ${muted};
+  --line: ${line};
+  --line-2: ${line};
+  --r: ${radius}px;
+  --r-lg: ${radius + 4}px;
+  --r-xl: ${radius + 8}px;
+  --r-2xl: ${radius + 10}px;
   --okgs-accent: ${accent};
   --okgs-accent-2: ${accent2};
   --okgs-surface: ${surface};
-  --okgs-surface-2: ${tint};
+  --okgs-surface-2: ${altSurface};
   --okgs-ink: ${ink};
   --okgs-muted: ${muted};
   --okgs-line: ${line};
@@ -138,28 +168,25 @@ export function themeCss(theme: SiteTheme | null) {
   --okgs-heading: ${pair.heading};
   --okgs-body: ${pair.body};
   --okgs-mode: ${theme.mode};
-}
-body[data-theme-mode="dark"] { color-scheme: dark; }
-  --green-950: color-mix(in srgb, ${accent} 78%, ${dark ? "#000000" : "#0b1f16"});
+  --green-950: ${`color-mix(in srgb, ${accent} 22%, ${deepBase})`};
   --green-900: ${accent};
   --green-800: ${accent};
-  --green-700: color-mix(in srgb, ${accent} 88%, ${dark ? "#ffffff" : "#000000"});
-  --green-50: ${tint};
+  --green-700: color-mix(in srgb, ${accent} 88%, ${away});
+  --green-50: ${softAccent};
+  --green-100: ${softLine};
   --ink-deep: ${ink};
-  --ink: ${ink};
   --ink-soft: ${muted};
-  --muted: ${muted};
   --paper: ${surface};
-  --paper-alt: ${tint};
-  --line: ${line};
+  --paper-alt: ${altSurface};
   --gold: ${accent2};
-  --gold-500: ${accent2};
-  --gold-600: color-mix(in srgb, ${accent2} 82%, #000000);
-  --gold-100: color-mix(in srgb, ${accent2} 16%, ${surface});
-  --gold-soft: color-mix(in srgb, ${accent2} 30%, ${surface});
+  --gold-soft: ${softLine};
+  --gold-500: ${accent};
+  --gold-600: color-mix(in srgb, ${accent} 82%, ${away});
+  --gold-100: ${softAccent};
   --serif: ${pair.heading};
   --sans: ${pair.body};
   --mono: ${pair.body};
 }
+body[data-theme-mode="dark"] { color-scheme: dark; }
 ${theme.custom_css || ""}`;
 }

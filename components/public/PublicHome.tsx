@@ -70,20 +70,12 @@ export function PublicHome({ content }: { content: PublicContent }) {
   return (
     <PublicChrome content={content} active="home">
       <main>
-        <FairMega content={content} />
-
         <section className="hero-section">
           <HeroCarousel
             slides={content.slides}
             badge={{ year: settingValue(settings, "hero_badge_year", "২০০৩"), place: settingValue(settings, "hero_badge_place", "কালাই, জয়পুরহাট") }}
           />
         </section>
-
-        <ClubShowcase
-          clubs={clubSummaries.map((summary) => summary.club)}
-          slides={content.slides}
-          counts={Object.fromEntries(clubSummaries.map((summary) => [summary.club.slug, summary.counts.gallery]))}
-        />
 
         <section className="notice-ribbon">
           <div className="page-width notice-ribbon-inner">
@@ -92,6 +84,14 @@ export function PublicHome({ content }: { content: PublicContent }) {
             <a href="#notices">সব নোটিশ <ArrowRight size={15} /></a>
           </div>
         </section>
+
+        <FairMega content={content} />
+
+        <ClubShowcase
+          clubs={clubSummaries.map((summary) => summary.club)}
+          slides={content.slides}
+          counts={Object.fromEntries(clubSummaries.map((summary) => [summary.club.slug, summary.counts.gallery]))}
+        />
 
         <section className="section page-width about-section" id="about">
           <SectionHeading
