@@ -59,9 +59,10 @@ export async function validateReferences(resource: ResourceName, payload: Record
       if (field.required) return { error: `“${field.label}” নির্বাচন করুন।`, status: 422 as const };
       continue;
     }
-    const column = field.reference === "clubs" ? "slug" : "id";
+    const column = field.reference === "clubs" || field.reference === "fairs" ? "slug" : "id";
     if (!(await rowExists(field.reference, column, value))) {
-      return { error: `“${value}” নামে কোনো ক্লাব নেই — আগে ক্লাবটি তৈরি করুন।`, status: 422 as const };
+      const label = field.reference === "clubs" ? "ক্লাব" : "বিজ্ঞান মেলা";
+      return { error: `“${value}” নামে কোনো ${label} নেই — আগে সেটি তৈরি করুন।`, status: 422 as const };
     }
   }
   return null;

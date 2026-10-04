@@ -28,13 +28,16 @@ const iconOptions: FieldOption[] = [
 
 export const clubIconOptions = iconOptions;
 
+/**
+ * The five real OKGS clubs. The slug doubles as the folder name of the club's own
+ * website (`clubs/<slug>/`) and as its subdomain prefix, so keep them short.
+ */
 const clubOptions: FieldOption[] = [
-  { label: "ম্যাথ এন্ড সাইন্স ক্লাব", value: "science" },
-  { label: "ভাষা ও সাহিত্য ক্লাব", value: "language" },
-  { label: "কম্পিউটার ক্লাব", value: "computer" },
-  { label: "স্পোর্টিং ক্লাব", value: "sports" },
-  { label: "বিতর্ক ও সংস্কৃতি ক্লাব", value: "culture" },
-  { label: "নার্সারি ও প্রি-কিউট ক্লাব", value: "junior" },
+  { label: "ALSSM — ম্যাথ এন্ড সাইন্স ক্লাব", value: "alssm" },
+  { label: "AYPG — ল্যাংগুয়েজ ক্লাব", value: "aypg" },
+  { label: "ALPCG — কম্পিউটার ক্লাব", value: "alpcg" },
+  { label: "AYGSM — স্পোর্টিং ক্লাব", value: "aygsm" },
+  { label: "ARTDS — ART Debating Society", value: "artds" },
 ];
 
 /** Live options are read from the database; these are the admin defaults. */
@@ -60,7 +63,7 @@ interface FieldDef {
   placeholder?: string;
   options?: FieldOption[];
   /** Which table a `reference` points at. */
-  reference?: "clubs";
+  reference?: "clubs" | "fairs";
   /** Renders as its own block in the editor instead of a two-column row. */
   full?: boolean;
   rows?: number;
@@ -119,6 +122,23 @@ const clubField: FieldDef = {
   options: clubOptions,
 };
 
+const fairOptions: FieldOption[] = [
+  { label: "OKGS Science Fair 2026", value: "science-fair-2026" },
+];
+
+export const defaultFairOptions = fairOptions;
+
+/** Rows that belong to a science fair (categories, schedule, collections). */
+const fairField: FieldDef = {
+  name: "fair_slug",
+  label: "বিজ্ঞান মেলা",
+  type: "reference",
+  reference: "fairs",
+  group: groupBasics,
+  help: "কোন মেলার তথ্য — খালি রাখলে চলতি মেলা ধরে নেওয়া হবে।",
+  options: fairOptions,
+};
+
 const publishDateField: FieldDef = {
   name: "published_at",
   label: "প্রকাশের তারিখ",
@@ -135,6 +155,7 @@ export const resourceSchema: Record<ResourceName, FieldDef[]> = {
     { name: "cta_href", label: "বোতামের লিংক", type: "text", group: groupBasics, placeholder: "#admission বা /clubs", default: "#admission" },
     { name: "image_url", label: "স্লাইডের ছবি", type: "image", full: true, group: groupMedia },
     { name: "accent", label: "অ্যাকসেন্ট রং", type: "color", group: groupBasics, default: "#e7c27e" },
+    { ...clubField, required: false, help: "কোন ক্লাবের ছবি — দিলে স্লাইডারটি ক্লাব-অনুযায়ী ফিল্টার/লেবেল হয়।" },
     sortField,
     activeField,
   ],
@@ -251,10 +272,15 @@ export const resourceSchema: Record<ResourceName, FieldDef[]> = {
       rows: 5,
       help: "প্রতিটি লাইন একটি করে বুলেট পয়েন্ট হিসেবে দেখানো হবে।",
     },
+    { name: "name_en", label: "ক্লাবের নাম (ইংরেজি)", type: "text", full: true, group: groupBasics, placeholder: "Association Of Little Scientists And Math Maniacs", help: "ক্লাবের নিজস্ব সাইট ও সার্টিফিকেটে এই নাম ব্যবহৃত হয়।" },
+    { name: "short_code", label: "সংক্ষিপ্ত কোড", type: "text", group: groupBasics, placeholder: "ALSSM", help: "সাবডোমেইন ও ক্লাব ফোল্ডারের নাম (যেমন alssm.okgs.info → clubs/alssm)।" },
+    { name: "motto", label: "স্লোগান", type: "text", full: true, group: groupBasics, placeholder: "Explore · Experiment · Excel" },
     { name: "icon", label: "আইকন", type: "select", group: groupBasics, default: "Atom", options: iconOptions },
     { name: "accent", label: "নিজস্ব রং", type: "color", group: groupBasics, default: "#e7c27e", help: "কার্ড, হেডার ও ট্যাবে এই রং ব্যবহৃত হবে।" },
+    { name: "logo_url", label: "ক্লাবের লোগো", type: "image", full: true, group: groupMedia, help: "বর্গাকার PNG/SVG লোগো — কার্ড, হেডার ও টিকিটে দেখানো হবে।" },
     { name: "image_url", label: "কার্ডের ছবি", type: "image", full: true, group: groupMedia, help: "হোমপেজ ও ক্লাব তালিকার ছবি।" },
     { name: "cover_image_url", label: "কভার / হিরো ছবি", type: "image", full: true, group: groupMedia, help: "ক্লাব পাতার উপরের বড় ছবি।" },
+    { name: "gallery_urls", label: "সলিডার/গ্যালারি ছবির লিংক", type: "textarea", full: true, group: groupMedia, rows: 3, help: "প্রতি লাইনে একটি ছবির লিংক — ক্লাব পাতার স্লাইডারে ঘুরে ঘুরে দেখাবে।" },
     { name: "founded_year", label: "যাত্রা শুরু (সাল)", type: "number", group: groupBasics, default: 0 },
     { name: "member_count", label: "সদস্য সংখ্যা", type: "number", group: groupBasics, default: 0 },
     { name: "meeting_day", label: "সভার দিন", type: "text", group: groupBasics, placeholder: "প্রতি বৃহস্পতিবার" },
@@ -263,9 +289,16 @@ export const resourceSchema: Record<ResourceName, FieldDef[]> = {
     { name: "coordinator", label: "উপদেষ্টা শিক্ষক", type: "text", group: groupContact },
     { name: "coordinator_phone", label: "উপদেষ্টার মোবাইল", type: "text", group: groupContact },
     { name: "president", label: "সভাপতি (শিক্ষার্থী)", type: "text", group: groupContact },
+    { name: "secretary", label: "সাধারণ সম্পাদক", type: "text", group: groupContact },
+    { name: "vice_president", label: "সহ-সভাপতি", type: "text", group: groupContact },
+    { name: "vice_secretary", label: "যুগ্ম সম্পাদক", type: "text", group: groupContact },
     { name: "email", label: "ক্লাবের ইমেইল", type: "text", group: groupContact },
     { name: "facebook_url", label: "ফেসবুক পেজ", type: "url", full: true, group: groupContact },
-    { name: "domain", label: "নিজস্ব ওয়েবসাইট", type: "url", full: true, group: groupContact, help: "ক্লাবের আলাদা সাইট থাকলে লিংক দিন; খালি রাখলে লিংক দেখাবে না।" },
+    { name: "facebook_group_url", label: "ফেসবুক গ্রুপ", type: "url", full: true, group: groupContact },
+    { name: "domain", label: "নিজস্ব ওয়েবসাইট (লিংক)", type: "url", full: true, group: groupContact, help: "ক্লাবের আলাদা সাইট থাকলে লিংক দিন; খালি রাখলে লিংক দেখাবে না।" },
+    { name: "subdomain", label: "সাবডোমেইন", type: "text", group: groupContact, placeholder: "alssm.okgs.info", help: "এই ঠিকানার জন্য clubs/<স্লাগ>/ ফোল্ডারে আলাদা সাইট তৈরি করা আছে।" },
+    { name: "youtube_url", label: "ইউটিউব চ্যানেল", type: "url", full: true, group: groupContact },
+    { name: "club_folder", label: "প্রজেক্ট ফোল্ডার", type: "text", group: groupContact, placeholder: "clubs/alssm", help: "এই ক্লাবের সাবসাইট কোন ফোল্ডারে আছে (deploy করার সময় কাজে লাগবে)।" },
     { name: "join_info", label: "কীভাবে যোগ দেবেন", type: "textarea", full: true, group: groupContact, rows: 3 },
     sortField,
     activeField,
@@ -353,21 +386,32 @@ export const resourceSchema: Record<ResourceName, FieldDef[]> = {
       required: true,
       group: groupBasics,
       default: "সদস্য",
+      help: "সভাপতি/সম্পাদকের ছবি ও তথ্য ক্লাব পাতার কমিটি কার্ডে বড় করে দেখানো হয়।",
       options: [
+        { label: "প্রধান পৃষ্ঠপোষক", value: "প্রধান পৃষ্ঠপোষক" },
         { label: "উপদেষ্টা", value: "উপদেষ্টা" },
         { label: "সভাপতি", value: "সভাপতি" },
         { label: "সহ-সভাপতি", value: "সহ-সভাপতি" },
         { label: "সাধারণ সম্পাদক", value: "সাধারণ সম্পাদক" },
-        { label: "সহ-সম্পাদক", value: "সহ-সম্পাদক" },
+        { label: "যুগ্ম সম্পাদক", value: "যুগ্ম সম্পাদক" },
+        { label: "সাংগঠনিক সম্পাদক", value: "সাংগঠনিক সম্পাদক" },
+        { label: "দপ্তর সম্পাদক", value: "দপ্তর সম্পাদক" },
+        { label: "প্রচার সম্পাদক", value: "প্রচার সম্পাদক" },
         { label: "তহবিল সম্পাদক", value: "তহবিল সম্পাদক" },
-        { label: "কার্যকরী সদস্য", value: "কার্যকরী সদস্য" },
+        { label: "নির্বাহী সদস্য", value: "নির্বাহী সদস্য" },
         { label: "সদস্য", value: "সদস্য" },
       ],
     },
-    { name: "class_room", label: "শ্রেণি", type: "text", group: groupBasics, placeholder: "ষষ্ঠ শ্রেণি" },
-    { name: "photo_url", label: "ছবি", type: "image", full: true, group: groupMedia },
+    { name: "class_room", label: "শ্রেণি / দায়িত্ব", type: "text", group: groupBasics, placeholder: "দশম শ্রেণি" },
+    { name: "section", label: "শাখা", type: "text", group: groupBasics, placeholder: "ক" },
+    { name: "member_no", label: "সদস্য নম্বর", type: "text", group: groupBasics },
+    { name: "session_year", label: "কমিটি/সেশন", type: "text", group: groupBasics, placeholder: "২০২৬" },
+    { name: "photo_url", label: "ছবি", type: "image", full: true, group: groupMedia, help: "পাসপোর্ট সাইজ ছবি সবচেয়ে ভালো দেখায়।" },
     { name: "bio", label: "সংক্ষিপ্ত পরিচিতি", type: "textarea", full: true, group: groupBasics, rows: 3 },
     { name: "achievement", label: "অর্জন / বিশেষত্ব", type: "text", full: true, group: groupBasics },
+    { name: "phone", label: "মোবাইল (ঐচ্ছিক)", type: "text", group: groupContact },
+    { name: "email", label: "ইমেইল (ঐচ্ছিক)", type: "text", group: groupContact },
+    { name: "facebook_url", label: "ফেসবুক প্রোফাইল", type: "url", full: true, group: groupContact },
     sortField,
     activeField,
   ],
@@ -447,6 +491,232 @@ export const resourceSchema: Record<ResourceName, FieldDef[]> = {
     sortField,
     activeField,
   ],
+  /* ---------------------------- বিজ্ঞান মেলা ---------------------------- */
+  fairs: [
+    { name: "name", label: "মেলার নাম", type: "text", required: true, full: true, group: groupBasics, placeholder: "OKGS Science Fair 2026" },
+    { name: "name_en", label: "নাম (ইংরেজি)", type: "text", full: true, group: groupBasics },
+    {
+      name: "slug",
+      label: "ইউআরএল স্লাগ",
+      type: "text",
+      required: true,
+      group: groupBasics,
+      pattern: "^[a-z0-9][a-z0-9-]{1,40}$",
+      patternError: "স্লাগ ইংরেজি ছোট হাতের অক্ষরে লিখুন, যেমন science-fair-2026।",
+      help: "/fair/এই-স্লাগ ঠিকানায় মেলার সাইট তৈরি হবে।",
+    },
+    { name: "edition", label: "সংস্করণ", type: "text", group: groupBasics, placeholder: "৩য়" },
+    { name: "tagline", label: "স্লোগান / ট্যাগলাইন", type: "text", full: true, group: groupBasics },
+    { name: "description", label: "সংক্ষিপ্ত পরিচিতি", type: "textarea", full: true, group: groupBasics, rows: 3 },
+    { name: "about", label: "বিস্তারিত লেখা", type: "textarea", full: true, group: groupBasics, rows: 6 },
+    { name: "starts_on", label: "শুরুর তারিখ", type: "date", group: groupBasics },
+    { name: "ends_on", label: "শেষের তারিখ", type: "date", group: groupBasics },
+    { name: "registration_deadline", label: "নিবন্ধনের শেষ তারিখ", type: "date", group: groupBasics },
+    { name: "intro_time", label: "সময়সূচি (লেখা)", type: "text", group: groupBasics, placeholder: "সকাল ৯টা – বিকাল ৫টা" },
+    { name: "venue", label: "স্থান", type: "text", group: groupBasics, placeholder: "স্কুল মাঠ ও বিজ্ঞানাগার" },
+    { name: "city", label: "শহর / উপজেলা", type: "text", group: groupBasics, placeholder: "কালাই, জয়পুরহাট" },
+    { name: "chief_guest", label: "প্রধান অতিথি", type: "text", full: true, group: groupBasics },
+    { name: "fee", label: "নিবন্ধন ফি (টাকা)", type: "number", group: groupBasics, default: 0 },
+    { name: "contact_email", label: "যোগাযোগের ইমেইল", type: "text", group: groupContact },
+    { name: "contact_phone", label: "যোগাযোগের মোবাইল", type: "text", group: groupContact },
+    { name: "accent", label: "মেলার মূল রং", type: "color", group: groupBasics, default: "#7c3aed" },
+    { name: "accent_2", label: "দ্বিতীয় রং", type: "color", group: groupBasics, default: "#06b6d4" },
+    { name: "logo_url", label: "মেলার লোগো", type: "image", full: true, group: groupMedia },
+    { name: "cover_image_url", label: "কভার ছবি", type: "image", full: true, group: groupMedia },
+    { name: "poster_url", label: "পোস্টার", type: "image", full: true, group: groupMedia },
+    { name: "gallery_urls", label: "স্লাইডারের ছবি (প্রতি লাইনে একটি)", type: "textarea", full: true, group: groupMedia, rows: 4 },
+    {
+      name: "results_note",
+      label: "ফলাফল / ঘোষণা",
+      type: "textarea",
+      full: true,
+      group: groupBasics,
+      rows: 3,
+      help: "হোমপেজের বড় ব্যানারে ‘ফলাফল’ হিসেবে দেখানো হবে।",
+    },
+    featuredField,
+    sortField,
+    activeField,
+  ],
+  fair_categories: [
+    fairField,
+    { name: "name", label: "ক্যাটাগরির নাম", type: "text", required: true, full: true, group: groupBasics, placeholder: "রোবোটিক্স ও অটোমেশন" },
+    { name: "code", label: "কোড", type: "text", group: groupBasics, placeholder: "ROBO" },
+    {
+      name: "kind",
+      label: "ধরন",
+      type: "select",
+      group: groupBasics,
+      default: "প্রজেক্ট",
+      options: [
+        { label: "প্রজেক্ট / মডেল", value: "প্রজেক্ট" },
+        { label: "পরীক্ষা-নিরীক্ষা", value: "পরীক্ষা" },
+        { label: "রোবোটিক্স", value: "রোবোটিক্স" },
+        { label: "কুইজ", value: "কুইজ" },
+        { label: "বিতর্ক", value: "বিতর্ক" },
+        { label: "চিত্রকর্ম", value: "চিত্রকর্ম" },
+        { label: "প্রোগ্রামিং", value: "প্রোগ্রামিং" },
+        { label: "অন্যান্য", value: "অন্যান্য" },
+      ],
+    },
+    { name: "description", label: "বিবরণ", type: "textarea", full: true, group: groupBasics, rows: 3 },
+    { name: "rules", label: "নিয়মাবলি (এক লাইনে একটি)", type: "textarea", full: true, group: groupBasics, rows: 4 },
+    { name: "classes", label: "কোন শ্রেণির জন্য", type: "text", full: true, group: groupBasics, placeholder: "ষষ্ঠ – দশম শ্রেণি" },
+    { name: "team_size", label: "দল সদস্য", type: "number", group: groupBasics, default: 2 },
+    { name: "fee", label: "ফি (টাকা)", type: "number", group: groupBasics, default: 0 },
+    { name: "icon", label: "আইকন", type: "select", group: groupBasics, default: "Atom", options: iconOptions },
+    { name: "color", label: "রং", type: "color", group: groupBasics, default: "#7c3aed" },
+    { name: "image_url", label: "ছবি", type: "image", full: true, group: groupMedia },
+    sortField,
+    activeField,
+  ],
+  fair_schedule: [
+    fairField,
+    { name: "title", label: "পর্বের নাম", type: "text", required: true, full: true, group: groupBasics },
+    { name: "description", label: "বিবরণ", type: "textarea", full: true, group: groupBasics, rows: 3 },
+    { name: "starts_at", label: "শুরু", type: "datetime", group: groupBasics },
+    { name: "ends_at", label: "শেষ", type: "datetime", group: groupBasics },
+    { name: "venue", label: "স্থান", type: "text", group: groupBasics },
+    { name: "host", label: "উপস্থাপক / দায়িত্বে", type: "text", group: groupBasics },
+    {
+      name: "kind",
+      label: "ধরন",
+      type: "select",
+      group: groupBasics,
+      default: "প্রতিযোগিতা",
+      options: [
+        { label: "উদ্বোধন", value: "উদ্বোধন" },
+        { label: "প্রতিযোগিতা", value: "প্রতিযোগিতা" },
+        { label: "সেমিনার", value: "সেমিনার" },
+        { label: "প্রদর্শনী", value: "প্রদর্শনী" },
+        { label: "সাংস্কৃতিক", value: "সাংস্কৃতিক" },
+        { label: "পুরস্কার বিতরণ", value: "পুরস্কার" },
+        { label: "বিরতি / খাবার", value: "বিরতি" },
+        { label: "অন্যান্য", value: "অন্যান্য" },
+      ],
+    },
+    sortField,
+    activeField,
+  ],
+  fair_collections: [
+    fairField,
+    { name: "title", label: "প্রকল্প / সংগ্রহীর নাম", type: "text", required: true, full: true, group: groupBasics },
+    { name: "category", label: "ক্যাটাগরি", type: "text", full: true, group: groupBasics, placeholder: "রোবোটিক্স ও অটোমেশন" },
+    { name: "description", label: "বিবরণ", type: "textarea", full: true, group: groupBasics, rows: 4 },
+    {
+      name: "project_type",
+      label: "ধরন",
+      type: "select",
+      group: groupBasics,
+      default: "মডেল",
+      options: [
+        { label: "মডেল", value: "মডেল" },
+        { label: "পরীক্ষা", value: "পরীক্ষা" },
+        { label: "রোবোটিক্স", value: "রোবোটিক্স" },
+        { label: "পোস্টার", value: "পোস্টার" },
+        { label: "ডিজিটাল / সফটওয়্যার", value: "ডিজিটাল" },
+        { label: "চিত্রকর্ম", value: "চিত্রকর্ম" },
+      ],
+    },
+    {
+      name: "status",
+      label: "অবস্থা",
+      type: "select",
+      group: groupBasics,
+      default: "প্রদর্শিত",
+      options: [
+        { label: "নিবন্ধিত", value: "নিবন্ধিত" },
+        { label: "চূড়ান্ত", value: "চূড়ান্ত" },
+        { label: "প্রদর্শিত", value: "প্রদর্শিত" },
+        { label: "বিজয়ী", value: "বিজয়ী" },
+      ],
+    },
+    { name: "position", label: "স্থান / পুরস্কার", type: "text", group: groupBasics, placeholder: "১ম স্থান" },
+    { name: "score", label: "স্কোর", type: "number", group: groupBasics, default: 0 },
+    { name: "student_name", label: "শিক্ষার্থীর নাম", type: "text", group: groupBasics },
+    { name: "student_id", label: "আইডি নম্বর", type: "text", group: groupBasics },
+    { name: "class_level", label: "শ্রেণি", type: "text", group: groupBasics },
+    { name: "section", label: "শাখা", type: "text", group: groupBasics },
+    { name: "team_members", label: "দল / অন্যান্য সদস্য", type: "textarea", full: true, group: groupBasics, rows: 2 },
+    { name: "club_slug", label: "ক্লাব", type: "reference", reference: "clubs", group: groupBasics, options: clubOptions, help: "কোন ক্লাবের প্রকল্প হলে বেছে নিন।" },
+    { name: "image_url", label: "প্রকল্পের ছবি", type: "image", full: true, group: groupMedia },
+    { name: "gallery_urls", label: "অন্যান্য ছবি (প্রতি লাইনে একটি)", type: "textarea", full: true, group: groupMedia, rows: 3 },
+    { name: "video_url", label: "ভিডিও লিংক", type: "url", full: true, group: groupMedia },
+    { name: "certificate_url", label: "সনদ / সার্টিফিকেট", type: "image", full: true, group: groupMedia },
+    { name: "note", label: "নোট", type: "text", full: true, group: groupBasics },
+    featuredField,
+    sortField,
+    activeField,
+  ],
+  /* ------------------------------ থিম ------------------------------ */
+  themes: [
+    { name: "name", label: "থিমের নাম", type: "text", required: true, group: groupBasics, placeholder: "Midnight Lab" },
+    {
+      name: "key",
+      label: "থিম কী",
+      type: "text",
+      required: true,
+      group: groupBasics,
+      pattern: "^[a-z0-9][a-z0-9-]{1,40}$",
+      patternError: "কী-তে ছোট হাতের অক্ষর, সংখ্যা বা হাইফেন দিন।",
+    },
+    { name: "description", label: "বিবরণ", type: "text", full: true, group: groupBasics },
+    {
+      name: "mode",
+      label: "মোড",
+      type: "select",
+      group: groupBasics,
+      default: "light",
+      options: [
+        { label: "লাইট", value: "light" },
+        { label: "ডার্ক", value: "dark" },
+      ],
+    },
+    { name: "accent", label: "অ্যাকসেন্ট রং", type: "color", group: groupBasics, default: "#7c3aed" },
+    { name: "accent_2", label: "দ্বিতীয় রং", type: "color", group: groupBasics, default: "#06b6d4" },
+    { name: "surface", label: "পৃষ্ঠের রং", type: "color", group: groupBasics, default: "#ffffff" },
+    { name: "ink", label: "লেখার রং", type: "color", group: groupBasics, default: "#0f172a" },
+    {
+      name: "hero_style",
+      label: "হিরো স্টাইল",
+      type: "select",
+      group: groupBasics,
+      default: "glass",
+      options: [
+        { label: "গ্লাস কার্ড", value: "glass" },
+        { label: "ফুল-ব্লিড", value: "full" },
+        { label: "গ্রেডিয়েন্ট", value: "gradient" },
+        { label: "মিনিমাল", value: "minimal" },
+      ],
+    },
+    {
+      name: "font_pair",
+      label: "ফন্ট জোড়া",
+      type: "select",
+      group: groupBasics,
+      default: "hind-noto",
+      options: [
+        { label: "হিন্দ সিলিগুড়ি + নোটো সেরিফ", value: "hind-noto" },
+        { label: "শুধু হিন্দ সিলিগুড়ি", value: "hind" },
+        { label: "নোটো সেরিফ বাংলা", value: "noto" },
+        { label: "বালু দা + এইচএস", value: "baloo" },
+      ],
+    },
+    { name: "radius", label: "কার্ডের কোণ (px)", type: "number", group: groupBasics, default: 18 },
+    {
+      name: "custom_css",
+      label: "কাস্টম CSS (টেমপ্লেট)",
+      type: "textarea",
+      full: true,
+      group: groupMedia,
+      rows: 12,
+      help: "এখানে লেখা CSS পুরো সাইটে যুক্ত হবে — .okgs-scope এর ভেতরে লিখলে নিরাপদ থাকে।",
+    },
+    { name: "custom_head", label: "হেডে যোগ করার কোড (ঐচ্ছিক)", type: "textarea", full: true, group: groupMedia, rows: 4 },
+    { name: "preview_image_url", label: "প্রিভিউ ছবি", type: "image", full: true, group: groupMedia },
+    { name: "is_default", label: "সক্রিয় থিম", type: "boolean", group: groupBasics, help: "একটি থিমে টিক দিলে সেটিই পুরো সাইটে চালু হয়।", default: false },
+    activeField,
+  ],
   settings: [
     {
       name: "key",
@@ -485,10 +755,10 @@ export const resourceMeta: Record<
     label: string;
     singular: string;
     icon: string;
-    group: "site" | "clubs" | "school";
+    group: "site" | "clubs" | "school" | "fair";
     description: string;
     titleField: string;
-    parent?: "clubs";
+    parent?: "clubs" | "fairs";
     reorderable?: boolean;
   }
 > = {
@@ -508,15 +778,38 @@ export const resourceMeta: Record<
   gallery: { label: "স্কুল গ্যালারি", singular: "ছবি", icon: "Image", group: "school", description: "হোমপেজের ক্যাম্পাস ছবি।", titleField: "caption", reorderable: true },
   stats: { label: "পরিসংখ্যান", singular: "সংখ্যা", icon: "Activity", group: "school", description: "হোমপেজের সংখ্যা-ব্যান্ড (শিক্ষার্থী, পাশের হার)।", titleField: "label", reorderable: true },
   settings: { label: "স্কুল তথ্য", singular: "সেটিং", icon: "Settings2", group: "school", description: "নাম, ফোন, ঠিকানা সহ সাইটের মূল তথ্য।", titleField: "label" },
+  fairs: { label: "বিজ্ঞান মেলা", singular: "মেলা", icon: "FlaskConical", group: "fair", description: "OKGS Science Fair — তারিখ, লোগো, পোস্টার ও ঘোষণা।", titleField: "name", reorderable: true },
+  fair_categories: { label: "মেলার ক্যাটাগরি", singular: "ক্যাটাগরি", icon: "ListTree", group: "fair", description: "প্রজেক্ট, কুইজ, রোবোটিক্স — ক্যাটাগরি অনুযায়ী স্লাইডার ও নিবন্ধন।", titleField: "name", parent: "fairs", reorderable: true },
+  fair_schedule: { label: "মেলার রুটিন", singular: "পর্ব", icon: "CalendarClock", group: "fair", description: "দিন-ভিত্তিক অনুষ্ঠানসূচি — মেলার সাইটে দেখা যায়।", titleField: "title", parent: "fairs", reorderable: true },
+  fair_collections: { label: "মেলার সংগ্রহ", singular: "সংগ্রহ", icon: "Boxes", group: "fair", description: "মেলার প্রকল্প ও সংগ্রহের স্থায়ী আর্কাইভ (ছবি + দল + ফলাফল)।", titleField: "title", parent: "fairs", reorderable: true },
+  themes: { label: "টেমপ্লেট থিম", singular: "থিম", icon: "Palette", group: "site", description: "সাইটের রং, ফন্ট ও কাস্টম CSS — এক ক্লিকে বদলান।", titleField: "name" },
 };
 
 export const resourceOrder = Object.keys(resourceSchema) as ResourceName[];
 
-export const studioGroups: { id: "site" | "clubs" | "school"; label: string; resources: ResourceName[] }[] = [
+export const studioGroups: { id: "site" | "clubs" | "school" | "fair"; label: string; resources: ResourceName[] }[] = [
+  { id: "fair", label: "বিজ্ঞান মেলা ২০২৬", resources: ["fairs", "fair_categories", "fair_schedule", "fair_collections"] },
   { id: "clubs", label: "ক্লাব তথ্যকেন্দ্র", resources: ["clubs", "club_events", "club_posts", "club_gallery", "club_members", "club_achievements"] },
-  { id: "site", label: "হোমপেজ ও প্রকাশনা", resources: ["slides", "notices", "banners", "news", "updates"] },
+  { id: "site", label: "হোমপেজ ও প্রকাশনা", resources: ["slides", "notices", "banners", "news", "updates", "themes"] },
   { id: "school", label: "প্রতিষ্ঠান", resources: ["settings", "teachers", "facilities", "gallery", "stats"] },
 ];
+
+/** Roles that make up a club's working committee — shown first, with photos. */
+export const committeeRoles = [
+  "প্রধান পৃষ্ঠপোষক",
+  "উপদেষ্টা",
+  "সভাপতি",
+  "সহ-সভাপতি",
+  "সাধারণ সম্পাদক",
+  "যুগ্ম সম্পাদক",
+  "সাংগঠনিক সম্পাদক",
+  "দপ্তর সম্পাদক",
+  "প্রচার সম্পাদক",
+  "তহবিল সম্পাদক",
+  "নির্বাহী সদস্য",
+];
+
+export const leadershipRoles = ["সভাপতি", "সহ-সভাপতি", "সাধারণ সম্পাদক", "যুগ্ম সম্পাদক"];
 
 /** Legacy/simple accessors kept so existing code keeps working. */
 export const resourceFields: Record<ResourceName, string[]> = Object.fromEntries(

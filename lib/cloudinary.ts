@@ -1,10 +1,15 @@
 /**
  * Cloudinary helpers.
  *
- * Uploads go straight from the browser to Cloudinary with an *unsigned* upload
- * preset, so no API secret is ever shipped to the client. Only the cloud name and
- * the public preset are handed out, and only to a signed-in admin.
+ * Two upload modes are supported:
+ *  - **signed** (preferred): the server signs the upload with `CLOUDINARY_API_SECRET`
+ *    and the browser posts the signature to Cloudinary. Nothing secret reaches the
+ *    client — only a short-lived signature.
+ *  - **unsigned**: a legacy fallback using a public upload preset, for schools that
+ *    have not added an API key/secret yet.
  */
+
+import { createHash } from "node:crypto";
 
 export interface CloudinarySettings {
   enabled: boolean;
@@ -27,6 +32,102 @@ export function cloudinarySettings(): CloudinarySettings {
 
 export function cloudinaryUploadUrl(cloudName: string) {
   return `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+}
+
+/**
+ * Cloudinary public ids must be ASCII. Bangla titles transliterate down to
+ * something safe and short, with a time+random suffix so repeats stay unique.
+ */
+export function asciiPublicId(label: string) {
+  const base = String(label ?? "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  const stamp = Date.now().toString(36).slice(-5);
+  const random = Math.random().toString(36).slice(2, 6);
+  return `${base || "image"}-${stamp}${random}`;
+}
+
+export interface CloudinaryServerSettings {
+  enabled: boolean;
+  cloudName: string;
+  apiKey: string;
+  apiSecret: string;
+  folder: string;
+  maxBytes: number;
+}
+
+/** Server-side credentials. Never hand the secret to the browser. */
+export function cloudinaryServerSettings(): CloudinaryServerSettings {
+  const base = cloudinarySettings();
+  const apiKey = (process.env.CLOUDINARY_API_KEY || process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || "").trim();
+  const apiSecret = (process.env.CLOUDINARY_API_SECRET || process.env.CLOUDINARY_API_SECRET_KEY || "").trim();
+  return {
+    enabled: Boolean(base.cloudName && apiKey && apiSecret),
+    cloudName: base.cloudName,
+    apiKey,
+    apiSecret,
+    folder: base.folder,
+    maxBytes: Number(process.env.CLOUDINARY_MAX_BYTES || 12 * 1024 * 1024),
+  };
+}
+
+export interface SignedUpload {
+  cloudName: string;
+  apiKey: string;
+  endpoint: string;
+  timestamp: number;
+  signature: string;
+  folder: string;
+  publicId: string;
+  tags: string;
+  maxBytes: number;
+  accept: string;
+  expiresIn: number;
+}
+
+/**
+ * Builds a signed upload payload for one file. Cloudinary wants every parameter
+ * that is not `file`, `api_key` or `signature` to be part of the signature, in
+ * alphabetical order, joined with `&`, with the API secret appended.
+ */
+export function signedUpload(
+  settings: CloudinaryServerSettings,
+  options: { folder?: string; publicId?: string; tags?: string[]; expiresIn?: number } = {},
+): SignedUpload {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const folder = [settings.folder, options.folder].filter(Boolean).join("/").replace(/\/+/g, "/");
+  const publicId = (options.publicId || "").trim();
+  const tags = (options.tags || []).filter(Boolean).join(",");
+
+  const params: Record<string, string> = { timestamp: String(timestamp) };
+  if (folder) params.folder = folder;
+  if (publicId) params.public_id = publicId;
+  if (tags) params.tags = tags;
+
+  const toSign = Object.keys(params)
+    .sort()
+    .map((key) => `${key}=${params[key]}`)
+    .join("&");
+
+  const signature = createHash("sha1").update(`${toSign}${settings.apiSecret}`).digest("hex");
+
+  return {
+    cloudName: settings.cloudName,
+    apiKey: settings.apiKey,
+    endpoint: cloudinaryUploadUrl(settings.cloudName),
+    timestamp,
+    signature,
+    folder,
+    publicId,
+    tags,
+    maxBytes: settings.maxBytes,
+    accept: "image/*",
+    expiresIn: options.expiresIn ?? 600,
+  };
 }
 
 export function isCloudinaryUrl(value: unknown) {

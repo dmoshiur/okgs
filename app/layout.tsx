@@ -4,8 +4,7 @@ import { getPublicContent } from "@/lib/db";
 import { settingValue } from "@/lib/club-data";
 import { organizationSchema, siteUrl } from "@/lib/schema";
 import { JsonLd } from "@/components/public/JsonLd";
-
-
+import { activeTheme, themeCss } from "@/lib/site";
 
 export async function generateMetadata(): Promise<Metadata> {
   let name = "ওমর কিন্ডারগার্টেন স্কুল | কালাই, জয়পুরহাট";
@@ -24,11 +23,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(siteUrl()),
     title: {
-      default: "ওমর কিন্ডারগার্টেন স্কুল | ক্লাব তথ্যকেন্দ্র",
+      default: name,
       template: "%s | ওমর কিন্ডারগার্টেন স্কুল",
     },
     description,
-    keywords: ["ওমর কিন্ডারগার্টেন স্কুল", "OKGS", "ক্লাব", "জয়পুরহাট", "কালাই", "সহশিক্ষা"],
+    keywords: ["ওমর কিন্ডারগার্টেন স্কুল", "OKGS", "ক্লাব", "জয়পুরহাট", "কালাই", "সহশিক্ষা", "বিজ্ঞান মেলা"],
     openGraph: {
       title: "ওমর কিন্ডারগার্টেন স্কুল এন্ড ওমর গার্টেন একাডেমি",
       description,
@@ -47,19 +46,26 @@ export const viewport: Viewport = {
   themeColor: "#14532d",
   width: "device-width",
   initialScale: 1,
+  maximumScale: 5,
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  let settings = [] as Awaited<ReturnType<typeof getPublicContent>>["settings"];
+  let content = null as Awaited<ReturnType<typeof getPublicContent>> | null;
   try {
-    settings = (await getPublicContent()).settings;
+    content = await getPublicContent();
   } catch {
-    settings = [];
+    content = null;
   }
+  const settings = content?.settings ?? [];
+  const theme = content ? activeTheme(content) : null;
+  const themeStyle = themeCss(theme);
 
   return (
     <html lang="bn">
-      <body>
+      <head>
+        {themeStyle ? <style id="okgs-theme" dangerouslySetInnerHTML={{ __html: themeStyle }} /> : null}
+      </head>
+      <body data-theme={theme?.key || "default"} data-theme-mode={theme?.mode || "light"}>
         {children}
         <JsonLd schema={organizationSchema(settings)} />
       </body>

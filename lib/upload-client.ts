@@ -1,7 +1,13 @@
 "use client";
 
 /**
- * Browser → Cloudinary uploader (unsigned preset).
+ * Browser → Cloudinary uploader.
+ *
+ * Preferred mode is **signed**: the server signs every upload with the Cloudinary
+ * API secret (`/api/media/sign`), so no secret ever reaches the browser and the
+ * upload cannot be replayed from another device. If the school has not added an
+ * API key/secret yet, the client transparently falls back to an unsigned preset.
+ *
  * Uses XMLHttpRequest so we can report real upload progress.
  */
 
@@ -26,8 +32,27 @@ export interface UploadResult {
 
 const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/svg+xml"];
 
+/** What the server hands back for one upload — signed or unsigned. */
+export interface UploadTicket {
+  ok?: boolean;
+  mode?: "signed" | "unsigned";
+  enabled?: boolean;
+  cloudName?: string;
+  apiKey?: string;
+  endpoint?: string;
+  timestamp?: number;
+  signature?: string;
+  folder?: string;
+  publicId?: string;
+  tags?: string;
+  uploadPreset?: string;
+  maxBytes?: number;
+  hint?: string;
+}
+
 let cachedConfig: Promise<MediaConfig | null> | undefined;
 
+/** Legacy config read — still used by the admin studio status line. */
 export function loadMediaConfig(force = false): Promise<MediaConfig | null> {
   if (!cachedConfig || force) {
     cachedConfig = fetch("/api/media/config", { cache: "no-store" })
@@ -35,6 +60,22 @@ export function loadMediaConfig(force = false): Promise<MediaConfig | null> {
       .catch(() => null);
   }
   return cachedConfig;
+}
+
+/** Asks the server for a fresh signature for exactly this file. */
+export async function requestUploadTicket(options: { prefix?: string; label?: string } = {}): Promise<UploadTicket | null> {
+  try {
+    const response = await fetch("/api/media/sign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({ folder: options.prefix || "", label: options.label || "" }),
+    });
+    if (!response.ok) return null;
+    return (await response.json()) as UploadTicket;
+  } catch {
+    return null;
+  }
 }
 
 export function isUploadable(file: File) {
@@ -75,28 +116,49 @@ export interface UploadOptions {
 }
 
 export function uploadToCloudinary({ file, prefix, label, tags = [], onProgress, signal }: UploadOptions): Promise<UploadResult> {
-  return loadMediaConfig().then(async (config) => {
-    if (!config) throw new Error("মিডিয়া সেটিংস পাওয়া যায়নি — আবার লগইন করে চেষ্টা করুন।");
-    if (!config.enabled) {
-      throw new Error("Cloudinary এখনো সেটআপ করা হয়নি। CLOUDINARY_CLOUD_NAME ও CLOUDINARY_UPLOAD_PRESET যোগ করুন।");
-    }
+  return (async () => {
     if (!isUploadable(file)) throw new Error("শুধু ছবির ফাইল আপলোড করা যাবে (JPG, PNG, WebP, GIF, AVIF)।");
-    if (config.maxBytes && file.size > config.maxBytes) {
-      throw new Error(`ছবিটি খুব বড় (${formatBytes(file.size)}) — সর্বোচ্চ ${formatBytes(config.maxBytes)}।`);
+    const ticket = await requestUploadTicket({ prefix, label: label || file.name.replace(/\.[a-z0-9]+$/i, "") });
+
+    const maxBytes = ticket?.maxBytes || 12 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      throw new Error(`ছবিটি খুব বড় (${formatBytes(file.size)}) — সর্বোচ্চ ${formatBytes(maxBytes)}।`);
     }
 
-    const folder = [config.folder, prefix].filter(Boolean).join("/");
+    const endpoint = ticket?.endpoint || (await loadMediaConfig())?.endpoint || "";
+    const signed = Boolean(ticket?.mode === "signed" && ticket.signature && ticket.timestamp && endpoint);
+    const unsigned = !signed && Boolean(ticket?.uploadPreset || (await loadMediaConfig())?.uploadPreset);
+
+    if (!signed && !unsigned) {
+      throw new Error(
+        ticket?.hint ||
+          "Cloudinary এখনো সেটআপ করা হয়নি — অ্যাডমিন প্যানেল থেকে cloud name, upload preset (অথবা API key ও secret) যোগ করুন।",
+      );
+    }
+
+    const publicId = safePublicId(label || file.name.replace(/\.[a-z0-9]+$/i, ""));
+    const folder = signed
+      ? ticket?.folder || [prefix].filter(Boolean).join("/")
+      : [((await loadMediaConfig())?.folder || "okgs"), prefix].filter(Boolean).join("/");
+
     const body = new FormData();
     body.append("file", file);
-    body.append("upload_preset", config.uploadPreset);
     body.append("folder", folder);
-    body.append("public_id", safePublicId(label || file.name.replace(/\.[a-z0-9]+$/i, "")));
-    body.append("timestamp", String(Math.floor(Date.now() / 1000)));
-    if (tags.length) body.append("tags", tags.join(","));
+    body.append("tags", tags.length ? tags.join(",") : ticket?.tags || "okgs");
+
+    if (signed && ticket) {
+      body.append("api_key", ticket.apiKey || "");
+      body.append("timestamp", String(ticket.timestamp));
+      body.append("signature", ticket.signature || "");
+      if (ticket.publicId) body.append("public_id", ticket.publicId);
+    } else {
+      body.append("public_id", publicId);
+      body.append("upload_preset", ticket?.uploadPreset || (await loadMediaConfig())?.uploadPreset || "");
+    }
 
     return new Promise<UploadResult>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", config.endpoint, true);
+      xhr.open("POST", endpoint, true);
       xhr.responseType = "json";
 
       xhr.upload.onprogress = (event) => {
@@ -123,14 +185,16 @@ export function uploadToCloudinary({ file, prefix, label, tags = [], onProgress,
         const detail = data?.error?.message || "";
         const hint =
           xhr.status === 400 || xhr.status === 401
-            ? "আপলোড প্রিসেটটি ‘unsigned’ কিনা এবং সঠিক নাম দেওয়া কিনা দেখে নিন।"
+            ? signed
+              ? "সার্ভার-সাইড স্বাক্ষর মিলছে না — পেজটি রিফ্রেশ করে আবার চেষ্টা করুন।"
+              : "আপলোড প্রিসেটটি ‘unsigned’ কিনা এবং সঠিক নাম দেওয়া কিনা দেখে নিন।"
             : xhr.status === 0
               ? "ইন্টারনেট সংযোগ বা Cloudinary-র CORS সেটিং পরীক্ষা করুন।"
               : "";
         reject(new Error([`আপলোড ব্যর্থ (${xhr.status || "নেটওয়ার্ক"})।`, detail, hint].filter(Boolean).join(" ")));
       };
 
-      xhr.onerror = () => reject(new Error("আপলোড করা যায়নি — ইন্টারনেট সংযোগ পরীক্ষা করুন।"));
+      xhr.onerror = () => reject(new Error("আপলোড করা যায়নি — ইন্টারনেট সংযোগ বা Cloudinary সেটিং পরীক্ষা করুন।"));
       xhr.onabort = () => reject(new Error("আপলোড বাতিল করা হয়েছে।"));
       if (signal) {
         if (signal.aborted) {
@@ -141,5 +205,5 @@ export function uploadToCloudinary({ file, prefix, label, tags = [], onProgress,
       }
       xhr.send(body);
     });
-  });
+  })();
 }
