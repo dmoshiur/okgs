@@ -31,7 +31,7 @@ export default async function PortalLoginPage({ searchParams }: { searchParams: 
           <p className="fair-mega-kicker" style={{ marginTop: 26 }}>
             <Sparkles size={15} /> OKGS ডিজিটাল পোর্টাল
           </p>
-          <h1 style={{ fontSize: "clamp(30px, 4vw, 46px)", margin: "14px 0 10px", lineHeight: 1.12 }}>
+          <h1 style={{ fontSize: "clamp(1.875rem, 4vw, 2.875rem)", margin: "14px 0 10px", lineHeight: 1.25 }}>
             {fair ? fair.name : "স্কুল ও ক্লাব পোর্টাল"}
           </h1>
           <p style={{ opacity: 0.9, maxWidth: "46ch" }}>

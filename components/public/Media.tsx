@@ -41,6 +41,7 @@ export function SmartImage({ src, alt, transform, sizes, loading = "lazy", prior
       src={url}
       alt={alt}
       loading={priority ? "eager" : loading}
+      fetchPriority={priority ? "high" : undefined}
       decoding="async"
       sizes={sizes}
       onError={() => setFailed(true)}

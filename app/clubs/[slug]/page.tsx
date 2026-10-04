@@ -65,51 +65,56 @@ export default async function ClubOverviewPage({ params }: ClubPageProps) {
 
   return (
     <ClubShell loaded={loaded} section="">
-      <section className="v2 club-hero">
-        {cover ? <SmartImage className="club-hero-bg" src={cover} alt={club.name} priority transform={{ width: 1800, fit: "cover" }} /> : null}
-        <div className="v2-wrap club-hero-inner">
-          <div>
-            <p className="v2-chip" style={{ background: "rgba(255,255,255,.18)", color: "#fff", borderColor: "rgba(255,255,255,.32)" }}>
-              {club.short_code ? `${club.short_code} · ` : ""}
-              {club.motto || club.tagline || "ক্লাব"}
-            </p>
-            <h1>{club.name}</h1>
-            <p className="club-en">{club.name_en}</p>
-            {club.description ? <p style={{ maxWidth: "62ch", opacity: 0.9, margin: 0 }}>{club.description}</p> : null}
-            <div className="club-hero-actions">
-              <Link className="v2-btn" href={`/clubs/${club.slug}/site`}>
-                <Sparkles size={16} /> ক্লাব সাইট
-              </Link>
-              <Link className="v2-btn v2-btn-ghost" href={`/clubs/${club.slug}/admin`}>
-                <ShieldCheck size={16} /> ক্লাব অ্যাডমিন
-              </Link>
-              {club.domain || club.subdomain ? (
-                <a className="v2-btn v2-btn-ghost" href={club.domain || club.subdomain} target="_blank" rel="noreferrer noopener">
-                  ক্লাবের নিজস্ব সাইট <ArrowUpRight size={16} />
-                </a>
-              ) : null}
-              {club.facebook_url ? (
-                <a className="v2-btn v2-btn-ghost" href={club.facebook_url} target="_blank" rel="noreferrer noopener">
-                  ফেসবুক পেজ
-                </a>
-              ) : null}
-              {club.email ? (
-                <a className="v2-btn v2-btn-ghost" href={`mailto:${club.email}`}>
-                  {club.email}
-                </a>
-              ) : null}
-            </div>
-            <div className="club-stats" style={{ marginTop: 22 }}>
-              {sectionCounts.map((item) => (
-                <div className="club-stat" key={item.label} style={{ background: "rgba(255,255,255,.14)", borderColor: "rgba(255,255,255,.24)", color: "#fff" }}>
-                  <span style={{ color: "rgba(255,255,255,.78)" }}>{item.label}</span>
-                  <strong>{bn(item.value)}</strong>
-                </div>
-              ))}
-            </div>
+      {/* Club overview: the hero above already carries the name, so this band
+          gives the description, actions and section counts a proper home. */}
+      <section className="club-overview" aria-labelledby="club-overview-title">
+        <div className="club-overview-copy">
+          <p className="eyebrow"><span className="eyebrow-dot" aria-hidden />{club.short_code ? `${club.short_code} · ` : ""}সংক্ষেপে</p>
+          <h2 id="club-overview-title">{club.motto || club.tagline || club.name}</h2>
+          {club.name_en ? <p className="club-en club-en-dark">{club.name_en}</p> : null}
+          {club.description ? <p className="club-overview-lead">{club.description}</p> : null}
+
+          <div className="club-overview-actions">
+            <Link className="button button-primary button-small" href={`/clubs/${club.slug}/site`}>
+              <Sparkles size={15} aria-hidden /> ক্লাব সাইট
+            </Link>
+            {club.domain || club.subdomain ? (
+              <a className="button button-outline button-small" href={club.domain || club.subdomain} target="_blank" rel="noreferrer noopener">
+                নিজস্ব সাইট <ArrowUpRight size={14} aria-hidden />
+              </a>
+            ) : null}
+            {club.facebook_url ? (
+              <a className="button button-outline button-small" href={club.facebook_url} target="_blank" rel="noreferrer noopener">
+                ফেসবুক পেজ
+              </a>
+            ) : null}
+            {club.email ? (
+              <a className="text-link" href={`mailto:${club.email}`}>{club.email}</a>
+            ) : null}
+            <Link className="club-admin-link" href={`/clubs/${club.slug}/admin`}>
+              <ShieldCheck size={13} aria-hidden /> ক্লাব অ্যাডমিন
+            </Link>
           </div>
-          {club.logo_url ? <SmartImage className="club-hero-logo" src={club.logo_url} alt={`${club.name} লোগো`} transform={{ width: 260 }} /> : null}
         </div>
+
+        <nav className="club-overview-stats" aria-label="ক্লাবের অংশসমূহ">
+          <Link href={clubPath(club.slug, "events")}>
+            <strong>{bn(sectionCounts[0].value)}</strong>
+            <span>{sectionCounts[0].label}</span>
+          </Link>
+          <Link href={clubPath(club.slug, "gallery")}>
+            <strong>{bn(sectionCounts[1].value)}</strong>
+            <span>{sectionCounts[1].label}</span>
+          </Link>
+          <Link href={clubPath(club.slug, "members")}>
+            <strong>{bn(sectionCounts[2].value)}</strong>
+            <span>{sectionCounts[2].label}</span>
+          </Link>
+          <Link href={clubPath(club.slug, "achievements")}>
+            <strong>{bn(sectionCounts[3].value)}</strong>
+            <span>{sectionCounts[3].label}</span>
+          </Link>
+        </nav>
       </section>
 
       <ClubLeadership club={club} members={data.members} />

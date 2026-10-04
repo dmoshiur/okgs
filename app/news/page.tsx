@@ -3,7 +3,7 @@ import { ArrowRight, ArrowUpRight, CalendarDays, Newspaper } from "lucide-react"
 import { getPublicContent } from "@/lib/db";
 import { clubPath } from "@/lib/club-data";
 import { bn, formatDate } from "@/lib/format";
-import { PublicChrome } from "@/components/public/Chrome";
+import { PublicChrome, SectionHeading } from "@/components/public/Chrome";
 import { SmartImage } from "@/components/public/Media";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export default async function NewsIndexPage() {
 
   return (
     <PublicChrome content={content} active="news">
-      <main className="story-page">
+      <div className="story-page">
         <section className="journal-index-hero">
           <div className="page-width">
             <p className="eyebrow"><span className="eyebrow-dot" />স্কুল ও ক্লাবের বার্তা</p>
@@ -65,9 +65,15 @@ export default async function NewsIndexPage() {
         </section>
 
         {upcoming.length ? (
-          <section className="page-width journal-aside">
-            <h2><CalendarDays size={16} /> আসন্ন আয়োজন</h2>
-            <ul className="club-pulse-list">
+          <section className="section page-width news-upcoming" aria-labelledby="upcoming-title">
+            <SectionHeading
+              eyebrow="ক্লাব ক্যালেন্ডার"
+              title="আসন্ন আয়োজন"
+              intro="সব ক্লাবের সামনের দিনের অনুষ্ঠান — তারিখ, স্থান ও আয়োজক একসাথে।"
+              titleId="upcoming-title"
+              action={<a className="text-link section-action" href="/clubs">ক্লাব তালিকা <ArrowRight size={15} aria-hidden /></a>}
+            />
+            <ul className="pulse-list pulse-list-plain">
               {upcoming.map((event) => (
                 <li key={event.id}>
                   <a href={clubPath(event.club_slug, "events")}>
@@ -82,7 +88,7 @@ export default async function NewsIndexPage() {
             </ul>
           </section>
         ) : null}
-      </main>
+      </div>
     </PublicChrome>
   );
 }

@@ -48,7 +48,7 @@ export default async function ClubPostPage({ params }: ClubPostPageProps) {
 
   return (
     <PublicChrome content={content} active="clubs">
-      <main>
+      <div>
         <article className="club-post-page" style={{ "--club-accent": accent } as React.CSSProperties}>
           <header className="club-post-head">
             <div className="page-width">
@@ -127,7 +127,7 @@ export default async function ClubPostPage({ params }: ClubPostPageProps) {
             <ClubTabs club={club} active="posts" />
           </div>
         </article>
-      </main>
+      </div>
     </PublicChrome>
   );
 }
