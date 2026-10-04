@@ -18,6 +18,8 @@ import { ClubCard } from "@/components/public/ClubCard";
 import { GalleryViewer } from "@/components/public/GalleryViewer";
 import { IconByName } from "@/lib/icons";
 import { SmartImage } from "@/components/public/Media";
+import { FairMega } from "@/components/public/FairMega";
+import { ClubShowcase } from "@/components/public/ClubShowcase";
 
 function NoticeRow({ notice, index }: { notice: PublicContent["notices"][number]; index: number }) {
   return (
@@ -68,12 +70,20 @@ export function PublicHome({ content }: { content: PublicContent }) {
   return (
     <PublicChrome content={content} active="home">
       <main>
+        <FairMega content={content} />
+
         <section className="hero-section">
           <HeroCarousel
             slides={content.slides}
             badge={{ year: settingValue(settings, "hero_badge_year", "২০০৩"), place: settingValue(settings, "hero_badge_place", "কালাই, জয়পুরহাট") }}
           />
         </section>
+
+        <ClubShowcase
+          clubs={clubSummaries.map((summary) => summary.club)}
+          slides={content.slides}
+          counts={Object.fromEntries(clubSummaries.map((summary) => [summary.club.slug, summary.counts.gallery]))}
+        />
 
         <section className="notice-ribbon">
           <div className="page-width notice-ribbon-inner">

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { ArrowRight, ArrowUpRight, BookOpen, CalendarDays, Quote, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, ArrowUpRight, BookOpen, CalendarDays, Quote, ShieldCheck, Sparkles } from "lucide-react";
 import { notFound } from "next/navigation";
 import { loadClub } from "@/lib/club-loader";
 import { clubPath } from "@/lib/club-data";
@@ -19,6 +20,7 @@ import {
 } from "@/components/public/ClubBlocks";
 import { GalleryViewer } from "@/components/public/GalleryViewer";
 import { SmartImage } from "@/components/public/Media";
+import { ClubLeadership } from "@/components/public/ClubLeadership";
 
 type ClubPageProps = { params: Promise<{ slug: string }> };
 
@@ -54,8 +56,64 @@ export default async function ClubOverviewPage({ params }: ClubPageProps) {
   const missionBlocks = paragraphs(club.mission);
   const cover = club.cover_image_url || club.image_url || data.gallery[0]?.image_url || data.posts[0]?.image_url || "";
 
+  const sectionCounts = [
+    { label: "আয়োজন", value: data.events.length },
+    { label: "ছবি", value: data.gallery.length },
+    { label: "কমিটি ও সদস্য", value: data.members.length },
+    { label: "অর্জন", value: data.achievements.length },
+  ];
+
   return (
     <ClubShell loaded={loaded} section="">
+      <section className="v2 club-hero">
+        {cover ? <SmartImage className="club-hero-bg" src={cover} alt={club.name} priority transform={{ width: 1800, fit: "cover" }} /> : null}
+        <div className="v2-wrap club-hero-inner">
+          <div>
+            <p className="v2-chip" style={{ background: "rgba(255,255,255,.18)", color: "#fff", borderColor: "rgba(255,255,255,.32)" }}>
+              {club.short_code ? `${club.short_code} · ` : ""}
+              {club.motto || club.tagline || "ক্লাব"}
+            </p>
+            <h1>{club.name}</h1>
+            <p className="club-en">{club.name_en}</p>
+            {club.description ? <p style={{ maxWidth: "62ch", opacity: 0.9, margin: 0 }}>{club.description}</p> : null}
+            <div className="club-hero-actions">
+              <Link className="v2-btn" href={`/clubs/${club.slug}/site`}>
+                <Sparkles size={16} /> ক্লাব সাইট
+              </Link>
+              <Link className="v2-btn v2-btn-ghost" href={`/clubs/${club.slug}/admin`}>
+                <ShieldCheck size={16} /> ক্লাব অ্যাডমিন
+              </Link>
+              {club.domain || club.subdomain ? (
+                <a className="v2-btn v2-btn-ghost" href={club.domain || club.subdomain} target="_blank" rel="noreferrer noopener">
+                  ক্লাবের নিজস্ব সাইট <ArrowUpRight size={16} />
+                </a>
+              ) : null}
+              {club.facebook_url ? (
+                <a className="v2-btn v2-btn-ghost" href={club.facebook_url} target="_blank" rel="noreferrer noopener">
+                  ফেসবুক পেজ
+                </a>
+              ) : null}
+              {club.email ? (
+                <a className="v2-btn v2-btn-ghost" href={`mailto:${club.email}`}>
+                  {club.email}
+                </a>
+              ) : null}
+            </div>
+            <div className="club-stats" style={{ marginTop: 22 }}>
+              {sectionCounts.map((item) => (
+                <div className="club-stat" key={item.label} style={{ background: "rgba(255,255,255,.14)", borderColor: "rgba(255,255,255,.24)", color: "#fff" }}>
+                  <span style={{ color: "rgba(255,255,255,.78)" }}>{item.label}</span>
+                  <strong>{bn(item.value)}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+          {club.logo_url ? <SmartImage className="club-hero-logo" src={club.logo_url} alt={`${club.name} লোগো`} transform={{ width: 260 }} /> : null}
+        </div>
+      </section>
+
+      <ClubLeadership club={club} members={data.members} />
+
       <div className="club-layout">
         <div className="club-main">
           <section className="club-block">

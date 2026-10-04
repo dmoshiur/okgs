@@ -42,7 +42,15 @@ export function verifySession(value?: string | null) {
 
 export async function isAdmin() {
   const cookieStore = await cookies();
-  return verifySession(cookieStore.get(SESSION_COOKIE)?.value);
+  if (verifySession(cookieStore.get(SESSION_COOKIE)?.value)) return true;
+  // A portal login (/sf/login) with the admin role has the same powers.
+  try {
+    const { verifyPortalSession, PORTAL_COOKIE } = await import("@/lib/portal-auth");
+    const payload = verifyPortalSession(cookieStore.get(PORTAL_COOKIE)?.value);
+    return payload?.role === "admin";
+  } catch {
+    return false;
+  }
 }
 
 export async function requireAdmin() {

@@ -2,7 +2,7 @@
 
 import type { FieldDef } from "@/lib/content-config";
 import { slugify } from "@/lib/content-config";
-import type { Club } from "@/lib/types";
+import type { Club, Fair } from "@/lib/types";
 import { ImageField } from "@/components/admin/ImageField";
 import { bn } from "@/lib/format";
 
@@ -11,11 +11,17 @@ interface FieldControlProps {
   value: any;
   update: (field: string, value: any) => void;
   clubs: Club[];
+  /** Fairs power `reference: "fairs"` selects (fair categories, schedule, collections). */
+  fairs?: Pick<Fair, "name" | "slug">[];
   /** Whole form, so fields that depend on siblings (settings.value type) can read them. */
   form: Record<string, any>;
   invalid?: boolean;
   prefix?: string;
   title?: string;
+}
+
+function fairPlaceholder(def: FieldDef) {
+  return def.reference === "clubs" ? "— সাধারণ / সব ক্লাব —" : "— চলতি মেলা —";
 }
 
 /** `2026-10-01T09:00` / ISO strings → the exact shape <input type=date|datetime-local> wants. */
@@ -30,7 +36,7 @@ function toInputValue(value: unknown, type: "date" | "datetime") {
   return `${day}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export function FieldControl({ def, value, update, clubs, form, invalid, prefix, title }: FieldControlProps) {
+export function FieldControl({ def, value, update, clubs, fairs, form, invalid, prefix, title }: FieldControlProps) {
   // Settings rows decide themselves whether their `value` holds text, a link or an image.
   if (def.name === "value" && form.field_kind === "image") {
     return (
@@ -76,17 +82,28 @@ export function FieldControl({ def, value, update, clubs, form, invalid, prefix,
         </BaseField>
       );
     case "reference": {
-      const options = def.reference === "clubs" ? clubs.map((club) => ({ label: club.name, value: club.slug })) : def.options ?? [];
+      const live =
+        def.reference === "clubs"
+          ? clubs.map((club) => ({ label: club.name, value: club.slug }))
+          : def.reference === "fairs"
+            ? (fairs ?? []).map((fair) => ({ label: fair.name, value: fair.slug }))
+            : [];
+      const options = live.length ? live : def.options ?? [];
+      const empty = def.reference === "clubs" ? clubs.length === 0 : def.reference === "fairs" ? (fairs ?? []).length === 0 : options.length === 0;
       return (
         <BaseField def={def} invalid={invalid}>
           <select value={String(value ?? "")} onChange={(event) => update(def.name, event.target.value)}>
-            {!def.required ? <option value="">— সাধারণ / সব ক্লাব —</option> : <option value="">ক্লাব বেছে নিন</option>}
+            {!def.required ? <option value="">{fairPlaceholder(def)}</option> : <option value="">নির্বাচন করুন</option>}
             {options.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
-          {def.reference === "clubs" && !clubs.length ? (
-            <small className="field-warn">আগে একটি ক্লাব তৈরি করুন — তাই না থাকলে এই তথ্য কোনো ক্লাবের পাতায় দেখাবে না।</small>
+          {empty ? (
+            <small className="field-warn">
+              {def.reference === "clubs"
+                ? "আগে একটি ক্লাব তৈরি করুন — তাই না থাকলে এই তথ্য কোনো ক্লাবের পাতায় দেখাবে না।"
+                : "আগে একটি বিজ্ঞান মেলা তৈরি করুন।"}
+            </small>
           ) : null}
         </BaseField>
       );

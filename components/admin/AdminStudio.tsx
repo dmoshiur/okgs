@@ -574,6 +574,7 @@ export function AdminStudio() {
           errors={errors}
           saving={saving}
           clubs={clubs as unknown as any}
+          fairs={(data.fairs ?? []) as unknown as any[]}
           onClose={closeModal}
           onSubmit={saveItem}
           update={update}
@@ -692,6 +693,7 @@ function EditorModal({
   errors,
   saving,
   clubs,
+  fairs,
   onClose,
   onSubmit,
   update,
@@ -703,6 +705,7 @@ function EditorModal({
   errors: Record<string, string>;
   saving: boolean;
   clubs: any[];
+  fairs: any[];
   onClose: () => void;
   onSubmit: (event: React.FormEvent) => void;
   update: (field: string, value: any) => void;
@@ -748,6 +751,7 @@ function EditorModal({
                           value={form[field.name]}
                           update={update}
                           clubs={clubs}
+                          fairs={fairs as unknown as { name: string; slug: string }[]}
                           form={form}
                           invalid={Boolean(errors[field.name])}
                           prefix={clubSlug || undefined}

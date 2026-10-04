@@ -1,0 +1,24 @@
+/* ART Debating Society — ART Debating Society
+   ক্লাব সাইটের নিজস্ব রঙ। অ্যাডমিন প্যানেল থেকে রঙ বদলালে সেটিংস ওভাররাইড
+   প্রাধান্য পাবে, কিন্তু কিছু না বদলালে এই ফাইলটাই ব্যবহার হয়। */
+
+.club-site {
+  --club-accent: #dc2626;
+  --club-accent-2: #7c3aed;
+  --club-ink: #0f172a;
+  --club-paper: #ffffff;
+  --club-soft: color-mix(in srgb, var(--club-accent) 8%, #ffffff);
+}
+
+.club-site .club-hero-bg::after {
+  background: linear-gradient(140deg,
+    color-mix(in srgb, var(--club-accent) 88%, #000 6%) 0%,
+    color-mix(in srgb, var(--club-accent-2) 70%, #000 10%) 60%,
+    rgba(4, 10, 22, .92) 100%);
+}
+
+.club-site .club-badge { background: color-mix(in srgb, var(--club-accent) 16%, #fff); color: var(--club-accent); }
+.club-site .club-stat strong { color: var(--club-accent); }
+.club-site .club-leader-card:hover { border-color: color-mix(in srgb, var(--club-accent) 45%, #fff); }
+.club-site .club-btn { background: var(--club-accent); }
+.club-site .club-btn-ghost { color: var(--club-accent); border-color: color-mix(in srgb, var(--club-accent) 35%, #fff); }
