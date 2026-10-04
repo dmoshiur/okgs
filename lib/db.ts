@@ -278,35 +278,54 @@ async function backfillClubLinks() {
 }
 
 /**
- * The default theme once shipped a green + gold palette. The refreshed design
- * uses the deep-green/mint pair, so rows still holding the legacy defaults are
- * repainted once — anything an admin has already customised is left alone.
+ * Updates default themes to the Tranzo BD & ThinkTank formal navy + gold design system
+ * and colorful linear gradient for science fair.
  */
 async function refreshDefaultTheme() {
-  const legacy = { accent: "#15803d", accent_2: "#d97706", radius: 18, ink: "#0f2e21" };
+  const legacyAccents = ["#15803d", "#008744"];
   const row = await db.execute({
     sql: `SELECT id, accent, accent_2, radius, ink FROM themes WHERE key = ? LIMIT 1`,
     args: ["campus-green"],
   });
-  if (!row.rows.length) return;
-  const current = row.rows[0] as unknown as { id: string; accent: string; accent_2: string; radius: number | string; ink: string };
-  const untouched =
-    String(current.accent || "").toLowerCase() === legacy.accent &&
-    String(current.accent_2 || "").toLowerCase() === legacy.accent_2;
-  if (!untouched) return;
+  if (row.rows.length) {
+    const current = row.rows[0] as unknown as { id: string; accent: string; accent_2: string; radius: number | string; ink: string };
+    const matchesLegacy = legacyAccents.includes(String(current.accent || "").toLowerCase());
+    if (matchesLegacy) {
+      await db.execute({
+        sql: `UPDATE themes SET name = ?, accent = ?, accent_2 = ?, surface = ?, ink = ?, font_pair = ?, radius = ?, description = ?, updated_at = ? WHERE id = ?`,
+        args: [
+          "Corporate Pro",
+          "#0f1e36",
+          "#f59e0b",
+          "#ffffff",
+          "#0f172a",
+          "poppins-inter",
+          12,
+          "Tranzo BD ও ThinkTank-অনুপ্রাণিত প্রফেশনাল নেভি ও গোল্ড অ্যাকসেন্ট — প্রাতিষ্ঠানিক আনুষ্ঠানিক থিম।",
+          now(),
+          String(current.id),
+        ],
+      });
+      console.log("[okgs] default theme refreshed to corporate navy/gold palette");
+    }
+  }
+
+  // Also update science fair theme if untouched
   await db.execute({
-    sql: `UPDATE themes SET accent = ?, accent_2 = ?, ink = ?, radius = ?, description = ?, updated_at = ? WHERE id = ?`,
+    sql: `UPDATE themes SET accent = ?, accent_2 = ?, surface = ?, ink = ?, font_pair = ?, radius = ?, description = ?, updated_at = ? WHERE key = ? AND accent = ?`,
     args: [
-      "#008744",
-      "#36f293",
-      "#111111",
-      12,
-      "গভীর সবুজ ও মিন্ট অ্যাকসেন্ট — হোম ও ক্লাব পাতার ডিফল্ট, পেশাদার থিম।",
+      "#4f46e5",
+      "#ec4899",
+      "#090e1a",
+      "#f1f5f9",
+      "poppins-inter",
+      20,
+      "বিজ্ঞান মেলার জন্য বহু রঙের লিনিয়ার গ্রেডিয়েন্ট ও ডার্ক মোড — ভাইব্রেন্ট ইলেকট্রিক থিম।",
       now(),
-      String(current.id),
+      "fair-neon",
+      "#8b5cf6",
     ],
   });
-  console.log("[okgs] default theme refreshed to the green/mint palette");
 }
 
 async function bootstrap() {

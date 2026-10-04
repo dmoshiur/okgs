@@ -90,6 +90,10 @@ export function activeTheme(content: PublicContent): SiteTheme | null {
 }
 
 const fontPairs: Record<string, { heading: string; body: string; import?: string }> = {
+  "poppins-inter": {
+    heading: '"Poppins", "Hind Siliguri", system-ui, sans-serif',
+    body: '"Inter", "Hind Siliguri", system-ui, sans-serif',
+  },
   "hind-noto": {
     heading: '"Noto Serif Bengali", "Hind Siliguri", serif',
     body: '"Hind Siliguri", system-ui, sans-serif',
@@ -111,33 +115,33 @@ const fontPairs: Record<string, { heading: string; body: string; import?: string
  */
 export function themeCss(theme: SiteTheme | null) {
   if (!theme) return "";
-  const pair = fontPairs[theme.font_pair] ?? fontPairs["hind-noto"];
+  const pair = fontPairs[theme.font_pair] ?? fontPairs["poppins-inter"] ?? fontPairs["hind-noto"];
   const dark = theme.mode === "dark";
   const radius = Number(theme.radius) || 12;
-  const surface = theme.surface || (dark ? "#0b1f16" : "#ffffff");
-  const ink = theme.ink || (dark ? "#e8f5ec" : "#111111");
-  const accent = theme.accent || "#008744";
-  const accent2 = theme.accent_2 || "#36f293";
+  const surface = theme.surface || (dark ? "#0a1120" : "#ffffff");
+  const ink = theme.ink || (dark ? "#f8fafc" : "#0f172a");
+  const accent = theme.accent || "#0f1e36";
+  const accent2 = theme.accent_2 || "#f59e0b";
   const away = dark ? "#ffffff" : "#000000";
-  const deepBase = dark ? "#02150b" : "#00230f";
+  const deepBase = dark ? "#050b14" : "#0a1120";
 
   // Soft tints used for cards, chips and hairlines.
   const line = dark ? `color-mix(in srgb, ${ink} 16%, ${surface})` : `color-mix(in srgb, ${ink} 12%, #ffffff)`;
   const muted = `color-mix(in srgb, ${ink} 62%, ${surface})`;
-  const softAccent = `color-mix(in srgb, ${accent2} 12%, ${surface})`;
-  const softLine = `color-mix(in srgb, ${accent2} 34%, ${surface})`;
-  const softText = `color-mix(in srgb, ${accent} 72%, ${away})`;
-  const altSurface = dark ? `color-mix(in srgb, ${ink} 8%, ${surface})` : "#f0f4f2";
+  const softAccent = `color-mix(in srgb, ${accent2} 14%, ${surface})`;
+  const softLine = `color-mix(in srgb, ${accent2} 36%, ${surface})`;
+  const softText = dark ? `color-mix(in srgb, ${accent2} 90%, #ffffff)` : `color-mix(in srgb, ${accent2} 80%, #000000)`;
+  const altSurface = dark ? `color-mix(in srgb, ${ink} 8%, ${surface})` : "#f8fafc";
 
   // The stylesheet reads semantic tokens (brand / mint / surface …), so a theme
   // switch repaints every section — public site, club pages and console alike.
   return `:root {
   --brand: ${accent};
-  --brand-mid: ${accent};
+  --brand-mid: color-mix(in srgb, ${accent} 80%, #1e3566);
   --brand-hover: color-mix(in srgb, ${accent} 82%, ${away});
-  --brand-deep: color-mix(in srgb, ${accent} 22%, ${deepBase});
-  --brand-dark: color-mix(in srgb, ${accent} 30%, ${deepBase});
-  --brand-ink: color-mix(in srgb, ${accent} 38%, ${deepBase});
+  --brand-deep: color-mix(in srgb, ${accent} 40%, ${deepBase});
+  --brand-dark: color-mix(in srgb, ${accent} 60%, ${deepBase});
+  --brand-ink: color-mix(in srgb, ${accent} 50%, #1e3566);
   --mint: ${accent2};
   --mint-hover: color-mix(in srgb, ${accent2} 84%, ${away});
   --mint-soft: ${softAccent};
@@ -146,7 +150,7 @@ export function themeCss(theme: SiteTheme | null) {
   --mint-text: ${softText};
   --surface: ${surface};
   --surface-alt: ${altSurface};
-  --surface-alt-2: ${dark ? `color-mix(in srgb, ${ink} 5%, ${surface})` : "#f5f7fa"};
+  --surface-alt-2: ${dark ? `color-mix(in srgb, ${ink} 5%, ${surface})` : "#f1f5f9"};
   --ink: ${ink};
   --ink-2: ${ink};
   --body: ${muted};
@@ -156,7 +160,7 @@ export function themeCss(theme: SiteTheme | null) {
   --r: ${radius}px;
   --r-lg: ${radius + 4}px;
   --r-xl: ${radius + 8}px;
-  --r-2xl: ${radius + 10}px;
+  --r-2xl: ${radius + 12}px;
   --okgs-accent: ${accent};
   --okgs-accent-2: ${accent2};
   --okgs-surface: ${surface};
@@ -168,7 +172,7 @@ export function themeCss(theme: SiteTheme | null) {
   --okgs-heading: ${pair.heading};
   --okgs-body: ${pair.body};
   --okgs-mode: ${theme.mode};
-  --green-950: ${`color-mix(in srgb, ${accent} 22%, ${deepBase})`};
+  --green-950: ${`color-mix(in srgb, ${accent} 35%, ${deepBase})`};
   --green-900: ${accent};
   --green-800: ${accent};
   --green-700: color-mix(in srgb, ${accent} 88%, ${away});
@@ -180,8 +184,8 @@ export function themeCss(theme: SiteTheme | null) {
   --paper-alt: ${altSurface};
   --gold: ${accent2};
   --gold-soft: ${softLine};
-  --gold-500: ${accent};
-  --gold-600: color-mix(in srgb, ${accent} 82%, ${away});
+  --gold-500: ${accent2};
+  --gold-600: color-mix(in srgb, ${accent2} 82%, ${away});
   --gold-100: ${softAccent};
   --serif: ${pair.heading};
   --sans: ${pair.body};
