@@ -4,6 +4,7 @@ import { getPublicContent } from "@/lib/db";
 import { settingValue } from "@/lib/club-data";
 import { organizationSchema, siteUrl } from "@/lib/schema";
 import { JsonLd } from "@/components/public/JsonLd";
+import { VisualModeProvider } from "@/components/public/VisualModeProvider";
 import { activeTheme, themeCss } from "@/lib/site";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -65,9 +66,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <head>
         {themeStyle ? <style id="okgs-theme" dangerouslySetInnerHTML={{ __html: themeStyle }} /> : null}
       </head>
-      <body data-theme={theme?.key || "default"} data-theme-mode={theme?.mode || "light"}>
-        {children}
-        <JsonLd schema={organizationSchema(settings)} />
+      <body data-theme={theme?.key || "default"} data-theme-mode={theme?.mode || "light"} data-visual-mode="academic">
+        <VisualModeProvider>
+          {children}
+          <JsonLd schema={organizationSchema(settings)} />
+        </VisualModeProvider>
       </body>
     </html>
   );

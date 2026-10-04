@@ -2700,3 +2700,339 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 }
 .showcase-card img.bg, .showcase-card .bg { object-position: left center; }
 .teacher-photo img, .member-photo img { object-position: center top; }
+
+
+/* ========================================================================
+   OKGS DESIGN SYSTEM — semantic tokens and global visual modes
+   Keep palette/radius/elevation decisions here rather than in components.
+   ======================================================================== */
+body {
+  /* Premium Academic palette */
+  --page-bg: #FAF8F3;
+  --surface: #FFFFFF;
+  --surface-alt: #F5F1E8;
+  --surface-alt-2: #F9F7F2;
+  --ink: #111827;
+  --ink-2: #202938;
+  --body: #5F6368;
+  --muted: #70757b;
+  --line: #E6E0D5;
+  --line-2: #eee9e0;
+  --brand: #2563EB;
+  --brand-hover: #1D4ED8;
+  --brand-mid: #2563EB;
+  --brand-deep: #172554;
+  --brand-dark: #1e3a8a;
+  --brand-ink: #1d4ed8;
+  --mint: #F59E0B;
+  --mint-hover: #D97706;
+  --mint-soft: #fff7e6;
+  --mint-soft-2: #fbf7ed;
+  --mint-text: #85530a;
+  --mint-line: #eadbb9;
+  --accent-ink: #85530a;
+  --danger: #EF4444;
+  --danger-hover: #dc2626;
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --r-2xl: 30px;
+  --r-pill: 999px;
+  --okgs-accent: var(--brand);
+  --okgs-accent-2: var(--mint);
+  --okgs-surface: var(--surface);
+  --okgs-surface-2: var(--surface-alt);
+  --okgs-ink: var(--ink);
+  --okgs-muted: var(--muted);
+  --okgs-line: var(--line);
+  --okgs-radius: 18px;
+  --shadow-xs: 0 1px 3px rgba(42, 36, 24, .045);
+  --shadow-sm: 0 3px 10px rgba(42, 36, 24, .055);
+  --shadow-md: 0 8px 24px rgba(42, 36, 24, .075);
+  --shadow-lg: 0 16px 34px rgba(42, 36, 24, .12);
+  --shadow-card: 0 22px 52px rgba(42, 36, 24, .14);
+  background-color: var(--page-bg);
+  color: var(--ink);
+  transition: background-color .28s ease, color .28s ease;
+}
+
+
+
+html { background: #FAF8F3; }
+body, .public-site { background: var(--page-bg); }
+.public-site { transition: background-color .28s ease; }
+body, .public-site, .site-main { min-width: 0; }
+
+/* Shared controls: consistent radius, tactile hover, readable focus. */
+.button { min-height: 50px; padding-inline: 24px; border-radius: 13px; }
+.button-small { min-height: 42px; border-radius: 12px; }
+.button-primary, .button-green, .button-dark {
+  background: var(--brand);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--brand) 17%, transparent);
+}
+.button-primary:hover, .button-green:hover, .button-dark:hover {
+  background: var(--brand-hover);
+  box-shadow: 0 9px 20px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+.button-outline, .button-secondary, .ghost-button, .secondary-button {
+  border-color: var(--line); border-radius: 13px; background: var(--surface);
+}
+.button-outline:hover, .button-secondary:hover, .ghost-button:hover, .secondary-button:hover {
+  border-color: var(--brand); color: var(--brand);
+}
+
+/* Core card family — visible separation against the ivory paper canvas. */
+.club-card, .news-card, .post-card, .event-card, .achievement-card,
+.facility-card, .teacher-card, .showcase-card, .notice-item, .feature-card,
+.fair-category-card, .fair-collection-card, .directory-empty, .closing-cta,
+.article-card, .journal-card, .about-image, .admission-image {
+  border-radius: var(--r-lg);
+}
+.club-card, .news-card, .post-card, .event-card, .achievement-card,
+.facility-card, .teacher-card, .showcase-card, .notice-item, .feature-card,
+.fair-category-card, .fair-collection-card, .article-card, .journal-card {
+  border-color: var(--line);
+  background-color: var(--surface);
+  box-shadow: var(--shadow-xs);
+  transition: transform .24s ease, box-shadow .24s ease, border-color .24s ease, background-color .28s ease;
+}
+.club-card:hover, .news-card:hover, .post-card:hover, .event-card:hover,
+.achievement-card:hover, .facility-card:hover, .teacher-card:hover, .showcase-card:hover,
+.article-card:hover, .journal-card:hover {
+  border-color: color-mix(in srgb, var(--brand) 25%, var(--line));
+  box-shadow: var(--shadow-md);
+}
+.club-card { border-radius: var(--r-lg); }
+.club-card-copy { min-width: 0; }
+.club-card h3, .club-tagline, .club-card-foot, .club-meta { overflow-wrap: anywhere; }
+.club-card-foot { margin-top: auto; }
+.club-photo { border-radius: 0; }
+.hero-stage, .article-hero, .club-cover, .club-hero-bg { border-radius: var(--r-2xl); }
+.hero-stage { box-shadow: var(--shadow-card); }
+.about-image, .admission-image { overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow-md); }
+.directory-stats { border-radius: var(--r-lg); box-shadow: var(--shadow-xs); }
+.directory-search, .directory-sort select, .filter-select { border-radius: var(--r-sm); }
+.filter-pill { padding-inline: 15px; }
+
+/* Paper-like academic landing surfaces. */
+.hero {
+  border-bottom-color: var(--line);
+  background:
+    radial-gradient(ellipse at 84% 8%, rgba(37, 99, 235, .055), transparent 34%),
+    radial-gradient(ellipse at 8% 65%, rgba(245, 158, 11, .055), transparent 35%),
+    linear-gradient(180deg, #F8F5ED 0%, var(--page-bg) 78%);
+}
+.hero-eyebrow { border-color: var(--line); border-radius: var(--r-pill); }
+.hero-stage { border: 1px solid rgba(255,255,255,.5); }
+.section-alt, .showcase-section { background: var(--surface-alt); }
+.topline { background: #243247; }
+.site-header { background: color-mix(in srgb, var(--page-bg) 90%, transparent); border-color: var(--line); }
+.main-nav a { border-radius: 10px; }
+.main-nav a.is-active::after { background: var(--brand); }
+.site-footer { background: #263244; }
+
+/* Compact global appearance control in the primary navigation. */
+.visual-mode-toggle {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 40px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--ink-2);
+  font-family: var(--font-ui); font-size: 12.5px; font-weight: 700;
+  white-space: nowrap; cursor: pointer;
+  transition: background-color .25s ease, border-color .25s ease, color .25s ease, box-shadow .25s ease, transform .2s ease;
+}
+.visual-mode-toggle:hover { transform: translateY(-1px); border-color: var(--brand); box-shadow: var(--shadow-sm); }
+.visual-mode-toggle svg { color: var(--brand); flex: 0 0 auto; }
+.visual-mode-toggle.is-fair {
+  border-color: #bfc4fb;
+  background: linear-gradient(120deg, #f0f6ff 0%, #f6f0ff 55%, #fff2f8 100%);
+  color: #3730A3;
+}
+.visual-mode-toggle.is-fair svg { color: #7C3AED; }
+.visual-mode-indicator { width: 7px; height: 7px; border-radius: 50%; background: #F59E0B; box-shadow: 0 0 0 3px rgba(245,158,11,.13); }
+.visual-mode-toggle.is-fair .visual-mode-indicator { background: #06B6D4; box-shadow: 0 0 0 3px rgba(6,182,212,.14); }
+.visual-mode-toggle:disabled { cursor: wait; opacity: .75; }
+.mobile-nav-cta > .visual-mode-toggle { width: 100%; justify-content: center; margin-bottom: 14px; min-height: 46px; }
+
+/* Science Fair Mode: subtle luminous lab atmosphere, bright but controlled. */
+body[data-visual-mode="science-fair"] .hero {
+  isolation: isolate;
+  border-bottom-color: #d8daf2;
+  background:
+    radial-gradient(ellipse 38% 65% at 92% 0%, rgba(6,182,212,.15), transparent 72%),
+    radial-gradient(ellipse 42% 78% at 2% 95%, rgba(139,92,246,.13), transparent 70%),
+    radial-gradient(ellipse 32% 50% at 64% 100%, rgba(236,72,153,.075), transparent 76%),
+    linear-gradient(135deg, #f4f7ff 0%, #fbf8ff 48%, #f3fbff 100%);
+}
+body[data-visual-mode="science-fair"] .hero::before {
+  content: ""; position: absolute; z-index: 0; inset: 0; pointer-events: none; opacity: .48;
+  background-image: radial-gradient(rgba(79,70,229,.18) .85px, transparent .85px);
+  background-size: 23px 23px;
+  mask-image: linear-gradient(100deg, transparent 5%, #000 55%, transparent 100%);
+}
+body[data-visual-mode="science-fair"] .hero::after {
+  content: ""; position: absolute; z-index: 0; pointer-events: none;
+  width: clamp(170px, 22vw, 310px); aspect-ratio: 1; right: 3%; top: -36%;
+  border: 1px solid rgba(79,70,229,.17); border-radius: 50%;
+  box-shadow: 0 0 0 24px rgba(6,182,212,.035), 0 0 0 54px rgba(139,92,246,.035), 0 0 0 84px rgba(236,72,153,.025);
+}
+body[data-visual-mode="science-fair"] .hero-grid { z-index: 1; }
+body[data-visual-mode="science-fair"] .hero-copy h1 em,
+body[data-visual-mode="science-fair"] h1 em,
+body[data-visual-mode="science-fair"] h2 em { color: #6D45D8; }
+body[data-visual-mode="science-fair"] .hero-eyebrow {
+  border-color: #d7ddfa; background: rgba(255,255,255,.82); color: #5444b8;
+  box-shadow: 0 4px 16px rgba(79,70,229,.08);
+}
+body[data-visual-mode="science-fair"] .hero-eyebrow span { background: linear-gradient(135deg, #06B6D4, #8B5CF6); }
+body[data-visual-mode="science-fair"] .hero-stage {
+  border: 3px solid rgba(255,255,255,.86);
+  box-shadow: 0 24px 58px rgba(79,70,229,.2), 0 6px 18px rgba(6,182,212,.12);
+}
+body[data-visual-mode="science-fair"] .hero-badge { border: 1px solid rgba(79,70,229,.14); }
+body[data-visual-mode="science-fair"] .hero-badge strong { color: #5142c2; }
+body[data-visual-mode="science-fair"] .hero-progress .progress-item.is-current i,
+body[data-visual-mode="science-fair"] .hero-progress .progress-item.is-current b { background: linear-gradient(90deg, #2563EB, #06B6D4, #8B5CF6); }
+body[data-visual-mode="science-fair"] .button-primary,
+body[data-visual-mode="science-fair"] .button-green,
+body[data-visual-mode="science-fair"] .button-dark {
+  border-color: transparent;
+  background: var(--gradient-primary);
+  box-shadow: 0 7px 18px rgba(79,70,229,.22);
+}
+body[data-visual-mode="science-fair"] .button-primary:hover,
+body[data-visual-mode="science-fair"] .button-green:hover,
+body[data-visual-mode="science-fair"] .button-dark:hover {
+  background: linear-gradient(115deg, #1D4ED8 0%, #4338CA 52%, #7C3AED 100%);
+  box-shadow: 0 11px 24px rgba(79,70,229,.28);
+}
+body[data-visual-mode="science-fair"] .button-outline,
+body[data-visual-mode="science-fair"] .button-secondary,
+body[data-visual-mode="science-fair"] .ghost-button,
+body[data-visual-mode="science-fair"] .secondary-button { border-color: #c9c9f1; }
+body[data-visual-mode="science-fair"] .notice-ribbon {
+  background: linear-gradient(90deg, #f1f7ff, #f7f2ff 54%, #fff6f3);
+  border-bottom-color: #e2dff3;
+}
+body[data-visual-mode="science-fair"] .notice-ribbon-label { color: #5542b6; border-color: #dddafa; }
+body[data-visual-mode="science-fair"] .main-nav a.is-active { color: #4F46E5; }
+body[data-visual-mode="science-fair"] .main-nav a.is-active::after { background: linear-gradient(90deg, #06B6D4, #8B5CF6, #EC4899); }
+body[data-visual-mode="science-fair"] .club-card {
+  border-color: color-mix(in srgb, var(--club-accent, #4F46E5) 24%, #e7e6f0);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--club-accent, #4F46E5) 3%, #fff), #fff 46%);
+}
+body[data-visual-mode="science-fair"] .club-card::before {
+  height: 4px;
+  background: linear-gradient(90deg, var(--club-accent, #2563EB), color-mix(in srgb, var(--club-accent, #2563EB) 44%, #06B6D4), #8B5CF6);
+}
+body[data-visual-mode="science-fair"] .club-icon {
+  color: #fff;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--club-accent, #2563EB) 82%, #fff), #7C3AED);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--club-accent, #2563EB) 25%, transparent);
+}
+body[data-visual-mode="science-fair"] .club-card:hover {
+  border-color: color-mix(in srgb, var(--club-accent, #4F46E5) 48%, #dcdcf0);
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--club-accent, #4F46E5) 16%, transparent);
+}
+body[data-visual-mode="science-fair"] .club-code { background: color-mix(in srgb, var(--club-accent, #4F46E5) 13%, white); }
+body[data-visual-mode="science-fair"] .clubs-count { color: #5542b6; }
+body[data-visual-mode="science-fair"] .directory-stats > div:nth-child(4n + 1) strong { color: #2563EB; }
+body[data-visual-mode="science-fair"] .directory-stats > div:nth-child(4n + 2) strong { color: #8B5CF6; }
+body[data-visual-mode="science-fair"] .directory-stats > div:nth-child(4n + 3) strong { color: #059669; }
+body[data-visual-mode="science-fair"] .directory-stats > div:nth-child(4n + 4) strong { color: #F97316; }
+body[data-visual-mode="science-fair"] .site-header { border-bottom-color: #e0dff2; }
+body[data-visual-mode="science-fair"] .site-footer { background: linear-gradient(120deg, #24234f, #233857 65%, #263b52); }
+
+/* Keep responsive layouts inside the viewport, including long Bengali labels. */
+@media (max-width: 1024px) {
+  .header-actions { display: none; }
+  .mobile-menu { border-radius: 12px; }
+}
+@media (max-width: 768px) {
+  .hero::after { display: none; }
+  .hero-stage { border-radius: var(--r-xl); }
+  .club-card-copy { padding: 18px; }
+  .directory-toolbar-row { align-items: stretch; }
+  .directory-search { max-width: none; min-width: 0; }
+}
+@media (max-width: 420px) {
+  .visual-mode-toggle { min-height: 44px; }
+  .club-card-copy { padding: 16px; }
+  .hero-grid { padding-inline: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+body[data-visual-mode="science-fair"] .cat-card {
+  border-color: color-mix(in srgb, var(--cat-color, var(--fair-purple)) 26%, var(--line));
+  background: linear-gradient(150deg, color-mix(in srgb, var(--cat-color, var(--fair-blue)) 6%, #fff), #fff 58%);
+}
+body[data-visual-mode="science-fair"] .cat-card::before {
+  height: 4px;
+  background: linear-gradient(90deg, var(--cat-color, var(--fair-blue)), var(--fair-cyan), var(--fair-purple));
+}
+body[data-visual-mode="science-fair"] .cat-icon {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--cat-color, var(--fair-blue)), var(--fair-purple));
+  color: #fff;
+  box-shadow: 0 7px 16px color-mix(in srgb, var(--cat-color, var(--fair-blue)) 22%, transparent);
+}
+body[data-visual-mode="science-fair"] .collection-card {
+  border-color: #e2e2f0;
+  box-shadow: var(--shadow-sm);
+}
+body[data-visual-mode="science-fair"] .collection-card:hover {
+  border-color: #c9c8ed;
+  box-shadow: var(--shadow-md);
+}
+body[data-visual-mode="science-fair"] .club-pulse-card {
+  border-color: #e1e3ef;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Admission is a welcoming callout, not another oversized dark band. */
+.admission-section {
+  border-block: 1px solid var(--line);
+  background:
+    radial-gradient(ellipse at 92% 10%, rgba(37,99,235,.065), transparent 34%),
+    linear-gradient(135deg, #F5F1E8, #FBF9F4 64%, #F4F6FA);
+  color: var(--ink);
+}
+.admission-section::before {
+  background: radial-gradient(60% 90% at 4% 100%, rgba(245,158,11,.075), transparent 68%);
+}
+.admission-copy h2 { color: var(--ink); }
+.admission-copy h2 em { color: var(--brand); }
+.admission-copy > p { color: var(--body); }
+.admission-phone { color: var(--brand); }
+.admission-phone:hover { color: var(--brand-hover); }
+body[data-visual-mode="science-fair"] .admission-section {
+  background:
+    radial-gradient(ellipse at 88% 6%, rgba(6,182,212,.13), transparent 36%),
+    radial-gradient(ellipse at 8% 94%, rgba(139,92,246,.1), transparent 36%),
+    linear-gradient(120deg, #f0f5ff, #faf5ff 56%, #effaff);
+  border-color: #e2e2f2;
+}
+body[data-visual-mode="science-fair"] .fair-mega {
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(6,182,212,.3), transparent 42%),
+    radial-gradient(ellipse at 92% 100%, rgba(236,72,153,.22), transparent 44%),
+    linear-gradient(120deg, #292b72 0%, #453282 52%, #15576c 100%);
+}
+body[data-visual-mode="science-fair"] .fair-mega::before {
+  background-image: radial-gradient(rgba(255,255,255,.18) .8px, transparent .8px);
+  background-size: 24px 24px;
+  mask-image: linear-gradient(110deg, transparent 2%, #000 48%, transparent 100%);
+  opacity: .46;
+}
+
+.hero, .admission-section, .fair-mega, .notice-ribbon, .site-header,
+.club-card, .cat-card, .collection-card, .club-pulse-card {
+  transition: background-color .28s ease, background .28s ease, border-color .28s ease,
+              color .28s ease, box-shadow .28s ease, transform .24s ease;
+}

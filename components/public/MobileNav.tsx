@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, LogIn, Menu, Phone, ShieldCheck, X } from "lucide-react";
 import { primaryNav } from "@/components/public/Chrome";
+import { VisualModeToggle } from "@/components/public/VisualModeToggle";
 
 interface SiteSummary {
   name: string;
@@ -73,6 +74,7 @@ export function MobileNav({ site, active = "" }: { site: SiteSummary; active?: s
             </nav>
 
             <div className="mobile-nav-cta">
+              <VisualModeToggle />
               <div className="mobile-nav-actions">
                 <a className="button button-primary button-block" href="/clubs" onClick={() => setOpen(false)}>
                   ক্লাব তথ্যকেন্দ্র <ArrowUpRight size={15} aria-hidden />
