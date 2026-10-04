@@ -11,6 +11,7 @@ import type { PublicContent, SiteSetting } from "@/lib/types";
 import { settingValue } from "@/lib/club-data";
 import { SchoolLogo } from "@/components/public/SchoolLogo";
 import { MobileNav } from "@/components/public/MobileNav";
+import { VisualModeToggle } from "@/components/public/VisualModeToggle";
 import { optimizedImage } from "@/lib/cloudinary";
 import { bn } from "@/lib/format";
 
@@ -109,6 +110,7 @@ export function PublicChrome({
           </nav>
 
           <div className="header-actions">
+            <VisualModeToggle />
             <a className="header-link" href="/me">
               <span>শিক্ষার্থী পোর্টাল</span>
               <ArrowUpRight size={13} aria-hidden />
