@@ -12,17 +12,11 @@ import { settingValue } from "@/lib/club-data";
 import { SchoolLogo } from "@/components/public/SchoolLogo";
 import { MobileNav } from "@/components/public/MobileNav";
 import { VisualModeToggle } from "@/components/public/VisualModeToggle";
+import { primaryNav } from "@/components/public/NavigationData";
 import { optimizedImage } from "@/lib/cloudinary";
 import { bn } from "@/lib/format";
 
-export const primaryNav = [
-  { href: "/", label: "হোম", key: "home" },
-  { href: "/clubs", label: "ক্লাবসমূহ", key: "clubs" },
-  { href: "/news", label: "সংবাদ", key: "news" },
-  { href: "/#notices", label: "নোটিশ", key: "notices" },
-  { href: "/#gallery", label: "গ্যালারি", key: "gallery" },
-  { href: "/#contact", label: "যোগাযোগ", key: "contact" },
-] as const;
+export { primaryNav } from "@/components/public/NavigationData";
 
 export function siteInfo(settings: SiteSetting[]) {
   return {
