@@ -19,14 +19,25 @@ interface Card {
   title: string;
   text: string;
   href: string;
-  club: Club;
+  external?: boolean;
   chip?: string;
+  logo?: string;
+}
+
+function galleryUrls(club: Club) {
+  return String(club.gallery_urls ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 /**
  * "Slider by category" — the homepage club showcase. Each club is a category:
- * pick a club and the track fills with that club's slides and gallery pictures,
+ * pick a club and the grid fills with that club's slides and gallery pictures,
  * plus a link to the club's own website.
+ *
+ * Rebuilt as a responsive media grid: no horizontal overflow, every tile the
+ * same height, captions clamped to keep the rhythm even.
  */
 export function ClubShowcase({ clubs, slides, counts = {} }: ShowcaseProps) {
   const [active, setActive] = useState<string>("all");
@@ -35,10 +46,7 @@ export function ClubShowcase({ clubs, slides, counts = {} }: ShowcaseProps) {
     const list: Card[] = [];
     for (const club of clubs) {
       const clubSlides = slides.filter((slide) => slide.club_slug === club.slug);
-      const gallery = String(club.gallery_urls ?? "")
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean);
+      const gallery = galleryUrls(club);
 
       if (active === "all") {
         list.push({
@@ -47,8 +55,8 @@ export function ClubShowcase({ clubs, slides, counts = {} }: ShowcaseProps) {
           title: club.name,
           text: club.tagline || club.description,
           href: `/clubs/${club.slug}`,
-          club,
           chip: club.short_code || undefined,
+          logo: club.logo_url || undefined,
         });
         continue;
       }
@@ -62,7 +70,7 @@ export function ClubShowcase({ clubs, slides, counts = {} }: ShowcaseProps) {
           title: slide.title,
           text: slide.description,
           href: slide.cta_href || `/clubs/${club.slug}`,
-          club,
+          external: /^https?:/i.test(slide.cta_href || ""),
           chip: slide.eyebrow || `স্লাইড ${bn(index + 1)}`,
         }),
       );
@@ -71,9 +79,8 @@ export function ClubShowcase({ clubs, slides, counts = {} }: ShowcaseProps) {
           key: `gallery-${club.id}-${index}`,
           image,
           title: club.name,
-          text: `গ্যালারি ছবি ${bn(index + 1)} — ${counts[club.slug] ? `${bn(counts[club.slug])} টি ছবি` : "ক্লাব গ্যালারি"}`,
+          text: counts[club.slug] ? `${bn(counts[club.slug])} টি ছবির গ্যালারি` : "ক্লাব গ্যালারি",
           href: `/clubs/${club.slug}/gallery`,
-          club,
           chip: "গ্যালারি",
         }),
       );
@@ -84,8 +91,9 @@ export function ClubShowcase({ clubs, slides, counts = {} }: ShowcaseProps) {
         title: club.domain || club.subdomain || `${club.short_code ?? club.slug}.okgs.info`,
         text: club.name_en || "ক্লাবের নিজস্ব সাইটে সব আয়োজন, কমিটি ও গ্যালারি।",
         href: club.domain || club.subdomain || `/clubs/${club.slug}`,
-        club,
+        external: Boolean(club.domain || club.subdomain),
         chip: "নিজস্ব সাইট",
+        logo: club.logo_url || undefined,
       });
     }
     return list;
@@ -94,62 +102,70 @@ export function ClubShowcase({ clubs, slides, counts = {} }: ShowcaseProps) {
   if (!clubs.length) return null;
 
   return (
-    <section className="v2 v2-sec" id="clubs-showcase">
-      <div className="v2-wrap">
-        <div className="v2-sec-head">
+    <section className="section showcase-section reveal" id="clubs-showcase" aria-labelledby="showcase-title">
+      <div className="page-width">
+        <div className="section-heading">
           <div>
-            <p className="v2-chip v2-chip-accent"><Images size={14} /> ক্লাব স্লাইডার</p>
-            <h2>ক্লাব অনুযায়ী ছবি ও আয়োজন</h2>
-            <p>যে ক্লাবের ছবি দেখতে চান, তার নামে চাপ দিন — স্কুলের পাঁচটি সক্রিয় ক্লাব, প্রতিটির নিজস্ব সাইট সহ।</p>
+            <p className="eyebrow"><span className="eyebrow-dot" aria-hidden />ক্লাব গ্যালারি</p>
+            <h2 id="showcase-title">ক্লাব অনুযায়ী ছবি ও আয়োজন</h2>
           </div>
-          <a className="text-link" href="/clubs">
-            সব ক্লাব এক পাতায় <ArrowUpRight size={15} />
+          <p className="section-intro">
+            যে ক্লাবের ছবি দেখতে চান, তার নামে চাপ দিন — প্রতিটি ক্লাবের আয়োজন, গ্যালারি ও নিজস্ব সাইট এক জায়গায়।
+          </p>
+          <a className="text-link section-action" href="/clubs">
+            সব ক্লাব এক পাতায় <ArrowUpRight size={15} aria-hidden />
           </a>
         </div>
 
-        <div className="showcase-tabs" role="tablist" aria-label="ক্লাব ক্যাটাগরি">
-          <button type="button" className={`showcase-tab ${active === "all" ? "is-on" : ""}`} onClick={() => setActive("all")}>
-            <Users size={15} /> সব ক্লাব
+        <div className="showcase-tabs" role="group" aria-label="ক্লাব ক্যাটাগরি">
+          <button
+            type="button"
+            aria-pressed={active === "all"}
+            className={`showcase-tab ${active === "all" ? "is-on" : ""}`}
+            onClick={() => setActive("all")}
+          >
+            <Users size={15} aria-hidden /> সব ক্লাব
           </button>
           {clubs.map((club) => (
             <button
               key={club.id}
               type="button"
-              role="tab"
-              aria-selected={active === club.slug}
+              aria-pressed={active === club.slug}
               className={`showcase-tab ${active === club.slug ? "is-on" : ""}`}
               onClick={() => setActive(club.slug)}
             >
               {club.logo_url ? <img src={club.logo_url} alt="" /> : null}
-              {club.short_code ? `${club.short_code} · ` : ""}
-              {club.name}
+              {club.short_code || club.name}
             </button>
           ))}
         </div>
 
-        <div className="showcase-track" style={{ marginTop: 18 }}>
-          {cards.map((card) => {
-            const external = /^https?:/i.test(card.href);
-            return (
+        {cards.length ? (
+          <div className="showcase-grid">
+            {cards.map((card) => (
               <a
                 key={card.key}
                 className="showcase-card"
                 href={card.href}
-                {...(external ? { target: "_blank", rel: "noreferrer noopener" } : {})}
-                style={{ borderTop: `4px solid ${card.club.accent || "var(--okgs-accent)"}` }}
+                {...(card.external ? { target: "_blank", rel: "noreferrer noopener" } : {})}
               >
-                {card.image ? <SmartImage className="bg" src={card.image} alt={card.title} transform={{ width: 800, fit: "cover" }} /> : null}
-                {card.club.logo_url ? <SmartImage className="showcase-logo" src={card.club.logo_url} alt={`${card.club.name} লোগো`} transform={{ width: 120 }} /> : null}
-                {card.chip ? <span className="v2-chip" style={{ alignSelf: "flex-start", background: "rgba(255,255,255,.18)", color: "#fff", borderColor: "rgba(255,255,255,.3)" }}>{card.chip}</span> : null}
+                {card.image ? (
+                  <SmartImage className="bg" src={card.image} alt={card.title} transform={{ width: 760, height: 570, fit: "cover" }} label={card.title} />
+                ) : null}
+                {card.logo ? <SmartImage className="showcase-logo" src={card.logo} alt="" transform={{ width: 120 }} /> : null}
+                {card.chip ? <span className="showcase-chip">{card.chip}</span> : null}
                 <h3>{card.title}</h3>
-                <p>{card.text}</p>
-                <span style={{ marginTop: 10, fontSize: 13, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 5 }}>
-                  দেখুন <ArrowUpRight size={14} />
-                </span>
+                {card.text ? <p>{card.text}</p> : null}
+                <span className="showcase-more">দেখুন <ArrowUpRight size={14} aria-hidden /></span>
               </a>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="showcase-empty">
+            <Images size={22} aria-hidden />
+            <p>এই ক্লাবের জন্য এখনো ছবি যুক্ত করা হয়নি — অ্যাডমিন স্টুডিও থেকে যোগ করা যাবে।</p>
+          </div>
+        )}
       </div>
     </section>
   );

@@ -13,7 +13,7 @@ const tabs = [
   { href: "#schedule", label: "রুটিন" },
   { href: "#collections", label: "সংগ্রহ" },
   { href: "#register", label: "নিবন্ধন" },
-  { href: "#contact", label: "যোগাযোগ" },
+  { href: "#fair-contact", label: "যোগাযোগ" },
 ];
 
 /**
@@ -363,7 +363,7 @@ export function FairSite({
       </section>
 
       {/* ------------------------------------------------ contact */}
-      <section className="v2 v2-sec" id="contact" style={{ background: "var(--okgs-surface-2)" }}>
+      <section className="v2 v2-sec" id="fair-contact" style={{ background: "var(--okgs-surface-2)" }}>
         <div className="v2-wrap">
           <div className="v2-sec-head">
             <div>

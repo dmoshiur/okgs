@@ -38,10 +38,10 @@ export function FairMega({ content, fairHref }: { content: PublicContent; fairHr
             <CalendarDays size={15} />
             {kicker || (startsOn ? formatDate(startsOn) : "তারিখ শিগগিরই")}
           </p>
-          <h1 className="fair-mega-title">
+          <h2 className="fair-mega-title">
             {title}
             {sub ? <span>{sub}</span> : null}
-          </h1>
+          </h2>
           <div className="fair-mega-facts">
             {startsOn ? (
               <span>

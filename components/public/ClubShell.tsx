@@ -16,12 +16,12 @@ export function ClubShell({
   const { content, club, data } = loaded;
   return (
     <PublicChrome content={content} active="clubs">
-      <main>
+      <div className="club-page-main">
         <ClubPageHero club={club} content={data} active={section} />
         <div className="page-width club-body" style={{ "--club-accent": club.accent || "#e7c27e" } as React.CSSProperties}>
           {children}
         </div>
-      </main>
+      </div>
     </PublicChrome>
   );
 }

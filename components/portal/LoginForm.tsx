@@ -51,7 +51,7 @@ export function LoginForm({ note, next, fairName }: { note: string; next?: strin
   return (
     <div className="portal-card">
       <p className="v2-chip v2-chip-accent">{fairName ? `${fairName} · পোর্টাল` : "OKGS পোর্টাল"}</p>
-      <h1 style={{ marginTop: 12 }}>লগইন করুন</h1>
+      <h2 style={{ marginTop: 12 }}>লগইন করুন</h2>
       <p className="v2-muted" style={{ marginTop: 0 }}>ইমেইল অথবা স্কুল আইডি নম্বর — দুটোর যেকোনোটি ব্যবহার করা যাবে।</p>
 
       <form onSubmit={submit} style={{ display: "grid", gap: 14, marginTop: 18 }}>

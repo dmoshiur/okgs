@@ -49,7 +49,7 @@ export default async function NewsStoryPage({ params }: NewsPageProps) {
   return (
     <PublicChrome content={content} active="news">
       <JsonLd schema={[newsArticleSchema(story, club), breadcrumbSchema([{ name: "সংবাদ", url: "/news" }, { name: story.title, url: `/news/${story.slug}` }])]} />
-      <main className="story-page">
+      <div className="story-page">
         <div className="page-width story-article">
           <a className="back-story" href="/news"><ArrowLeft size={15} /> সংবাদে ফিরুন</a>
           <div className="story-article-heading">
@@ -116,7 +116,7 @@ export default async function NewsStoryPage({ params }: NewsPageProps) {
             <a className="text-link" href="/news">সব সংবাদ <ArrowRight size={14} /></a>
           </div>
         </div>
-      </main>
+      </div>
     </PublicChrome>
   );
 }

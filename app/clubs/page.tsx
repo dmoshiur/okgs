@@ -3,7 +3,7 @@ import { ArrowRight, CalendarClock, MapPin, Trophy } from "lucide-react";
 import { getPublicContent } from "@/lib/db";
 import { settingValue, summarizeAll } from "@/lib/club-data";
 import { isUpcoming, formatDate, relativeDay } from "@/lib/format";
-import { PublicChrome } from "@/components/public/Chrome";
+import { PublicChrome, SectionHeading } from "@/components/public/Chrome";
 import { ClubDirectory } from "@/components/public/ClubDirectory";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export default async function ClubsPage() {
 
   return (
     <PublicChrome content={content} active="clubs">
-      <main>
+      <div>
         <section className="club-index-hero">
           <div className="page-width">
             <p className="eyebrow eyebrow-light"><span className="eyebrow-dot" />সহশিক্ষা কার্যক্রম</p>
@@ -50,7 +50,13 @@ export default async function ClubsPage() {
           </div>
         </section>
 
-        <section className="section page-width" id="directory">
+        <section className="section page-width reveal" id="directory" aria-labelledby="directory-title">
+          <SectionHeading
+            eyebrow="ক্লাব ডিরেক্টরি"
+            title="ক্লাব খুঁজুন ও ছাঁকুন"
+            intro="কোড বা নাম দিয়ে ক্লাব বেছে নিন — প্রতিটি কার্ডে সদস্য, আয়োজন ও ছবির হালনাগাদ তথ্য।"
+            titleId="directory-title"
+          />
           <ClubDirectory summaries={summaries} />
         </section>
 
@@ -121,7 +127,7 @@ export default async function ClubsPage() {
             </article>
           </div>
         </section>
-      </main>
+      </div>
     </PublicChrome>
   );
 }
