@@ -305,7 +305,7 @@ export function PublicHome({ content }: { content: PublicContent }) {
           />
           <div className="notice-list">
             {content.notices.slice(0, 4).map((notice, index) => <NoticeRow key={notice.id} notice={notice} index={index} />)}
-            {!content.notices.length ? <p className="empty-copy" style={{ padding: 24 }}>নতুন নোটিশ শিগগিরই প্রকাশিত হবে।</p> : null}
+            {!content.notices.length ? <p className="empty-copy empty-panel">নতুন নোটিশ শিগগিরই প্রকাশিত হবে।</p> : null}
           </div>
         </section>
 
@@ -354,7 +354,7 @@ export function PublicHome({ content }: { content: PublicContent }) {
                   <ChevronRight size={17} aria-hidden />
                 </article>
               ))}
-              {!content.updates.length ? <p className="empty-copy" style={{ padding: 24 }}>আপডেট শিগগিরই প্রকাশিত হবে।</p> : null}
+              {!content.updates.length ? <p className="empty-copy empty-panel">আপডেট শিগগিরই প্রকাশিত হবে।</p> : null}
             </div>
           </div>
         </section>

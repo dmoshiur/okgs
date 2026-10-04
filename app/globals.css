@@ -217,6 +217,8 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   margin: 0; padding: var(--sp-5) 0;
   color: var(--muted); font-size: 15.5px;
 }
+.empty-panel { padding: var(--sp-5); }
+.empty-panel-empty { padding: var(--sp-6); text-align: center; }
 .divider { height: 1px; background: var(--line); border: 0; margin: 0; }
 
 /* ==================================================== typography ======== */
@@ -242,6 +244,11 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .section-heading h2 { max-width: 26ch; margin: 0; }
 .section-intro { margin: 0; color: var(--body); font-size: 16.5px; line-height: 1.85; }
 .section-action { white-space: nowrap; align-self: end; padding-bottom: 4px; }
+.section-heading > a, .section-heading > .button, .section-heading > .clubs-count { justify-self: end; }
+/* when a section has no intro paragraph the action still hugs the right edge */
+.section-heading:not(:has(.section-intro)) > a,
+.section-heading:not(:has(.section-intro)) > .button,
+.section-heading:not(:has(.section-intro)) > .clubs-count { grid-column: 3; }
 .section-heading .eyebrow { margin-bottom: var(--sp-3); }
 
 .lead { font-size: clamp(1.0625rem, 1.5vw, 1.25rem); line-height: 1.85; color: var(--ink-2); }
