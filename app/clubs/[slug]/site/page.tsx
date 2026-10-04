@@ -114,16 +114,6 @@ export default async function ClubSitePage({ params }: ClubSiteProps) {
             </div>
           </div>
 
-          {stats.length ? (
-            <div className="club-site-stats">
-              {stats.map((item) => (
-                <span key={item.label}>
-                  {item.icon} {item.label}: <strong>{item.label === "প্রতিষ্ঠা" ? bn(item.value) : bn(item.value)}</strong>
-                </span>
-              ))}
-            </div>
-          ) : null}
-
           <div className="cs-actions">
             <Link className="v2-btn" href={`/clubs/${slug}`}>
               মূল সাইটে ক্লাব পাতা <ArrowUpRight size={16} />
@@ -139,6 +129,16 @@ export default async function ClubSitePage({ params }: ClubSiteProps) {
               </a>
             ) : null}
           </div>
+
+          {stats.length ? (
+            <div className="club-site-stats">
+              {stats.map((item) => (
+                <span key={item.label}>
+                  {item.icon} {item.label}: <strong>{bn(item.value)}</strong>
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
       </header>
 

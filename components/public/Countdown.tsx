@@ -28,7 +28,7 @@ function diff(target: string): Counting {
 
 /** Live countdown to the fair — the heartbeat of the big homepage banner. */
 export function Countdown({ date, label = "মেলা শুরু হবে" }: { date: string; label?: string }) {
-  const [value, setValue] = useState<Counting>(() => diff(date));
+  const [value, setValue] = useState<Counting | null>(null);
 
   useEffect(() => {
     setValue(diff(date));
@@ -37,6 +37,22 @@ export function Countdown({ date, label = "মেলা শুরু হবে" 
   }, [date]);
 
   if (!date) return null;
+
+  if (!value) {
+    return (
+      <div>
+        <p style={{ margin: "0 0 8px", fontSize: 13, letterSpacing: ".1em", textTransform: "uppercase", opacity: 0.78 }}>{label}</p>
+        <div className="countdown" aria-label="সময় গণনা করা হচ্ছে">
+          {[["days", "দিন"], ["hours", "ঘণ্টা"], ["minutes", "মিনিট"], ["seconds", "সেকেন্ড"]].map(([key, unit]) => (
+            <div key={key}>
+              <strong aria-hidden="true">—</strong>
+              <small>{unit}</small>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (value.over) {
     return (

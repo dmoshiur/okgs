@@ -4,6 +4,7 @@ import { fairContent, readFlag, readSetting } from "@/lib/site";
 import { bn, formatDate, formatDayNumber, formatMonthName, relativeDay } from "@/lib/format";
 import { toLines } from "@/lib/content-config";
 import { Countdown } from "@/components/public/Countdown";
+import { Breadcrumb, EmptyState, InternalPageShell } from "@/components/public/InternalPage";
 import { SmartImage } from "@/components/public/Media";
 import { IconByName } from "@/lib/icons";
 
@@ -48,18 +49,23 @@ export function FairSite({
   const schoolName = readSetting(settings, "site_name");
   const poster = fair.poster_url || fair.cover_image_url;
   const featuredCollections = collections.filter((item) => item.is_featured).slice(0, 3);
+  const eventDays = fair.starts_on
+    ? fair.ends_on
+      ? Math.max(1, Math.round((new Date(fair.ends_on).getTime() - new Date(fair.starts_on).getTime()) / 86_400_000) + 1)
+      : 1
+    : null;
   const counts = {
     categories: categories.length,
     collections: collections.length,
-    passes: 0,
   };
 
   return (
-    <div className="v2 fair-page">
+    <InternalPageShell className="v2 fair-page">
       {/* ------------------------------------------------ hero */}
       <section className="fair-mega">
         <div className="v2-wrap fair-mega-inner">
-          <div>
+          <div className="fair-mega-copy">
+            {!compact ? <Breadcrumb items={[{ label: "বিজ্ঞান মেলা" }, { label: fair.name }]} className="internal-breadcrumb-light" /> : null}
             <p className="fair-mega-kicker">
               <FlaskConical size={15} /> {fair.edition ? `${fair.edition} · ` : ""}
               {fair.venue || "স্কুল ক্যাম্পাস"}
@@ -151,7 +157,7 @@ export function FairSite({
 
       {/* ------------------------------------------------ overview */}
       <section className="v2 v2-sec" id="overview">
-        <div className="v2-wrap v2-grid" style={{ gridTemplateColumns: "minmax(0, 1.35fr) minmax(250px, .65fr)" }}>
+        <div className="v2-wrap v2-grid fair-overview-grid">
           <div>
             <div className="v2-sec-head" style={{ marginBottom: 18 }}>
               <div>
@@ -171,10 +177,12 @@ export function FairSite({
                 <span><Trophy size={14} /> সংগৃহীত প্রকল্প</span>
                 <strong>{bn(counts.collections)}</strong>
               </div>
-              <div className="metric">
-                <span><CalendarClock size={14} /> আয়োজনের দিন</span>
-                <strong>{fair.starts_on && fair.ends_on ? bn(Math.max(1, Math.round((new Date(fair.ends_on).getTime() - new Date(fair.starts_on).getTime()) / 86_400_000) + 1)) : bn(1)}</strong>
-              </div>
+              {eventDays !== null ? (
+                <div className="metric">
+                  <span><CalendarClock size={14} /> আয়োজনের দিন</span>
+                  <strong>{bn(eventDays)}</strong>
+                </div>
+              ) : null}
               <div className="metric">
                 <span><Users size={14} /> নিবন্ধন</span>
                 <strong style={{ fontSize: 20 }}>{registrationOpen ? (fair.registration_deadline ? formatDate(fair.registration_deadline) : "চলছে") : "বন্ধ"}</strong>
@@ -221,7 +229,7 @@ export function FairSite({
         <div className="v2-wrap">
           <div className="v2-sec-head">
             <div>
-              <p className="v2-chip v2-chip-accent">আটটি ক্যাটাগরি</p>
+              <p className="v2-chip v2-chip-accent">ক্যাটাগরি</p>
               <h2>কোন বিষয়ে প্রতিযোগিতা</h2>
               <p>প্রতিটি ক্যাটাগরির নিয়ম, দলের আকার, কোন শ্রেণির জন্য — সবই কনসোল থেকে সম্পাদনা করা যায়।</p>
             </div>
@@ -249,7 +257,7 @@ export function FairSite({
                 ) : null}
               </article>
             ))}
-            {!categories.length ? <p className="v2-muted">ক্যাটাগরি এখনো যোগ করা হয়নি।</p> : null}
+            {!categories.length ? <EmptyState className="v2-muted" message="ক্যাটাগরি এখনো যোগ করা হয়নি।" /> : null}
           </div>
         </div>
       </section>
@@ -264,12 +272,12 @@ export function FairSite({
               <p>{fair.starts_on ? `${formatDate(fair.starts_on)}${fair.ends_on && fair.ends_on !== fair.starts_on ? ` – ${formatDate(fair.ends_on)}` : ""}` : ""}</p>
             </div>
           </div>
-          <div className="v2-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+          <div className="v2-grid fair-schedule-grid">
             {groupByDay(schedule).map(([day, items]) => (
               <div className="v2-card" key={day} style={{ padding: 20 }}>
                 <header style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                  <span style={{ width: 52, height: 52, borderRadius: 14, background: "color-mix(in srgb, var(--okgs-accent) 14%, var(--okgs-surface))", color: "var(--okgs-accent)", display: "grid", placeItems: "center", fontWeight: 700 }}>
-                    <b style={{ fontSize: 19, lineHeight: 1 }}>{formatDayNumber(day)}</b>
+                  <span className="fair-schedule-date">
+                    <b>{formatDayNumber(day)}</b>
                   </span>
                   <div>
                     <strong style={{ display: "block" }}>{formatMonthName(day, "long")}</strong>
@@ -292,7 +300,7 @@ export function FairSite({
                 </ul>
               </div>
             ))}
-            {!schedule.length ? <p className="v2-muted">রুটিন এখনো প্রকাশিত হয়নি।</p> : null}
+            {!schedule.length ? <EmptyState className="v2-muted" message="রুটিন এখনো প্রকাশিত হয়নি।" /> : null}
           </div>
         </div>
       </section>
@@ -327,7 +335,7 @@ export function FairSite({
                 </div>
               </article>
             ))}
-            {!collections.length ? <p className="v2-muted">এখনো কোনো সংগ্রহ যোগ করা হয়নি।</p> : null}
+            {!collections.length ? <EmptyState className="v2-muted" message="এখনো কোনো সংগ্রহ যোগ করা হয়নি।" /> : null}
           </div>
         </div>
       </section>
@@ -335,8 +343,8 @@ export function FairSite({
       {/* ------------------------------------------------ register */}
       <section className="v2 v2-sec" id="register">
         <div className="v2-wrap">
-          <div className="v2-card" style={{ padding: "28px 26px", display: "grid", gap: 18, gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center" }}>
-            <div>
+          <div className="v2-card fair-register-card">
+            <div className="fair-register-copy">
               <p className="v2-chip v2-chip-accent"><Ticket size={14} /> নিবন্ধন {registrationOpen ? "চলছে" : "বন্ধ"}</p>
               <h2 style={{ margin: "12px 0 8px" }}>{registrationOpen ? "আপনার দল নিবন্ধন করুন" : "নিবন্ধন এখন বন্ধ"}</h2>
               <p className="v2-muted" style={{ margin: 0, maxWidth: "64ch" }}>
@@ -350,7 +358,7 @@ export function FairSite({
                 <span>ধাপ ৩: QR পাস ডাউনলোড</span>
               </div>
             </div>
-            <div style={{ display: "grid", gap: 10 }}>
+            <div className="fair-register-actions">
               <a className="v2-btn" href="/sf/login">
                 <Users size={16} /> শিক্ষার্থী লগইন
               </a>
@@ -372,7 +380,7 @@ export function FairSite({
               <p>{fair.venue ? `${fair.venue} · ` : ""}{fair.city}</p>
             </div>
           </div>
-          <div className="v2-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+          <div className="v2-grid fair-contact-grid">
             <div className="v2-card" style={{ padding: 18 }}>
               <h3 style={{ marginTop: 0 }}>ফোন</h3>
               <p className="v2-muted" style={{ margin: 0 }}>
@@ -398,7 +406,7 @@ export function FairSite({
           </div>
         </div>
       </section>
-    </div>
+    </InternalPageShell>
   );
 }
 

@@ -7,12 +7,13 @@ import { clubPath } from "@/lib/club-data";
 import { paragraphs, toLines } from "@/lib/content-config";
 import { bn, formatDate } from "@/lib/format";
 import { ClubShell, ClubSectionTitle } from "@/components/public/ClubShell";
+import { ClubTabs } from "@/components/public/ClubTabs";
+import { CTAGroup } from "@/components/public/InternalPage";
 import {
   AchievementList,
   ClubSidebar,
   EventList,
   FactGrid,
-  MemberGrid,
   NoticeList,
   ObjectiveList,
   PostList,
@@ -65,8 +66,8 @@ export default async function ClubOverviewPage({ params }: ClubPageProps) {
 
   return (
     <ClubShell loaded={loaded} section="">
-      {/* Club overview: the hero above already carries the name, so this band
-          gives the description, actions and section counts a proper home. */}
+      {/* The summary and actions follow the club identity before statistics,
+          section navigation or featured content. */}
       <section className="club-overview" aria-labelledby="club-overview-title">
         <div className="club-overview-copy">
           <p className="eyebrow"><span className="eyebrow-dot" aria-hidden />{club.short_code ? `${club.short_code} · ` : ""}সংক্ষেপে</p>
@@ -74,7 +75,7 @@ export default async function ClubOverviewPage({ params }: ClubPageProps) {
           {club.name_en ? <p className="club-en club-en-dark">{club.name_en}</p> : null}
           {club.description ? <p className="club-overview-lead">{club.description}</p> : null}
 
-          <div className="club-overview-actions">
+          <CTAGroup className="club-overview-actions">
             <Link className="button button-primary button-small" href={`/clubs/${club.slug}/site`}>
               <Sparkles size={15} aria-hidden /> ক্লাব সাইট
             </Link>
@@ -94,10 +95,10 @@ export default async function ClubOverviewPage({ params }: ClubPageProps) {
             <Link className="club-admin-link" href={`/clubs/${club.slug}/admin`}>
               <ShieldCheck size={13} aria-hidden /> ক্লাব অ্যাডমিন
             </Link>
-          </div>
+          </CTAGroup>
         </div>
 
-        <nav className="club-overview-stats" aria-label="ক্লাবের অংশসমূহ">
+        <nav className="club-overview-stats" aria-label="ক্লাবের তথ্য">
           <Link href={clubPath(club.slug, "events")}>
             <strong>{bn(sectionCounts[0].value)}</strong>
             <span>{sectionCounts[0].label}</span>
@@ -117,10 +118,23 @@ export default async function ClubOverviewPage({ params }: ClubPageProps) {
         </nav>
       </section>
 
-      <ClubLeadership club={club} members={data.members} />
+      <ClubTabs club={club} active="" />
 
       <div className="club-layout">
         <div className="club-main">
+          <section className="club-block">
+            <ClubSectionTitle
+              eyebrow="ক্যালেন্ডার"
+              title="আসন্ন আয়োজন"
+              action={
+                <a className="text-link section-action" href={clubPath(club.slug, "events")}>
+                  সব আয়োজন <ArrowRight size={14} />
+                </a>
+              }
+            />
+            <EventList content={{ ...data, events: data.upcomingEvents.slice(0, 3) }} accent={club.accent} />
+          </section>
+
           <section className="club-block">
             <ClubSectionTitle eyebrow="পরিচিতি" title={`${club.name} সম্পর্কে`} />
             {cover ? (
@@ -138,19 +152,6 @@ export default async function ClubOverviewPage({ params }: ClubPageProps) {
             ) : null}
             <ObjectiveList items={toLines(club.objectives)} />
             <FactGrid club={club} />
-          </section>
-
-          <section className="club-block">
-            <ClubSectionTitle
-              eyebrow="ক্যালেন্ডার"
-              title="আসন্ন আয়োজন"
-              action={
-                <a className="text-link section-action" href={clubPath(club.slug, "events")}>
-                  সব আয়োজন <ArrowRight size={14} />
-                </a>
-              }
-            />
-            <EventList content={{ ...data, events: data.upcomingEvents.slice(0, 3) }} accent={club.accent} />
           </section>
 
           <section className="club-block">
@@ -175,19 +176,8 @@ export default async function ClubOverviewPage({ params }: ClubPageProps) {
             />
           </section>
 
-          {data.members.length ? (
-            <section className="club-block">
-              <ClubSectionTitle
-                eyebrow="কমিটি"
-                title="যারা এগিয়ে নেন"
-                action={
-                  <a className="text-link section-action" href={clubPath(club.slug, "members")}>
-                    সব সদস্য <ArrowRight size={14} />
-                  </a>
-                }
-              />
-              <MemberGrid members={data.members.slice(0, 4)} accent={club.accent} />
-            </section>
+          {data.members.length || club.coordinator || club.president || club.secretary ? (
+            <ClubLeadership club={club} members={data.members} />
           ) : null}
 
           {data.achievements.length ? (

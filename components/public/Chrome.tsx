@@ -42,10 +42,12 @@ export function siteInfo(settings: SiteSetting[]) {
 export function PublicChrome({
   content,
   active = "",
+  internal = false,
   children,
 }: {
   content: PublicContent;
   active?: string;
+  internal?: boolean;
   children: React.ReactNode;
 }) {
   const site = siteInfo(content.settings);
@@ -118,7 +120,7 @@ export function PublicChrome({
         </div>
       </header>
 
-      <main id="main" className="site-main">{children}</main>
+      <main id="main" className={`site-main${internal ? " internal-main" : ""}`}>{children}</main>
 
       <footer className="site-footer" id="contact">
         <div className="page-width footer-grid">

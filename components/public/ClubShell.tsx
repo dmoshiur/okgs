@@ -1,6 +1,8 @@
 import type { LoadedClub } from "@/lib/club-loader";
 import { PublicChrome } from "@/components/public/Chrome";
 import { ClubPageHero } from "@/components/public/ClubBlocks";
+import { ClubTabs } from "@/components/public/ClubTabs";
+import { InternalPageShell, SectionHeader } from "@/components/public/InternalPage";
 import type { ClubSectionSlug } from "@/lib/club-data";
 
 /** Shared frame for /clubs/[slug] and every section page. */
@@ -15,26 +17,18 @@ export function ClubShell({
 }) {
   const { content, club, data } = loaded;
   return (
-    <PublicChrome content={content} active="clubs">
-      <div className="club-page-main">
-        <ClubPageHero club={club} content={data} active={section} />
+    <PublicChrome content={content} active="clubs" internal>
+      <InternalPageShell className="club-page-main">
+        <ClubPageHero club={club} fallbackImage={data.gallery[0]?.image_url} />
         <div className="page-width club-body" style={{ "--club-accent": club.accent || "#e7c27e" } as React.CSSProperties}>
+          {section ? <ClubTabs club={club} active={section} /> : null}
           {children}
         </div>
-      </div>
+      </InternalPageShell>
     </PublicChrome>
   );
 }
 
 export function ClubSectionTitle({ eyebrow, title, intro, action }: { eyebrow: string; title: string; intro?: string; action?: React.ReactNode }) {
-  return (
-    <header className="club-section-head">
-      <div>
-        <p className="eyebrow"><span className="eyebrow-dot" />{eyebrow}</p>
-        <h2>{title}</h2>
-        {intro ? <p className="club-section-intro">{intro}</p> : null}
-      </div>
-      {action}
-    </header>
-  );
+  return <SectionHeader className="club-section-head" eyebrow={eyebrow} title={title} intro={intro} action={action} />;
 }

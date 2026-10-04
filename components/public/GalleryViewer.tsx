@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { optimizedImage } from "@/lib/cloudinary";
 import { bn } from "@/lib/format";
+import { EmptyState } from "@/components/public/InternalPage";
 
 export interface GalleryItem {
   src: string;
@@ -47,7 +48,7 @@ export function GalleryViewer({
     };
   }, [open, close, step]);
 
-  if (!items.length) return <p className="empty-note">{emptyLabel}</p>;
+  if (!items.length) return <EmptyState className="empty-note" message={emptyLabel} />;
 
   const active = open === null ? null : items[open];
 
