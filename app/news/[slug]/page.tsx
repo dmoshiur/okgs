@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays, Mail, User } from "lucide-react";
+import { ArrowRight, ArrowUpRight, CalendarDays, Mail, User } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getPublicContent } from "@/lib/db";
 import { clubPath } from "@/lib/club-data";
 import { paragraphs } from "@/lib/content-config";
 import { formatDate } from "@/lib/format";
 import { PublicChrome } from "@/components/public/Chrome";
+import { Breadcrumb, EmptyState, InternalPageShell } from "@/components/public/InternalPage";
 import { SmartImage } from "@/components/public/Media";
 import { JsonLd } from "@/components/public/JsonLd";
 import { breadcrumbSchema, newsArticleSchema } from "@/lib/schema";
@@ -47,11 +48,11 @@ export default async function NewsStoryPage({ params }: NewsPageProps) {
   const email = content.settings.find((setting) => setting.key === "email")?.value || "";
 
   return (
-    <PublicChrome content={content} active="news">
+    <PublicChrome content={content} active="news" internal>
       <JsonLd schema={[newsArticleSchema(story, club), breadcrumbSchema([{ name: "সংবাদ", url: "/news" }, { name: story.title, url: `/news/${story.slug}` }])]} />
-      <div className="story-page">
-        <div className="page-width story-article">
-          <a className="back-story" href="/news"><ArrowLeft size={15} /> সংবাদে ফিরুন</a>
+      <InternalPageShell className="story-page">
+        <article className="page-width story-article">
+          <Breadcrumb items={[{ label: "সংবাদ", href: "/news" }, { label: story.title }]} />
           <div className="story-article-heading">
             <div>
               <p className="eyebrow"><span className="eyebrow-dot" />{story.category || "সংবাদ"}</p>
@@ -71,7 +72,7 @@ export default async function NewsStoryPage({ params }: NewsPageProps) {
           <div className="article-body">
             <div className="article-copy">
               {story.excerpt ? <p className="article-lead">{story.excerpt}</p> : null}
-              {blocks.length ? blocks.map((block, index) => <p key={index}>{block}</p>) : <p>{story.excerpt}</p>}
+              {blocks.length ? blocks.map((block, index) => <p key={index}>{block}</p>) : story.excerpt ? null : <EmptyState className="empty-note" message="এই সংবাদটির বিস্তারিত এখনো যুক্ত করা হয়নি।" />}
 
               {club ? (
                 <aside className="article-club-box">
@@ -115,8 +116,8 @@ export default async function NewsStoryPage({ params }: NewsPageProps) {
             <span>{story.title}</span>
             <a className="text-link" href="/news">সব সংবাদ <ArrowRight size={14} /></a>
           </div>
-        </div>
-      </div>
+        </article>
+      </InternalPageShell>
     </PublicChrome>
   );
 }

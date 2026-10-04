@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowUpRight, CalendarDays, Mail, User } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Mail, User } from "lucide-react";
 import { loadClub } from "@/lib/club-loader";
 import { clubPath, settingValue } from "@/lib/club-data";
 import { paragraphs } from "@/lib/content-config";
 import { formatDate } from "@/lib/format";
 import { PublicChrome } from "@/components/public/Chrome";
-import { ClubTabs } from "@/components/public/ClubBlocks";
+import { ClubTabs } from "@/components/public/ClubTabs";
+import { Breadcrumb } from "@/components/public/InternalPage";
 import { SmartImage } from "@/components/public/Media";
 
 type ClubPostPageProps = { params: Promise<{ slug: string; postSlug: string }> };
@@ -47,12 +48,12 @@ export default async function ClubPostPage({ params }: ClubPostPageProps) {
   const accent = club.accent || "#e7c27e";
 
   return (
-    <PublicChrome content={content} active="clubs">
+    <PublicChrome content={content} active="clubs" internal>
       <div>
-        <article className="club-post-page" style={{ "--club-accent": accent } as React.CSSProperties}>
+        <article className="internal-page-shell club-post-page" style={{ "--club-accent": accent } as React.CSSProperties}>
           <header className="club-post-head">
             <div className="page-width">
-              <a className="club-back" href={clubPath(club.slug)}><ArrowLeft size={14} /> {club.name}</a>
+              <Breadcrumb items={[{ label: "ক্লাবসমূহ", href: "/clubs" }, { label: club.name, href: clubPath(club.slug) }, { label: post.title }]} className="internal-breadcrumb-light" />
               <p className="eyebrow eyebrow-light"><span className="eyebrow-dot" />{post.category || "লেখা"}</p>
               <h1>{post.title}</h1>
               {post.excerpt ? <p className="club-post-excerpt">{post.excerpt}</p> : null}
@@ -64,6 +65,10 @@ export default async function ClubPostPage({ params }: ClubPostPageProps) {
             </div>
           </header>
 
+          <div className="page-width club-post-navigation">
+            <ClubTabs club={club} active="posts" />
+          </div>
+
           <div className="page-width club-post-body">
             {post.image_url ? (
               <figure className="club-post-figure">
@@ -71,7 +76,7 @@ export default async function ClubPostPage({ params }: ClubPostPageProps) {
               </figure>
             ) : null}
 
-            <div className="story-article club-post-article">
+            <div className="club-post-article">
               {blocks.length ? (
                 <div className="article-copy">
                   {blocks.map((block, blockIndex) =>
@@ -123,9 +128,6 @@ export default async function ClubPostPage({ params }: ClubPostPageProps) {
             ) : null}
           </div>
 
-          <div className="page-width club-post-foot">
-            <ClubTabs club={club} active="posts" />
-          </div>
         </article>
       </div>
     </PublicChrome>

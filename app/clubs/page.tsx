@@ -4,6 +4,7 @@ import { getPublicContent } from "@/lib/db";
 import { settingValue, summarizeAll } from "@/lib/club-data";
 import { isUpcoming, formatDate, relativeDay } from "@/lib/format";
 import { PublicChrome, SectionHeading } from "@/components/public/Chrome";
+import { InternalPageHeader, InternalPageShell } from "@/components/public/InternalPage";
 import { ClubDirectory } from "@/components/public/ClubDirectory";
 
 export const dynamic = "force-dynamic";
@@ -36,19 +37,22 @@ export default async function ClubsPage() {
   const clubNotices = content.notices.filter((notice) => notice.club_slug || notice.type === "কার্যক্রম").slice(0, 3);
 
   return (
-    <PublicChrome content={content} active="clubs">
-      <div>
-        <section className="club-index-hero">
-          <div className="page-width">
-            <p className="eyebrow eyebrow-light"><span className="eyebrow-dot" />সহশিক্ষা কার্যক্রম</p>
-            <h1>সব ক্লাবের তথ্য<br /><em>এক জায়গায়।</em></h1>
-            <p>{intro}</p>
-            <div className="club-index-actions">
+    <PublicChrome content={content} active="clubs" internal>
+      <InternalPageShell className="club-directory-page">
+        <InternalPageHeader
+          className="club-index-hero"
+          breadcrumb={[{ label: "ক্লাবসমূহ" }]}
+          eyebrow="সহশিক্ষা কার্যক্রম"
+          title={<>সব ক্লাবের তথ্য<br /><em>এক জায়গায়।</em></>}
+          description={intro}
+          actionsClassName="club-index-actions"
+          actions={
+            <>
               <a className="button button-gold" href="#directory">ক্লাব দেখুন <ArrowRight size={15} /></a>
               <a className="club-index-link" href="/#admission">ভর্তি তথ্য <ArrowRight size={14} /></a>
-            </div>
-          </div>
-        </section>
+            </>
+          }
+        />
 
         <section className="section page-width reveal" id="directory" aria-labelledby="directory-title">
           <SectionHeading
@@ -127,7 +131,7 @@ export default async function ClubsPage() {
             </article>
           </div>
         </section>
-      </div>
+      </InternalPageShell>
     </PublicChrome>
   );
 }

@@ -1,13 +1,11 @@
 import {
   ArrowRight,
   ArrowUpRight,
-  CalendarCheck,
   CalendarClock,
   CheckCircle2,
   Clock,
   ExternalLink,
   Facebook,
-  Flag,
   Mail,
   MapPin,
   Phone,
@@ -17,68 +15,28 @@ import {
   Users,
 } from "lucide-react";
 import type { Club, ClubAchievement, ClubContent, ClubEvent, ClubMember, ClubPost, NewsItem, Notice } from "@/lib/types";
-import { clubCounts, clubHighlights, clubPath } from "@/lib/club-data";
+import { clubHighlights, clubPath, type ClubSectionSlug } from "@/lib/club-data";
 import { bn, formatDate, formatDayNumber, formatMonthName, initialsOf, isUpcoming, relativeDay, yearLabel } from "@/lib/format";
-import { IconByName } from "@/lib/icons";
 import { SmartBackdrop, SmartImage } from "@/components/public/Media";
-import { clubSections, type ClubSectionSlug } from "@/lib/club-data";
+import { Breadcrumb, EmptyState } from "@/components/public/InternalPage";
 
-export function ClubTabs({ club, active }: { club: Club; active: ClubSectionSlug }) {
-  return (
-    <nav className="club-tabs" aria-label="ক্লাবের অংশসমূহ">
-      {clubSections.map((section) => (
-        <a
-          key={section.key}
-          href={clubPath(club.slug, section.slug)}
-          className={`club-tab${active === section.slug ? " is-active" : ""}`}
-          aria-current={active === section.slug ? "page" : undefined}
-          style={{ "--club-accent": club.accent || "#e7c27e" } as React.CSSProperties}
-        >
-          {section.label}
-        </a>
-      ))}
-    </nav>
-  );
-}
-
-export function ClubPageHero({ club, content, active }: { club: Club; content: ClubContent; active: ClubSectionSlug }) {
-  const counts = clubCounts(content);
+export function ClubPageHero({ club, fallbackImage }: { club: Club; fallbackImage?: string }) {
   const accent = club.accent || "#e7c27e";
-  const nextEvent = content.upcomingEvents[0];
 
   return (
     <section className="club-hero" style={{ "--club-accent": accent } as React.CSSProperties}>
       <SmartBackdrop
         className="club-hero-bg"
-        src={club.cover_image_url || club.image_url || content.gallery[0]?.image_url}
+        src={club.cover_image_url || club.image_url || fallbackImage}
         transform={{ width: 1800, fit: "cover" }}
       />
       <div className="page-width club-hero-inner">
+        <Breadcrumb items={[{ label: "ক্লাবসমূহ", href: "/clubs" }, { label: club.name }]} className="internal-breadcrumb-light" />
         <p className="club-hero-kicker">
-          <a href="/clubs">সব ক্লাব</a> <span>/</span> <span className="club-hero-icon"><IconByName name={club.icon} size={15} /></span> {club.name}
+          {club.short_code ? `${club.short_code} · ` : ""}ক্লাব তথ্যকেন্দ্র
         </p>
         <h1>{club.name}</h1>
         {club.tagline ? <p className="club-hero-tagline">{club.tagline}</p> : null}
-
-        <div className="club-hero-stats">
-          <span><Flag size={14} /> যাত্রা শুরু {yearLabel(club.founded_year) || "—"}</span>
-          {club.member_count ? <span><Users size={14} /> {bn(club.member_count)} সদস্য</span> : null}
-          <span><CalendarCheck size={14} /> {bn(counts.events)} আয়োজন</span>
-          {counts.gallery ? <span><Sparkles size={14} /> {bn(counts.gallery)} ছবি</span> : null}
-        </div>
-
-        {nextEvent ? (
-          <div className="club-hero-next">
-            <span className="club-hero-next-label"><CalendarClock size={14} /> পরবর্তী আয়োজন</span>
-            <strong>{nextEvent.title}</strong>
-            <span>{formatDate(nextEvent.event_date)}{nextEvent.event_time ? ` · ${nextEvent.event_time}` : ""}{nextEvent.venue ? ` · ${nextEvent.venue}` : ""}</span>
-            {relativeDay(nextEvent.event_date) ? <em>{relativeDay(nextEvent.event_date)}</em> : null}
-            <a className="text-link" href={clubPath(club.slug, "events")}>সব আয়োজন <ArrowRight size={14} /></a>
-          </div>
-        ) : null}
-      </div>
-      <div className="page-width club-hero-foot">
-        <ClubTabs club={club} active={active} />
       </div>
     </section>
   );
@@ -119,7 +77,7 @@ export function ObjectiveList({ items }: { items: string[] }) {
 export function EventCard({ event, accent }: { event: ClubEvent; accent: string }) {
   const isPast = !isUpcoming(event.event_date);
   return (
-    <article className={`event-card ${isPast ? "is-past" : ""}`} style={{ "--club-accent": accent } as React.CSSProperties}>
+    <article className={`event-card${isPast ? " is-past" : ""}${event.image_url ? " has-image" : ""}`} style={{ "--club-accent": accent } as React.CSSProperties}>
       <div className="event-date">
         <strong>{formatDayNumber(event.event_date) || "—"}</strong>
         <span>{formatMonthName(event.event_date, "long")}</span>
@@ -153,13 +111,13 @@ export function EventCard({ event, accent }: { event: ClubEvent; accent: string 
 
 export function EventList({ content, accent, limit }: { content: ClubContent; accent: string; limit?: number }) {
   const events = limit ? content.events.slice(0, limit) : content.events;
-  if (!events.length) return <p className="empty-note">এই মুহূর্তে কোনো আয়োজন প্রকাশিত হয়নি।</p>;
+  if (!events.length) return <EmptyState className="empty-note" message="এই মুহূর্তে কোনো আয়োজন প্রকাশিত হয়নি।" />;
   return <div className="event-list">{events.map((event) => <EventCard key={event.id} event={event} accent={accent} />)}</div>;
 }
 
 export function MemberGrid({ members, accent, limit }: { members: ClubMember[]; accent: string; limit?: number }) {
   const rows = limit ? members.slice(0, limit) : members;
-  if (!rows.length) return <p className="empty-note">কমিটির তালিকা শিগগিরই যুক্ত হবে।</p>;
+  if (!rows.length) return <EmptyState className="empty-note" message="কমিটির তালিকা শিগগিরই যুক্ত হবে।" />;
   return (
     <div className="member-grid">
       {rows.map((member) => (
@@ -186,11 +144,11 @@ export function MemberGrid({ members, accent, limit }: { members: ClubMember[]; 
 
 export function AchievementList({ items, accent, limit }: { items: ClubAchievement[]; accent: string; limit?: number }) {
   const rows = limit ? items.slice(0, limit) : items;
-  if (!rows.length) return <p className="empty-note">এখনো অর্জন যুক্ত করা হয়নি।</p>;
+  if (!rows.length) return <EmptyState className="empty-note" message="এখনো অর্জন যুক্ত করা হয়নি।" />;
   return (
     <div className="achievement-list">
       {rows.map((item, index) => (
-        <article key={item.id} className="achievement-card" style={{ "--club-accent": accent } as React.CSSProperties}>
+        <article key={item.id} className={`achievement-card${item.certificate_url ? " has-certificate" : ""}`} style={{ "--club-accent": accent } as React.CSSProperties}>
           <span className="achievement-index">{bn(index + 1)}</span>
           {item.certificate_url ? (
             <SmartImage className="achievement-photo" src={item.certificate_url} alt={item.title} transform={{ width: 420, fit: "cover" }} label={item.title} accent={accent} />
@@ -213,7 +171,7 @@ export function AchievementList({ items, accent, limit }: { items: ClubAchieveme
 
 export function PostList({ club, posts, limit }: { club: Club; posts: ClubPost[]; limit?: number }) {
   const rows = limit ? posts.slice(0, limit) : posts;
-  if (!rows.length) return <p className="empty-note">এই ক্লাবের লেখা শিগগিরই প্রকাশিত হবে।</p>;
+  if (!rows.length) return <EmptyState className="empty-note" message="এই ক্লাবের লেখা শিগগিরই প্রকাশিত হবে।" />;
   return (
     <div className="post-list">
       {rows.map((post) => (
@@ -316,14 +274,18 @@ export function ClubSidebar({ club, content }: { club: Club; content: ClubConten
       </section>
       <section className="club-side-card">
         <h3><Users size={15} /> কমিটি</h3>
-        <ul className="club-side-people">
-          {content.members.slice(0, 5).map((member) => (
-            <li key={member.id}>
-              <span className="club-side-avatar">{initialsOf(member.name)}</span>
-              <span><strong>{member.name}</strong><small>{member.role}</small></span>
-            </li>
-          ))}
-        </ul>
+        {content.members.length ? (
+          <ul className="club-side-people">
+            {content.members.slice(0, 5).map((member) => (
+              <li key={member.id}>
+                <span className="club-side-avatar">{initialsOf(member.name)}</span>
+                <span><strong>{member.name}</strong><small>{member.role}</small></span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState className="empty-note" message="কমিটির তথ্য এখনো যোগ করা হয়নি।" />
+        )}
         <a className="text-link" href={clubPath(club.slug, "members")}>সব সদস্য <ArrowRight size={13} /></a>
       </section>
     </div>
