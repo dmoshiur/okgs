@@ -76,7 +76,7 @@
   --r-xl: 20px;
   --r-2xl: 28px;
   --r-pill: 999px;
-  --container: 1320px;
+  --container: 1600px;
   --container-narrow: 1040px;
   --gutter: 20px;
   --header-h: 74px;
@@ -154,7 +154,10 @@ body[data-theme-mode="dark"] { --mint-text: color-mix(in srgb, var(--mint) 84%, 
 
 @media (min-width: 480px) { :root { --gutter: 24px; } }
 @media (min-width: 768px) { :root { --gutter: 32px; --header-h: 78px; } }
-@media (min-width: 1280px) { :root { --gutter: 40px; } }
+@media (min-width: 1280px) { :root { --gutter: clamp(40px, 2.5vw, 56px); } }
+@media (min-width: 1920px) {
+  :root { --container: 1720px; --gutter: clamp(48px, 3vw, 64px); }
+}
 
 /* ========================================================== base ========= */
 *, *::before, *::after { box-sizing: border-box; }
@@ -417,7 +420,10 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   min-height: var(--header-h);
   padding-block: 10px;
 }
-.brand { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
+/* Keep the desktop menu and actions together while letting the existing
+   tablet grid place them on separate rows. */
+.header-navigation { display: contents; }
+.brand { display: inline-flex; align-items: center; gap: 12px; min-width: 0; max-width: none; }
 .brand:hover .brand-copy strong { color: var(--brand-mid); }
 .official-logo, .official-logo-fallback {
   width: 46px; height: 46px; flex: 0 0 46px;
@@ -432,7 +438,8 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .official-logo.is-compact, .official-logo-fallback.is-compact { width: 38px; height: 38px; flex-basis: 38px; }
 /* Full identity text grows vertically instead of clipping at any breakpoint. */
 .brand-copy {
-  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  display: flex; flex: 1 1 auto; flex-direction: column; gap: 3px;
+  width: auto; min-width: 0;
   white-space: normal; overflow-wrap: anywhere;
 }
 .brand-copy strong {
@@ -561,12 +568,12 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .hero-grid {
   position: relative; z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1.02fr) minmax(0, .98fr);
-  gap: clamp(32px, 5vw, 72px);
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: clamp(32px, 4.5vw, 80px);
   align-items: center;
   padding-block: clamp(44px, 6vw, 96px);
 }
-.hero-copy { animation: rise-in .6s ease both; }
+.hero-copy { min-width: 0; animation: rise-in .6s ease both; }
 .hero-eyebrow {
   display: inline-flex; align-items: center; gap: 10px;
   margin: 0 0 var(--sp-5); padding: 7px 16px 7px 12px;
@@ -601,7 +608,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   color: var(--ink);
   font-family: var(--font-display); font-size: 20px; font-weight: 700;
 }
-.hero-visual { position: relative; animation: rise-in .7s ease both; }
+.hero-visual { position: relative; min-width: 0; animation: rise-in .7s ease both; }
 .hero-stage {
   position: relative;
   aspect-ratio: 16 / 10;
@@ -2644,16 +2651,45 @@ html[data-color-scheme="dark"] .image-msg.is-error { color: #fca5a5; }
    Grids reflow, nothing overflows, text never touches the viewport edge.
    ========================================================================== */
 
-/* ---- large desktop: keep 4-up club grids roomy ------------------------- */
+/* ---- large desktops: balanced hero and a single, full-width header row --- */
 @media (min-width: 1440px) {
-  .hero-grid { gap: 80px; }
-}
+  .hero-grid {
+    gap: clamp(72px, 4.5vw, 96px);
+    padding-block: clamp(72px, 6vw, 120px);
+  }
+  .hero-copy h1 {
+    max-width: 26ch;
+    font-size: clamp(3.5rem, 3.8vw, 4.5rem);
+  }
+  .hero-description { font-size: clamp(1.125rem, 1.2vw, 1.25rem); }
 
-/* Keep the full name beside the controls; put navigation below on laptops. */
-@media (min-width: 1440px) {
-  .header-inner { grid-template-columns: minmax(300px, 1fr) auto auto; }
-  .header-inner .main-nav { grid-row: 1; grid-column: 2; }
-  .header-inner .header-actions { grid-column: 3; }
+  .header-inner {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    gap: clamp(16px, 2vw, 36px);
+  }
+  .header-inner > .brand { flex: 0 1 auto; width: auto; min-width: 0; }
+  .header-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: clamp(12px, 1.25vw, 24px);
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+  }
+  .header-inner .main-nav {
+    grid-row: auto;
+    grid-column: auto;
+    gap: clamp(4px, .6vw, 12px);
+    margin-inline: 0;
+  }
+  .header-inner .header-actions {
+    grid-row: auto;
+    grid-column: auto;
+    gap: clamp(8px, .7vw, 12px);
+  }
 }
 
 /* ---- 1200px and below: 4-up becomes 3-up ------------------------------ */
