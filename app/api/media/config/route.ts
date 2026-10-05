@@ -1,24 +1,32 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
-import { cloudinarySettings } from "@/lib/cloudinary";
+import { cloudinaryServerSettings, cloudinarySettings } from "@/lib/cloudinary";
 
 /**
  * GET /api/media/config
  * Only an admin can read this. The unsigned preset is safe to expose to the
  * browser (that is how unsigned uploads work) but we still keep it server-side
  * so nothing leaks to the public bundle.
+ *
+ * `enabled` is true when *either* path can upload: server-side signatures
+ * (API key + secret) or the legacy unsigned preset. `signed` tells the UI which
+ * one is active — a signed-only setup has no preset, and the studio used to
+ * report it as "not configured" even though uploads worked.
  */
 export async function GET() {
   try {
     await requireAdmin();
-    const settings = cloudinarySettings();
+    const preset = cloudinarySettings();
+    const server = cloudinaryServerSettings();
+    const cloudName = server.cloudName || preset.cloudName;
     return NextResponse.json({
-      enabled: settings.enabled,
-      cloudName: settings.cloudName,
-      uploadPreset: settings.uploadPreset,
-      folder: settings.folder,
-      endpoint: settings.enabled ? `https://api.cloudinary.com/v1_1/${settings.cloudName}/image/upload` : "",
-      maxBytes: Number(process.env.CLOUDINARY_MAX_BYTES || 12 * 1024 * 1024),
+      enabled: server.enabled || preset.enabled,
+      signed: server.enabled,
+      cloudName,
+      uploadPreset: preset.uploadPreset,
+      folder: preset.folder,
+      endpoint: cloudName ? `https://api.cloudinary.com/v1_1/${cloudName}/image/upload` : "",
+      maxBytes: server.maxBytes,
       accept: "image/*",
     });
   } catch (error) {

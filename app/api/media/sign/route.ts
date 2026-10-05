@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPortalSession } from "@/lib/portal-auth";
 import { isAdmin } from "@/lib/auth";
-import { asciiPublicId, cloudinaryServerSettings, cloudinarySettings, signedUpload } from "@/lib/cloudinary";
+import { mediaUploadTicket } from "@/lib/cloudinary";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +12,10 @@ export const dynamic = "force-dynamic";
  * to Cloudinary without ever seeing the API secret. Available to any signed-in
  * admin, teacher or club admin; `folder` is namespaced so one club can never
  * write into another club's folder.
+ *
+ * The response carries `params` — the exact parameter set the signature covers.
+ * The client posts those verbatim (plus `file`, `api_key` and `signature`), so
+ * every parameter Cloudinary validates is signed with the matching value.
  */
 export async function POST(request: Request) {
   const session = await getPortalSession();
@@ -21,41 +25,17 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-  const server = cloudinaryServerSettings();
-  const legacy = cloudinarySettings();
-  const prefix = String(body.folder ?? "")
-    .trim()
-    .replace(/^\/+|\/+$/g, "")
-    .replace(/[^a-zA-Z0-9/_-]/g, "");
-  const label = String(body.label ?? body.name ?? "");
-
-  // Scope: a club admin may only write inside its own club folder.
   const clubSlug = session?.user?.club_slug || "";
-  const scopedPrefix = clubSlug
-    ? [clubSlug, prefix.replace(new RegExp(`^${clubSlug}/?`), "")].filter(Boolean).join("/")
-    : prefix;
 
-  if (!server.enabled) {
-    // No API key/secret yet — tell the client to fall back to the unsigned preset
-    // (or explain what is missing so the admin can finish the setup).
-    return NextResponse.json({
-      ok: true,
-      mode: "unsigned",
-      cloudName: legacy.cloudName,
-      uploadPreset: legacy.uploadPreset,
-      folder: [legacy.folder, scopedPrefix].filter(Boolean).join("/"),
-      enabled: legacy.enabled,
-      endpoint: legacy.cloudName ? `https://api.cloudinary.com/v1_1/${legacy.cloudName}/image/upload` : "",
-      maxBytes: server.maxBytes,
-      hint: "CLOUDINARY_API_KEY ও CLOUDINARY_API_SECRET যোগ করলে অ্যাপ নিজেই স্বাক্ষর (signed upload) করবে।",
-    });
-  }
-
-  const upload = signedUpload(server, {
-    folder: scopedPrefix,
-    publicId: label ? asciiPublicId(label) : "",
-    tags: [clubSlug || "okgs"].filter(Boolean),
+  const ticket = mediaUploadTicket({
+    clubSlug,
+    folder: typeof body.folder === "string" ? body.folder : "",
+    // `tags`, `label` and `fileName` are signed too — the browser must post
+    // exactly what comes back (see lib/upload-client.ts).
+    tags: body.tags as string[] | string | undefined,
+    label: String(body.label ?? body.name ?? ""),
+    fileName: String(body.fileName ?? ""),
   });
 
-  return NextResponse.json({ ok: true, mode: "signed", enabled: true, ...upload });
+  return NextResponse.json({ ok: true, ...ticket });
 }
