@@ -1,4 +1,38 @@
 import type { Metadata, Viewport } from "next";
+/* -------------------------------------------------------------------------
+   Bengali-safe font system.
+
+   Primary route is `next/font/google`: it self-hosts the files at build time,
+   removes the render-blocking Google @import the old stylesheet used, and
+   exposes the same --font-* CSS variables consumed by globals.css and the
+   theme engine (lib/site.ts):
+
+     import { Hind_Siliguri, Inter, Noto_Serif_Bengali, Poppins } from "next/font/google";
+     const hindSiliguri = Hind_Siliguri({ subsets: ["bengali", "latin"], weight: ["400", "500", "600", "700"], variable: "--font-hind-siliguri", display: "swap" });
+     const notoSerifBengali = Noto_Serif_Bengali({ subsets: ["bengali", "latin"], weight: ["500", "600", "700"], variable: "--font-noto-serif-bengali", display: "swap" });
+     const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+     const poppins = Poppins({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-poppins", display: "swap" });
+     // …then: <html className={`${hindSiliguri.variable} ${notoSerifBengali.variable} ${inter.variable} ${poppins.variable}`}>
+
+   The build here ships the equivalent Fontsource files instead (same subsets,
+   same families, identical unicode-range splitting), because this environment
+   cannot reach fonts.googleapis.com and the --font-* tokens resolve either way.
+
+   Hind Siliguri carries full যুক্তবর্ণ (conjunct) coverage for UI text; Noto
+   Serif Bengali is the display face with proper matra/কার clearance; Inter and
+   Poppins cover Latin. Weights are limited to the 400–700 band the UI uses.
+   ------------------------------------------------------------------------- */
+import "@fontsource/hind-siliguri/400.css";
+import "@fontsource/hind-siliguri/500.css";
+import "@fontsource/hind-siliguri/600.css";
+import "@fontsource/hind-siliguri/700.css";
+import "@fontsource/noto-serif-bengali/500.css";
+import "@fontsource/noto-serif-bengali/600.css";
+import "@fontsource/noto-serif-bengali/700.css";
+import "@fontsource/poppins/500.css";
+import "@fontsource/poppins/600.css";
+import "@fontsource/poppins/700.css";
+import "@fontsource-variable/inter/wght.css";
 import "./globals.css";
 import { getPublicContent } from "@/lib/db";
 import { settingValue } from "@/lib/club-data";

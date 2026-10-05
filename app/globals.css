@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Noto+Serif+Bengali:wght@500;600;700&family=Poppins:wght@500;600;700&display=swap');
+/* Fonts (Hind Siliguri · Noto Serif Bengali · Inter · Poppins) are self-hosted
+   via next/font in app/layout.tsx and arrive through the --font-* variables set
+   on <html>. Raw family names below stay as fallbacks for themes that load their
+   own face (e.g. Baloo Da 2 via the theme engine). No render-blocking @import. */
 
 /* ==========================================================================
    OKGS — Ultra-premium institutional design system
@@ -16,6 +19,15 @@
    ========================================================================== */
 
 :root {
+  /* Font-family aliases wired to the self-hosted Fontsource files imported in
+     app/layout.tsx (bengali+latin subsets, unicode-range split). If you swap
+     the commented `next/font/google` block into layout.tsx, the variables it
+     generates on <html> override these — every downstream stack stays intact. */
+  --font-hind-siliguri: "Hind Siliguri";
+  --font-noto-serif-bengali: "Noto Serif Bengali";
+  --font-inter: "Inter Variable";
+  --font-poppins: "Poppins";
+
   /* --- brand: deep navy ------------------------------------------------ */
   --brand: #0b2136;
   --brand-hover: #12314e;
@@ -87,12 +99,14 @@
   --sp-12: 120px;
 
   /* --- typography ------------------------------------------------------ */
-  --sans: "Hind Siliguri", "Inter", system-ui, -apple-system, sans-serif;
-  --serif: "Noto Serif Bengali", "Hind Siliguri", Georgia, serif;
-  --heading: "Poppins", "Hind Siliguri", system-ui, sans-serif;
+  /* next/font variables first; the quoted names stay as fallbacks for any
+     surface that doesn't inherit the <html> classes (e.g. portal iframe docs). */
+  --sans: var(--font-hind-siliguri, "Hind Siliguri"), var(--font-inter, "Inter"), system-ui, -apple-system, sans-serif;
+  --serif: var(--font-noto-serif-bengali, "Noto Serif Bengali"), var(--font-hind-siliguri, "Hind Siliguri"), Georgia, serif;
+  --heading: var(--font-poppins, "Poppins"), var(--font-hind-siliguri, "Hind Siliguri"), system-ui, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   /* Bengali display face — full glyph coverage, no synthetic italic. */
-  --font-display: "Noto Serif Bengali", "Hind Siliguri", Georgia, serif;
+  --font-display: var(--font-noto-serif-bengali, "Noto Serif Bengali"), var(--font-hind-siliguri, "Hind Siliguri"), Georgia, serif;
   --font-body: var(--sans);
   --font-ui: var(--sans);
 
@@ -453,7 +467,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   padding: 0 8px;
   border-radius: 9px;
   color: var(--ink-2);
-  font-family: "Hind Siliguri", var(--font-ui), sans-serif;
+  font-family: var(--font-ui);
   font-size: 15px;
   font-weight: 500;
   line-height: 1.6;
@@ -2168,77 +2182,151 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 
 /* ==========================================================================
    Admin studio
+   --------------------------------------------------------------------------
+   Typography rules for this block (Bengali-safe):
+   · every text node carries an explicit line-height >= 1.4 so কার/ফলা
+     (vowel signs) and যুক্তবর্ণ (conjuncts) never clip against row edges;
+   · single-line UI labels use white-space:nowrap + ellipsis (`.truncate`);
+   · letter-spacing is only ever applied to Latin — Bengali with tracking
+     splits conjunct clusters, so labels here use .02em at most.
    ========================================================================== */
-.admin-shell { display: grid; grid-template-columns: 264px minmax(0, 1fr); min-height: 100vh; background: var(--surface-alt-2); }
-.admin-sidebar { display: flex; flex-direction: column; gap: 24px; padding: 28px 22px; background: var(--brand-deep); color: #fff; }
-.admin-sidebar-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.admin-logo { display: inline-flex; align-items: center; gap: 12px; }
-.admin-logo span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--r); background: var(--mint); color: var(--brand-deep); font-size: 18px; font-weight: 700; }
-.admin-logo strong { display: block; color: #fff; font-size: 15px; line-height: 1.3; }
-.admin-logo small { color: rgba(255, 255, 255, .62); font-size: 12px; }
-.sidebar-close { display: none; border: 1px solid rgba(255, 255, 255, .24); border-radius: var(--r); background: transparent; color: #fff; padding: 8px; }
-.admin-nav { display: grid; gap: 22px; }
-.admin-nav-group { display: grid; gap: 6px; }
-.admin-nav-label { color: rgba(255, 255, 255, .48); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-.admin-nav a {
-  display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: var(--r);
-  color: rgba(255, 255, 255, .84); font-size: 15px; font-weight: 500;
-  transition: background-color .2s ease, color .2s ease;
+.admin-shell { display: grid; grid-template-columns: 272px minmax(0, 1fr); min-height: 100vh; background: var(--surface-alt-2); }
+.admin-sidebar {
+  display: flex; flex-direction: column; gap: 18px;
+  padding: 16px 14px 20px; background: var(--brand-deep); color: #fff;
+  overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .16) transparent;
 }
-.admin-nav a:hover { background: rgba(255, 255, 255, .1); color: #fff; }
-.admin-nav a.is-active { background: var(--mint); color: var(--brand-deep); font-weight: 700; }
-.admin-nav a em { margin-left: auto; font-style: normal; opacity: .7; font-size: 12px; }
-.sidebar-bottom { display: grid; gap: 12px; margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, .14); }
-.workspace-chip { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: var(--r); background: rgba(255, 255, 255, .08); }
-.workspace-avatar { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--mint); color: var(--brand-deep); font-weight: 700; }
-.workspace-chip small { color: rgba(255, 255, 255, .62); font-size: 12px; }
+.admin-sidebar::-webkit-scrollbar { width: 6px; }
+.admin-sidebar::-webkit-scrollbar-thumb { border-radius: 99px; background: rgba(255, 255, 255, .16); }
+/* Logo header — p-4 + gap-3 rhythm; only the mark is sized, the text truncates. */
+.admin-sidebar-top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 4px; min-width: 0;
+}
+.admin-logo { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 4px; border-radius: var(--r); }
+.admin-logo:hover { background: rgba(255, 255, 255, .06); }
+.admin-logo .brand-mark {
+  display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px;
+  border-radius: var(--r); background: var(--mint); color: var(--brand-deep);
+  font-family: var(--font-display); font-size: 19px; font-weight: 700; line-height: 1.35;
+}
+.admin-logo .brand-mark span { line-height: 1.35; }
+.admin-logo-copy { display: grid; gap: 1px; min-width: 0; }
+.admin-logo-copy b { display: block; min-width: 0; color: #fff; font-size: 15px; font-weight: 600; line-height: 1.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-logo-copy small { display: block; min-width: 0; color: rgba(255, 255, 255, .62); font-size: 12px; line-height: 1.55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-close { display: none; flex: 0 0 auto; border: 1px solid rgba(255, 255, 255, .24); border-radius: var(--r); background: transparent; color: #fff; padding: 8px; cursor: pointer; }
+.sidebar-close:hover { background: rgba(255, 255, 255, .12); }
+/* Workspace chip — same truncate contract as the logo header. */
+.workspace-chip { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 12px; border-radius: var(--r); background: rgba(255, 255, 255, .08); }
+.workspace-avatar { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; border-radius: 50%; background: var(--mint); color: var(--brand-deep); font-weight: 700; line-height: 1; }
+.workspace-copy { display: grid; gap: 1px; min-width: 0; }
+.workspace-copy b { display: block; min-width: 0; font-size: 13.5px; font-weight: 600; line-height: 1.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.workspace-copy small { display: block; min-width: 0; color: rgba(255, 255, 255, .62); font-size: 12px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-nav { display: grid; gap: 2px; }
+.admin-nav-group { display: grid; gap: 2px; margin-top: 14px; }
+.admin-nav-label {
+  margin: 0 0 4px; padding: 0 12px; color: rgba(255, 255, 255, .48);
+  font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; line-height: 1.6;
+}
+/* Nav rows: buttons (not just anchors) get the full flex row treatment,
+   label group left, count pill pushed right — justify-between. */
+.admin-nav a, .admin-nav button, .sidebar-bottom a, .sidebar-bottom button {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; min-height: 40px; padding: 8px 12px; border: 0; border-radius: var(--r);
+  background: transparent; color: rgba(255, 255, 255, .82); font-family: var(--font-ui);
+  font-size: 14.5px; font-weight: 500; line-height: 1.5; text-align: left; cursor: pointer;
+  transition: background-color .18s ease, color .18s ease;
+}
+.admin-nav a:hover, .admin-nav button:hover, .sidebar-bottom a:hover, .sidebar-bottom button:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.admin-nav a.is-active, .admin-nav button.is-active { background: var(--mint); color: var(--brand-deep); font-weight: 700; }
+.nav-item-label { display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 0; }
+.nav-item-label svg { flex: 0 0 auto; }
+.nav-item-label span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Count pill — slate-800/400 on the dark rail, rounded-full, far right
+   (mirrors: bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full text-xs). */
+.nav-count {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  margin-left: auto; min-width: 34px; padding: 2px 8px; border-radius: 9999px;
+  background: #1e293b; color: #94a3b8; font-family: var(--font-ui); font-size: 12px; font-weight: 600;
+  line-height: 1.5; font-variant-numeric: tabular-nums; white-space: nowrap;
+  transition: background-color .18s ease, color .18s ease;
+}
+.nav-count.is-empty { color: #64748b; }
+.nav-count.is-loading { color: transparent; background: #334155; animation: pulse-soft 1.4s ease-in-out infinite; }
+.is-active .nav-count { background: rgba(6, 21, 35, .18); color: var(--brand-deep); }
+.sidebar-bottom { display: grid; gap: 4px; margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, .14); }
+.sidebar-bottom svg { flex: 0 0 auto; }
+.sidebar-bottom button:hover { background: rgba(255, 99, 99, .16); color: #fff; }
 .admin-main { display: flex; flex-direction: column; min-width: 0; }
 .admin-topbar { display: flex; align-items: center; gap: 16px; min-height: 68px; padding: 12px 32px; background: #fff; border-bottom: 1px solid var(--line); }
-.admin-menu-button { display: none; border: 1px solid var(--line); border-radius: var(--r); background: #fff; padding: 8px; color: var(--ink); }
-.admin-breadcrumb { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
-.admin-breadcrumb strong { color: var(--ink); }
-.topbar-preview { margin-left: auto; }
-.admin-top-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
-.admin-content { width: min(1400px, 100%); margin-inline: auto; padding: 36px 32px 72px; }
-.admin-page-heading { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
-.admin-page-heading h1 { font-size: clamp(30px, 4vw, 44px); line-height: 1.14; }
-.admin-kicker { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 10px; padding: 5px 14px; border-radius: var(--r-pill); background: var(--mint-soft); color: var(--mint-text); font-size: 13px; font-weight: 700; }
-.admin-page-heading p { max-width: 720px; margin: 6px 0 0; color: var(--body); font-size: 15px; }
-.admin-primary-button {
-  display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 13px 24px;
-  border: 0; border-radius: var(--r); background: var(--brand); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
-}
-.admin-primary-button:hover { background: var(--brand-hover); }
-.metric-card { display: grid; gap: 8px; padding: 22px; border: 1px solid var(--line); border-radius: var(--r-lg); background: #fff; }
-.metric-card .metric-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--r); background: var(--mint-soft); color: var(--mint-text); }
-.metric-card .metric-label { color: var(--muted); font-size: 14px; font-weight: 500; }
-.metric-card strong { color: var(--ink); font-size: 32px; font-weight: 700; line-height: 1; }
-.metric-card small { color: var(--muted); font-size: 13px; }
+.admin-menu-button { display: none; flex: 0 0 auto; border: 1px solid var(--line); border-radius: var(--r); background: #fff; padding: 8px; color: var(--ink); cursor: pointer; }
+/* Breadcrumb — single line, ellipsised, never wraps or pushes actions off-canvas. */
+.admin-breadcrumb { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; color: var(--muted); font-size: 14px; line-height: 1.5; white-space: nowrap; overflow: hidden; }
+.admin-breadcrumb > * { flex: 0 0 auto; }
+.admin-breadcrumb strong { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.admin-breadcrumb svg { color: var(--line); }
+.topbar-preview { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border: 1px solid var(--line); border-radius: var(--r-pill); background: #fff; color: var(--body); font-size: 13px; font-weight: 600; line-height: 1.4; white-space: nowrap; cursor: pointer; transition: border-color .18s ease, color .18s ease, background-color .18s ease; }
+.topbar-preview:hover { border-color: var(--brand); color: var(--brand); background: var(--surface-alt); }
+.topbar-preview span { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, .18); }
+.admin-top-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; margin-left: auto; }
+.admin-content { width: min(1400px, 100%); margin-inline: auto; padding: 36px 32px 72px; min-width: 0; }
+.admin-page-heading { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 28px; min-width: 0; }
+/* line-height 1.14 clipped Bengali matras on large display sizes — relaxed to 1.25. */
+.admin-page-heading h1 { font-size: clamp(30px, 4vw, 44px); line-height: 1.28; overflow-wrap: anywhere; }
+.admin-kicker { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 10px; padding: 5px 14px; border-radius: var(--r-pill); background: var(--mint-soft); color: var(--mint-text); font-size: 13px; font-weight: 700; line-height: 1.6; white-space: nowrap; }
+.admin-page-heading p { max-width: 720px; margin: 6px 0 0; color: var(--body); font-size: 15px; line-height: 1.8; }
+/* Media chip on the dark rail — light-surface variant would read as a blank card. */
+.admin-sidebar .media-chip { justify-content: flex-start; width: 100%; min-width: 0; padding: 10px 12px; border-radius: var(--r); border: 1px solid rgba(255, 255, 255, .14); background: rgba(255, 255, 255, .05); color: rgba(255, 255, 255, .85); text-align: left; }
+.admin-sidebar .media-chip > span { display: grid; gap: 2px; min-width: 0; }
+.admin-sidebar .media-chip b { font-size: 12.5px; font-weight: 700; line-height: 1.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-sidebar .media-chip small { color: rgba(255, 255, 255, .58); font-size: 11.5px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-sidebar .media-chip.is-on { border-color: rgba(74, 222, 128, .4); background: rgba(74, 222, 128, .12); color: #b9f2c8; }
+.admin-sidebar .media-chip.is-on svg { color: #4ade80; }
+.admin-sidebar .media-chip.is-off { border-color: rgba(251, 191, 36, .42); background: rgba(251, 191, 36, .12); color: #fde68a; }
+.admin-sidebar .media-chip.is-off svg { color: #fbbf24; }
+/* ---- Dashboard metrics header: icon + label on one line, count anchored right -- */
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+.metric-card { display: grid; gap: 10px; min-width: 0; padding: 18px 20px; border: 1px solid var(--line); border-radius: var(--r-lg); background: #fff; box-shadow: var(--shadow-xs); transition: border-color .2s ease, box-shadow .2s ease; }
+.metric-card:hover { border-color: var(--mint-line); box-shadow: var(--shadow-sm); }
+.metric-top { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.metric-card .metric-icon { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; border-radius: var(--r); background: var(--mint-soft); color: var(--mint-text); }
+.metric-card .metric-label { flex: 1 1 auto; min-width: 0; color: var(--muted); font-size: 14px; font-weight: 500; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.metric-card .metric-value { flex: 0 0 auto; margin-left: auto; padding-left: 8px; color: var(--ink); font-size: 28px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.metric-card .metric-note { color: var(--muted); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .overview-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, .9fr); gap: 20px; }
 .overview-page { display: grid; gap: 20px; }
 .manager-heading { margin-bottom: 28px; }
 .manager-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .search-box { display: flex; align-items: center; gap: 10px; width: min(380px, 100%); height: 46px; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--r); background: #fff; color: var(--muted); }
 .search-box input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 15px; }
-.search-box kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: var(--r-xs); color: var(--muted); font-size: 11px; }
-.toolbar-note { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
-.content-panel { overflow: hidden; padding: 0; }
+.search-box kbd { flex: 0 0 auto; padding: 3px 6px; border: 1px solid var(--line); border-radius: var(--r-xs); color: var(--muted); font-size: 11px; white-space: nowrap; }
+.toolbar-note { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; line-height: 1.5; white-space: nowrap; }
+.toolbar-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; min-width: 0; }
+/* Data list table — a real card now: bordered, rounded, horizontally scrollable.
+   Head + rows share one grid template and never overflow the shell: the table
+   keeps a min-width and the panel scrolls instead of the page. */
+.content-panel { overflow: hidden; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-xs); }
+.content-table { width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
 .content-table-head, .content-row {
-  display: grid; grid-template-columns: minmax(260px, 1.6fr) minmax(120px, .8fr) 92px 122px 76px;
-  gap: 18px; align-items: center; padding: 0 24px;
+  display: grid; grid-template-columns: minmax(260px, 1.6fr) minmax(120px, .8fr) 96px 128px 76px;
+  gap: 16px; align-items: center; padding: 0 22px; min-width: 840px;
 }
-.content-table-head { height: 46px; border-bottom: 1px solid var(--line); background: var(--surface-alt); color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.content-row { min-height: 82px; border-bottom: 1px solid var(--line-2); }
+.content-table-head { height: 46px; border-bottom: 1px solid var(--line); background: var(--surface-alt); color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .02em; line-height: 1.5; text-transform: none; white-space: nowrap; }
+.content-table-head span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.content-row { min-height: 78px; border-bottom: 1px solid var(--line-2); }
 .content-row:last-child { border-bottom: 0; }
 .content-row:hover { background: var(--surface-alt); }
 .row-title { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .row-title > span:last-child { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.row-title b { overflow: hidden; color: var(--ink); font-size: 15px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.row-title small { overflow: hidden; max-width: 380px; color: var(--muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.row-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; border-radius: var(--r); background: var(--mint-soft); color: var(--mint-text); }
-.row-details { overflow: hidden; color: var(--muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.row-date { color: var(--muted); font-size: 13px; white-space: nowrap; }
-.row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.row-title b { overflow: hidden; color: var(--ink); font-size: 15px; font-weight: 600; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
+.row-title small { display: block; overflow: hidden; max-width: 380px; color: var(--muted); font-size: 13px; line-height: 1.55; text-overflow: ellipsis; white-space: nowrap; }
+.row-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; border-radius: var(--r); background: var(--mint-soft); color: var(--mint-text); overflow: hidden; }
+.row-icon img { width: 100%; height: 100%; object-fit: cover; }
+.row-details { display: block; overflow: hidden; color: var(--muted); font-size: 13px; line-height: 1.55; text-overflow: ellipsis; white-space: nowrap; }
+.row-date { color: var(--muted); font-size: 13px; line-height: 1.5; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.status-pill { flex: 0 0 auto; }
+.row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; flex: 0 0 auto; }
 .row-actions button { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: var(--r); background: transparent; color: var(--muted); cursor: pointer; opacity: .55; transition: opacity .2s ease, background-color .2s ease; }
 .content-row:hover .row-actions button { opacity: 1; }
 .row-actions button:hover { background: var(--surface-alt); color: var(--ink); }
@@ -2259,12 +2347,24 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .admin-toast > span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: rgba(255, 255, 255, .14); color: var(--mint); }
 .admin-toast.error > span { color: #fca5a5; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-.recent-list { display: grid; }
-.recent-row { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line-2); }
-.recent-row:last-child { border-bottom: 0; }
-.recent-thumb { width: 44px; height: 44px; flex: 0 0 44px; border-radius: var(--r); background: var(--surface-alt); background-position: center; background-size: cover; }
-.recent-row b { display: block; overflow: hidden; color: var(--ink); font-size: 15px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.recent-row small { color: var(--muted); font-size: 13px; }
+/* ---- Recent activity: the markup renders <li><button> rows — style that,
+   plus reset the ul so list bullets can't escape their container again. ------ */
+.recent-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.recent-list > li { margin: 0; min-width: 0; }
+.recent-row {
+  display: flex; align-items: center; gap: 14px; width: 100%; min-width: 0;
+  padding: 12px; border: 1px solid transparent; border-radius: var(--r);
+  background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease;
+}
+.recent-row:hover { background: var(--surface-alt); border-color: var(--line); }
+.recent-thumb { display: grid; place-items: center; overflow: hidden; width: 44px; height: 44px; flex: 0 0 44px; border-radius: var(--r); background: var(--surface-alt); color: var(--muted); }
+.recent-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.recent-copy { display: grid; gap: 3px; flex: 1 1 auto; min-width: 0; }
+.recent-row b { display: -webkit-box; overflow: hidden; color: var(--ink); font-size: 15px; font-weight: 600; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-clamp: 1; overflow-wrap: anywhere; }
+.recent-row small { color: var(--muted); font-size: 12.5px; line-height: 1.55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; min-width: 0; }
+.recent-row svg { flex: 0 0 auto; color: var(--muted); }
+.empty-note { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.7; }
 .empty-dashboard { display: grid; place-items: center; gap: 12px; min-height: 260px; padding: 32px; color: var(--muted); text-align: center; }
 .empty-orb { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--surface-alt); color: var(--muted); }
 .empty-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
@@ -2287,13 +2387,42 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .bar-lilac { background: #7c5cff; }
 .bar-peach { background: #f79009; }
 .pulse-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line-2); color: var(--muted); font-size: 13px; }
-.coverage-table { display: grid; gap: 0; }
-.coverage-head, .coverage-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px 90px; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line-2); }
-.coverage-head { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
-.coverage-name { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 14px; }
-.coverage-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--brand); }
-.coverage-cell { color: var(--ink); font-size: 14px; font-weight: 600; }
-.coverage-cell.is-zero { color: var(--muted); font-weight: 400; }
+/* ---- Club coverage — grid-cols-12 rhythm: club name takes 4 tracks, each
+   of the five collections gets 1… see the repeat(5) below. One head row,
+   one row per club, items-center everywhere, cells are chips not stray text. -- */
+.coverage-table { display: grid; gap: 0; min-width: 0; }
+.coverage-scroll { width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+.coverage-head, .coverage-row {
+  display: grid; grid-template-columns: minmax(140px, 3fr) repeat(5, minmax(84px, 1fr));
+  gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line-2); min-width: 620px;
+}
+.coverage-head { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .01em; line-height: 1.5; text-transform: none; }
+.coverage-head > * { text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.coverage-head > :first-child { text-align: left; }
+.coverage-row:last-child { border-bottom: 0; }
+.coverage-name { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.5; }
+.coverage-name button { overflow: hidden; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; line-height: inherit; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.coverage-name button:hover { color: var(--brand-hover); text-decoration: underline; text-decoration-color: var(--mint-line); text-underline-offset: 3px; }
+.coverage-dot { width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 14%, transparent); }
+.coverage-cell {
+  display: grid; place-items: center; width: 100%; min-height: 36px; padding: 4px 8px;
+  border: 1px solid transparent; border-radius: 10px; background: var(--surface-alt-2);
+  color: var(--ink); font-family: var(--font-ui); font-size: 13.5px; font-weight: 700;
+  line-height: 1.5; font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
+}
+.coverage-cell:hover { border-color: var(--mint-line); background: var(--mint-soft); color: var(--mint-text); transform: translateY(-1px); }
+.coverage-cell.is-zero { background: transparent; border-color: var(--line); border-style: dashed; color: var(--muted); font-weight: 500; }
+.coverage-draft-flag { margin-inline-start: 6px; padding: 1px 7px; border-radius: var(--r-pill); background: var(--warn-bg); color: var(--warn-text); font-size: 10.5px; font-weight: 700; line-height: 1.6; vertical-align: 1px; }
+/* ---- Status pill as a real button chip inside table rows ------------------- */
+.content-row .status-pill {
+  justify-self: start; width: 100%; padding: 5px 11px; border: 1px solid var(--mint-line);
+  border-radius: var(--r-pill); background: var(--mint-soft); font-size: 12.5px; font-weight: 700;
+  line-height: 1.5; white-space: nowrap; cursor: pointer; transition: filter .15s ease;
+}
+.content-row .status-pill:hover { filter: brightness(.97); }
+.content-row .status-pill.is-draft { border-color: #fedf89; background: var(--warn-bg); }
+.content-row .status-pill:disabled { opacity: .6; cursor: default; }
 
 /* ------------------------------------------------------------- editor ---- */
 .modal-backdrop {
@@ -2477,13 +2606,15 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   .overview-grid { grid-template-columns: 1fr; }
 
   .admin-shell { grid-template-columns: 1fr; }
-  .admin-sidebar { position: fixed; z-index: 50; inset: 0 auto 0 0; width: 280px; transform: translateX(-100%); transition: transform .25s ease; }
+  .admin-sidebar { position: fixed; z-index: 50; inset: 0 auto 0 0; width: min(312px, 86vw); transform: translateX(-100%); transition: transform .25s ease; box-shadow: var(--shadow-lg); }
   .admin-sidebar.is-open { transform: translateX(0); }
+  /* Full-bleed tap-to-close backdrop (was referenced in markup but never defined). */
+  .admin-scrim { position: fixed; z-index: 49; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: rgba(7, 15, 28, .55); cursor: pointer; backdrop-filter: blur(2px); }
   .sidebar-close, .admin-menu-button { display: grid; place-items: center; }
   .admin-topbar { padding-inline: 20px; }
   .admin-content { padding: 28px 20px 64px; }
-  .content-table-head, .content-row { min-width: 860px; }
-  .content-panel { overflow-x: auto; }
+  .content-table { scrollbar-width: thin; }
+  .admin-sidebar .media-chip { width: 100%; }
   .editor-body { grid-template-columns: 1fr; }
 }
 
@@ -4738,3 +4869,54 @@ html[data-color-scheme="dark"] .club-site .club-site-logo-fallback {
 .cs-palette-foot small { color: var(--muted); font-size: 12px; }
 .cs-palette-note { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.7; }
 .cs-palette-link a { color: var(--club-accent-text, var(--brand-mid)); font-weight: 600; }
+
+/* ==========================================================================
+   Utility layer — Tailwind-compatible names, values, and semantics
+   --------------------------------------------------------------------------
+   This project predates Tailwind, so instead of adding the engine (whose
+   preflight would repaint the whole public site) these are the exact classes
+   the admin refactor uses, with Tailwind's own definitions (v3 scale):
+   spacing 1 unit = 4px, text-xs = 12/16, leading-normal 1.5, relaxed 1.625,
+   slate-800 #1e293b, slate-400 #94a3b8, rounded-full 9999px.
+   Appended last so utilities win over component rules — same as @tailwind utilities.
+   ========================================================================== */
+.flex { display: flex; }
+.inline-flex { display: inline-flex; }
+.grid { display: grid; }
+.flex-1 { flex: 1 1 0%; }
+.flex-none { flex: none; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.min-w-0 { min-width: 0; }
+.w-full { width: 100%; }
+.gap-1 { gap: 4px; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+.p-4 { padding: 16px; }
+.px-2 { padding-inline: 8px; }
+.py-0\.5 { padding-block: 2px; }
+.rounded-full { border-radius: 9999px; }
+.text-xs { font-size: 12px; line-height: 1.5; }
+.bg-slate-800 { background-color: #1e293b; }
+.text-slate-400 { color: #94a3b8; }
+/* Bengali-safe leading: never below 1.45 on text nodes, so কার/ফলা clear edges. */
+.leading-normal { line-height: 1.5; }
+.leading-relaxed { line-height: 1.625; }
+.whitespace-nowrap { white-space: nowrap; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.break-words { overflow-wrap: break-word; word-break: normal; }
+.line-clamp-1 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
+.line-clamp-2 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.space-y-1 > * + * { margin-block-start: 4px; }
+.space-y-2 > * + * { margin-block-start: 8px; }
+.space-y-3 > * + * { margin-block-start: 12px; }
+.grid-cols-12 { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.col-span-4 { grid-column: span 4 / span 4; }
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* Admin console paints with the same tokens; keep vertical rhythm generous
+   so Bengali descenders (ণ-ম ফলা ইত্যাদি) are never cropped inside rows. */
+.admin-shell p, .admin-shell li, .admin-shell td, .admin-shell th { line-height: 1.625; }

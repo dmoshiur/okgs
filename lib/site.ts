@@ -89,20 +89,31 @@ export function activeTheme(content: PublicContent): SiteTheme | null {
   return themes.find((theme) => theme.is_default) ?? null;
 }
 
+/**
+ * Theme font pairs resolve through the next/font CSS variables set in app/layout.tsx
+ * (var(--font-*, "Fallback Name")). If a font isn't self-hosted, the raw family name
+ * still works for pairs that ship their own remote `import` (e.g. Baloo Da 2).
+ */
 const fontPairs: Record<string, { heading: string; body: string; import?: string }> = {
   "poppins-inter": {
-    heading: '"Poppins", "Hind Siliguri", system-ui, sans-serif',
-    body: '"Inter", "Hind Siliguri", system-ui, sans-serif',
+    heading: 'var(--font-poppins, "Poppins"), var(--font-hind-siliguri, "Hind Siliguri"), system-ui, sans-serif',
+    body: 'var(--font-inter, "Inter"), var(--font-hind-siliguri, "Hind Siliguri"), system-ui, sans-serif',
   },
   "hind-noto": {
-    heading: '"Noto Serif Bengali", "Hind Siliguri", serif',
-    body: '"Hind Siliguri", system-ui, sans-serif',
+    heading: 'var(--font-noto-serif-bengali, "Noto Serif Bengali"), var(--font-hind-siliguri, "Hind Siliguri"), serif',
+    body: 'var(--font-hind-siliguri, "Hind Siliguri"), system-ui, sans-serif',
   },
-  hind: { heading: '"Hind Siliguri", system-ui, sans-serif', body: '"Hind Siliguri", system-ui, sans-serif' },
-  noto: { heading: '"Noto Serif Bengali", serif', body: '"Noto Serif Bengali", serif' },
+  hind: {
+    heading: 'var(--font-hind-siliguri, "Hind Siliguri"), system-ui, sans-serif',
+    body: 'var(--font-hind-siliguri, "Hind Siliguri"), system-ui, sans-serif',
+  },
+  noto: {
+    heading: 'var(--font-noto-serif-bengali, "Noto Serif Bengali"), serif',
+    body: 'var(--font-noto-serif-bengali, "Noto Serif Bengali"), serif',
+  },
   baloo: {
-    heading: '"Baloo Da 2", "Hind Siliguri", cursive',
-    body: '"Hind Siliguri", system-ui, sans-serif',
+    heading: '"Baloo Da 2", var(--font-hind-siliguri, "Hind Siliguri"), cursive',
+    body: 'var(--font-hind-siliguri, "Hind Siliguri"), system-ui, sans-serif',
     import: "https://fonts.googleapis.com/css2?family=Baloo+Da+2:wght@500;600;700&display=swap",
   },
 };
@@ -135,7 +146,8 @@ export function themeCss(theme: SiteTheme | null) {
 
   // The stylesheet reads semantic tokens (brand / mint / surface …), so a theme
   // switch repaints every section — public site, club pages and console alike.
-  return `:root {
+  // An @import (when the pair needs one) must come first in the generated sheet.
+  return `${pair.import ? `@import url("${pair.import}");\n` : ""}:root {
   --brand: ${accent};
   --brand-mid: color-mix(in srgb, ${accent} 80%, #1e3566);
   --brand-hover: color-mix(in srgb, ${accent} 82%, ${away});
