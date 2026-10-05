@@ -894,7 +894,9 @@ export default async function ClubSitePage({
       <MobileNav
         site={{
           name: site.name,
-          shortName: "Main",
+          // The club's own short badge — dynamic branding, not a hardcoded
+          // "Main" fallback.
+          shortName: site.short_code || site.name,
           tagline:
             site.tagline || site.name,
           email: site.contact.email || "",

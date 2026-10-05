@@ -101,8 +101,10 @@ export function PublicChrome({
           <a href="/" className="brand" aria-label={`${site.name} — হোম`}>
             <SchoolLogo src={optimizedImage(site.logo, { width: 160 })} name={site.name} />
             <span className="brand-copy">
-              <strong>Main</strong>
-              <small>{headerContext}</small>
+              {/* Dynamic branding title: the site's short name from Site
+                  Settings (DB) — never a hardcoded fallback. */}
+              <strong>{site.shortName || "OKGS"}</strong>
+              <small title={headerContext}>{headerContext}</small>
             </span>
           </a>
 
@@ -126,7 +128,7 @@ export function PublicChrome({
             </a>
           </div>
 
-          <MobileNav site={{ ...site, shortName: "Main" }} active={active} />
+          <MobileNav site={site} active={active} />
         </div>
       </header>
 
