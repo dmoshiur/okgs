@@ -107,24 +107,26 @@ export function PublicChrome({
             </span>
           </a>
 
-          <nav className="main-nav" aria-label="প্রধান মেনু">
-            {primaryNav.map((item) => (
-              <a key={item.key} href={item.href} className={active === item.key ? "is-active" : ""} aria-current={active === item.key ? "page" : undefined}>
-                {item.label}
-              </a>
-            ))}
-          </nav>
+          <div className="header-navigation">
+            <nav className="main-nav" aria-label="প্রধান মেনু">
+              {primaryNav.map((item) => (
+                <a key={item.key} href={item.href} className={active === item.key ? "is-active" : ""} aria-current={active === item.key ? "page" : undefined}>
+                  {item.label}
+                </a>
+              ))}
+            </nav>
 
-          <div className="header-actions">
-            <ThemeModeToggle />
-            <VisualModeToggle compact />
-            <a className="header-link" href="/me">
-              <span>শিক্ষার্থী পোর্টাল</span>
-              <ArrowUpRight size={13} aria-hidden />
-            </a>
-            <a className="button button-primary button-small" href="/clubs">
-              ক্লাব তথ্যকেন্দ্র <ArrowUpRight size={14} aria-hidden />
-            </a>
+            <div className="header-actions">
+              <ThemeModeToggle />
+              <VisualModeToggle compact />
+              <a className="header-link" href="/me">
+                <span>শিক্ষার্থী পোর্টাল</span>
+                <ArrowUpRight size={13} aria-hidden />
+              </a>
+              <a className="button button-primary button-small" href="/clubs">
+                ক্লাব তথ্যকেন্দ্র <ArrowUpRight size={14} aria-hidden />
+              </a>
+            </div>
           </div>
 
           <MobileNav site={site} active={active} />
