@@ -3,14 +3,22 @@
 /**
  * AdminSidebar — the dark navigation rail of the studio (English UI).
  *
- * Layout contract (fixes the “text runs into the counter” bug):
- * · every nav row is a flex `justify-between`: [icon + label] left, count pill right;
- * · labels are `whitespace-nowrap truncate` and single-line;
+ * Layout contract (fixes the “text runs into the counter” and the
+ * “rows pile up on each other” bugs):
+ * · every nav row is a flex `justify-between`: [icon + label] left, count pill
+ *   right — the pill carries `ml-auto shrink-0`, so it is always right-aligned
+ *   and never collides with the label;
+ * · labels are `whitespace-nowrap truncate` (with a `title` so the full text is
+ *   still readable when it ellipsises) and single-line;
  * · live/total counts live ONLY in the `.nav-count` pill (slate-800 on the slate
  *   rail) — no raw `6/6` concatenations baked into link titles;
- * · the rail itself is the scroll container (`.admin-sidebar { overflow-y:auto }`
- *   inside a `height:100dvh` shell), so a long resource list scrolls on its own
- *   while the content column stays put;
+ * · the rail is `sticky top-0 h-screen overflow-y-auto` with a thin scrollbar:
+ *   it is the scroll container, and every section inside it is `flex:0 0 auto`
+ *   (see `.admin-sidebar > *`), so a long menu scrolls cleanly instead of
+ *   squeezing the section boxes and letting their rows overlap;
+ * · section groups are separated by 1rem and their headers occupy a fixed 20px
+ *   box (`height/line-height: 20px`), so SCIENCE FAIR / CLUB INFORMATION /
+ *   INSTITUTION can never collide with the links below them;
  * · the logo header and workspace chip use p-4 / gap-3 with ellipsis.
  */
 import Link from "next/link";
@@ -40,16 +48,19 @@ type AdminSidebarProps = {
 };
 
 function CountPill({ count, loading }: { count?: ResourceCount; loading: boolean }) {
+  // `ml-auto` + `shrink-0` keep the badge pinned to the right edge of the flex row
+  // and at its own size: a long label ellipsises, it never slides under the pill.
+  const base = "nav-count ml-auto shrink-0 px-2 py-0.5 rounded-full text-xs";
   if (loading) {
-    return <span className="nav-count is-loading px-2 py-0.5 rounded-full text-xs" aria-hidden="true">…</span>;
+    return <span className={`${base} is-loading`} aria-hidden="true">…</span>;
   }
   const total = count?.total ?? 0;
   const live = count?.live ?? 0;
   if (!total) {
-    return <span className="nav-count is-empty px-2 py-0.5 rounded-full text-xs" title="No entries yet">0</span>;
+    return <span className={`${base} is-empty`} title="No entries yet">0</span>;
   }
   return (
-    <span className="nav-count px-2 py-0.5 rounded-full text-xs" title={`${en(live)} published · ${en(total)} total`}>
+    <span className={base} title={`${en(live)} published · ${en(total)} total`}>
       {en(live)}/{en(total)}
     </span>
   );
@@ -110,7 +121,7 @@ export function AdminSidebar({
                 <button key={resource} className={isActive ? "is-active" : ""} onClick={() => onNavigate(resource)} aria-current={isActive ? "page" : undefined}>
                   <span className="nav-item-label">
                     <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
-                    <span className="whitespace-nowrap truncate">{resourceMeta[resource].label}</span>
+                    <span className="whitespace-nowrap truncate" title={resourceMeta[resource].label}>{resourceMeta[resource].label}</span>
                   </span>
                   <CountPill loading={loading} count={counts[resource]} />
                 </button>

@@ -42,17 +42,20 @@ const sidebar = renderToStaticMarkup(
 const strip = (s: string) => s.replace(/<[^>]+>/g, "|");
 
 // 1) Label text is clean — no digits concatenated inside the label span.
-const labelChunk = /<span class="whitespace-nowrap truncate">[^<]*<\/span><\/span>/.exec(sidebar);
+const labelChunk = /<span class="whitespace-nowrap truncate"[^>]*>[^<]*<\/span><\/span>/.exec(sidebar);
 check("sidebar: labels contain no raw 5/6-style counts", !!labelChunk && !/\d+\/\d+/.test(labelChunk[0]));
-check("sidebar: club_events label is 'Club events' alone", /truncate">Club events<\/span><\/span>/.test(sidebar));
+check("sidebar: club_events label is 'Club events' alone", /truncate" title="Club events">Club events<\/span><\/span>/.test(sidebar));
 
 // 2) Count lives in a pill AFTER the label group (right side), with slate classes.
-check("sidebar: count pill carries bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full text-xs", /class="nav-count px-2 py-0\.5 rounded-full text-xs"[^>]*>5\/6<\/span>/.test(sidebar));
-check("sidebar: zero-count pills render dim 0 not concatenated text", /class="nav-count is-empty px-2 py-0\.5 rounded-full text-xs"/.test(sidebar));
-const pillOrder = /<span class="whitespace-nowrap truncate">Club events<\/span><\/span>\s*<span class="nav-count[^>]*>5\/6<\/span>/.test(sidebar);
+check("sidebar: count pill carries bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full text-xs", /class="nav-count ml-auto shrink-0 px-2 py-0\.5 rounded-full text-xs"[^>]*>5\/6<\/span>/.test(sidebar));
+check("sidebar: zero-count pills render dim 0 not concatenated text", /class="nav-count ml-auto shrink-0 px-2 py-0\.5 rounded-full text-xs is-empty"/.test(sidebar));
+const pillOrder = /<span class="whitespace-nowrap truncate"[^>]*>Club events<\/span><\/span>\s*<span class="nav-count[^>]*>5\/6<\/span>/.test(sidebar);
 check("sidebar: pill sits after label (justify-between order)", pillOrder);
 check("sidebar: logo copy uses truncation, not a raw span grid", /admin-logo-copy/.test(sidebar) && /truncate">OKGS</.test(sidebar));
 check("sidebar: workspace chip truncates", /workspace-copy/.test(sidebar));
+
+/* Sidebar row-overlap contract — asserted in the CSS section at the end of this
+   file (see "Scroll contract"), where globals.css is read once. */
 
 /* ---- Coverage progress table ----------------------------------------- */
 const coverage = [
@@ -121,6 +124,43 @@ check("css: rail owns its own vertical scroll", /overflow-y:\s*auto/.test(rail) 
 check("css: content pane owns the other one", /overflow-y:\s*auto/.test(pane) && /flex:\s*1 1 auto/.test(pane));
 check("css: topbar is pinned above the scrolling pane", /flex:\s*0 0 auto/.test(cssBlock(".admin-topbar")));
 check("css: mobile rail is full viewport height", /height:\s*100dvh/.test(rail.replace(/^[^]*?\.admin-sidebar \{/, "")) || /100dvh/.test(css));
+
+/* ---- Sidebar overlap contract ----------------------------------------- */
+/* The row-overlap bug: the rail is a definite-height flex column, so flex items
+   shrank first (min-height:0 on the nav groups dropped the floor to zero) and
+   their fixed-height rows painted over the next section. These assertions keep
+   the fix in place: sections never shrink, rows are spaced, headers own a fixed
+   box, badges are right-aligned and long labels ellipsise. */
+const rule = (selector: string) => cssBlock(selector).replace(/\/\*[\s\S]*?\*\//g, "");
+const railChildren = rule(".admin-sidebar > *");
+const navList = rule(".admin-nav");
+const navGroup = rule(".admin-nav-group");
+const navLabel = rule(".admin-nav-label");
+const navRow = rule(".admin-nav a, .admin-nav button, .sidebar-bottom a, .sidebar-bottom button");
+const navCount = rule(".nav-count");
+
+check("css: rail is sticky at top:0 with its own thin scrollbar",
+  /position:\s*sticky/.test(rail) && /top:\s*0/.test(rail) && /scrollbar-width:\s*thin/.test(rail) && /\.admin-sidebar::-webkit-scrollbar-thumb/.test(css));
+check("css: rail sections never shrink (the row-overlap root cause)",
+  /flex:\s*0 0 auto/.test(railChildren) && /min-height:\s*auto/.test(railChildren) && !/\.admin-sidebar \.admin-nav-group[^{]*\{[^}]*min-height:\s*0/.test(css));
+check("css: menu items are spaced (gap:8px) instead of squashed",
+  /gap:\s*8px/.test(navList) && /gap:\s*8px/.test(navGroup) && /margin-top:\s*16px/.test(navGroup));
+check("css: category headers are a fixed 20px box",
+  /height:\s*20px/.test(navLabel) && /line-height:\s*20px/.test(navLabel) && /text-transform:\s*uppercase/.test(navLabel) && /text-overflow:\s*ellipsis/.test(navLabel));
+check("css: nav rows keep a minimum height and cannot shrink",
+  /min-height:\s*4\dpx/.test(navRow) && /flex:\s*0 0 auto/.test(navRow) && /line-height:\s*1\.5/.test(navRow));
+check("css: badge is right-aligned with ml-auto and never shrinks",
+  /margin-left:\s*auto/.test(navCount) && /flex:\s*0 0 auto/.test(navCount) && /white-space:\s*nowrap/.test(navCount));
+check("css: long labels ellipsise (truncate) instead of spilling over badges",
+  /\.truncate \{[^}]*text-overflow:\s*ellipsis/.test(css) && /\.nav-item-label span \{[^}]*text-overflow:\s*ellipsis/.test(css));
+// A grid item defaults to min-width:auto (= min-content), so a long nowrap label
+// would widen its track past the rail and push the badge off-canvas. minmax(0,1fr)
+// tracks + min-width:0 items keep label and badge inside the rail.
+check("css: nav grid tracks are shrinkable (minmax(0,1fr)) with min-width:0 rows",
+  /\.admin-nav, \.admin-nav-group, \.sidebar-bottom \{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(css)
+  && /\.admin-nav > \*, \.admin-nav-group > \*, \.sidebar-bottom > \* \{[^}]*min-width:\s*0/.test(css));
+check("css: h-screen / sticky / scrollbar-thin utilities back the class contract",
+  /\.h-screen \{[^}]*100dvh/.test(css) && /\.sticky \{[^}]*position:\s*sticky/.test(css) && /\.scrollbar-thin \{[^}]*scrollbar-width:\s*thin/.test(css));
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nAll render checks passed.");
 process.exit(failures ? 1 : 0);

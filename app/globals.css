@@ -2191,32 +2191,44 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
      splits conjunct clusters, so labels here use .02em at most.
    ========================================================================== */
 /* ---------------------------------------------------------------------------
-   Layout contract (fixes the “sidebar/content will not scroll” bug):
+   Layout contract (fixes the “sidebar rows collapse and overlap” bug):
 
      .admin-shell   → height:100dvh + overflow:hidden, so the PAGE never scrolls
-     .admin-sidebar → height:100%, overflow-y:auto  → the rail scrolls alone
+     .admin-sidebar → sticky, height:100dvh, overflow-y:auto → the rail scrolls alone
      .admin-main    → height:100%, flex column, overflow:hidden
      .admin-topbar  → flex:0 0 auto (stays pinned)
      .admin-content → flex:1 1 auto + overflow-y:auto → the content scrolls alone
 
-   Each column therefore keeps its own scroll position, long resource lists
-   cannot push the sidebar out of view, and `min-height:0` on the flex children
-   stops the classic “grid item refuses to shrink” overflow.
+   Row-overlap fix — `flex:0 0 auto`, never `min-height:0`:
+
+     The rail is a *definite-height* flex column with `overflow-y:auto`. The flex
+     algorithm shrinks its items first (flex-shrink defaults to 1) and only
+     overflows — i.e. scrolls — once they reach their minimum. An explicit
+     `min-height:0` on the nav groups dropped that floor to zero, so every group
+     box was squashed while its grid rows kept their 40px min-height and painted
+     *outside* the box, straight over the next section (a 274px group rendered
+     63px tall). `flex:0 0 auto` on the rail's children removes the shrink step:
+     each section keeps its natural height and the rail scrolls instead.
    --------------------------------------------------------------------------- */
 .admin-shell { display: grid; grid-template-columns: 272px minmax(0, 1fr); height: 100vh; height: 100dvh; overflow: hidden; background: var(--surface-alt-2); }
 .admin-shell > * { min-height: 0; }
 .admin-sidebar {
+  position: sticky; top: 0;                 /* the rail stays put even outside the shell */
   display: flex; flex-direction: column; gap: 18px;
-  height: 100%; min-height: 0;
+  height: 100%; height: 100dvh; max-height: 100dvh;
   padding: 16px 14px 20px; background: var(--brand-deep); color: #fff;
   overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
-  scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .16) transparent;
+  scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .22) transparent;
+  scrollbar-gutter: stable;                 /* no 8px jump when the bar appears */
+  -webkit-overflow-scrolling: touch;
 }
-/* The scroll container is the rail itself — keep the nav lists from being
-   squeezed by the flex layout (min-height:auto would otherwise win). */
-.admin-sidebar > nav, .admin-sidebar .admin-nav-group { min-height: 0; }
-.admin-sidebar::-webkit-scrollbar { width: 6px; }
-.admin-sidebar::-webkit-scrollbar-thumb { border-radius: 99px; background: rgba(255, 255, 255, .16); }
+/* Independent-scroll guard: a rail section must never shrink below its content,
+   otherwise its rows spill over the next section (see the contract above). */
+.admin-sidebar > * { flex: 0 0 auto; min-height: auto; }
+.admin-sidebar::-webkit-scrollbar { width: 8px; }
+.admin-sidebar::-webkit-scrollbar-track { background: transparent; }
+.admin-sidebar::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 99px; background: rgba(255, 255, 255, .22); background-clip: content-box; }
+.admin-sidebar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .34); background-clip: content-box; }
 /* Logo header — p-4 + gap-3 rhythm; only the mark is sized, the text truncates. */
 .admin-sidebar-top {
   display: flex; align-items: center; justify-content: space-between;
@@ -2241,28 +2253,45 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .workspace-copy { display: grid; gap: 1px; min-width: 0; }
 .workspace-copy b { display: block; min-width: 0; font-size: 13.5px; font-weight: 600; line-height: 1.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .workspace-copy small { display: block; min-width: 0; color: rgba(255, 255, 255, .62); font-size: 12px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.admin-nav { display: grid; gap: 2px; }
-.admin-nav-group { display: grid; gap: 2px; margin-top: 14px; }
+/* Rows are spaced with gap-2 (8px) — never by margins, so a hover/active pill
+   can never sit on top of its neighbour. Groups start 1rem below the previous
+   block, giving SCIENCE FAIR / CLUB INFORMATION / INSTITUTION clear separation.
+   Tracks are `minmax(0, 1fr)`: a grid item's automatic minimum size is its
+   min-content width, which for a nowrap label is the *whole sentence* — without
+   this the track would grow past the rail and push the count pill off-canvas
+   instead of letting the label ellipsise. */
+.admin-nav, .admin-nav-group, .sidebar-bottom { grid-template-columns: minmax(0, 1fr); }
+.admin-nav > *, .admin-nav-group > *, .sidebar-bottom > * { min-width: 0; }
+.admin-nav { display: grid; gap: 8px; }
+.admin-nav-group { display: grid; gap: 8px; margin-top: 16px; }
+/* Category header — a *fixed* 20px box: it cannot grow, shrink or collide with
+   the rows underneath (text-xs, uppercase, tracking-wider). */
 .admin-nav-label {
-  margin: 0 0 4px; padding: 0 12px; color: rgba(255, 255, 255, .48);
-  font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; line-height: 1.6;
+  display: block; flex: 0 0 auto; min-height: 20px; height: 20px; line-height: 20px;
+  margin: 0; padding: 0 12px; color: rgba(255, 255, 255, .5);
+  font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 /* Nav rows: buttons (not just anchors) get the full flex row treatment,
-   label group left, count pill pushed right — justify-between. */
+   label group left, count pill pushed right — justify-between. `flex:0 0 auto`
+   keeps every row at its own height so a long menu scrolls instead of squashing. */
 .admin-nav a, .admin-nav button, .sidebar-bottom a, .sidebar-bottom button {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  width: 100%; min-height: 40px; padding: 8px 12px; border: 0; border-radius: var(--r);
+  flex: 0 0 auto; width: 100%; min-height: 42px; padding: 9px 12px; border: 0; border-radius: var(--r);
   background: transparent; color: rgba(255, 255, 255, .82); font-family: var(--font-ui);
   font-size: 14.5px; font-weight: 500; line-height: 1.5; text-align: left; cursor: pointer;
   transition: background-color .18s ease, color .18s ease;
 }
 .admin-nav a:hover, .admin-nav button:hover, .sidebar-bottom a:hover, .sidebar-bottom button:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.admin-nav a:focus-visible, .admin-nav button:focus-visible, .sidebar-bottom a:focus-visible, .sidebar-bottom button:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
 .admin-nav a.is-active, .admin-nav button.is-active { background: var(--mint); color: var(--brand-deep); font-weight: 700; }
-.nav-item-label { display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 0; }
+.nav-item-label { display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 0; overflow: hidden; }
 .nav-item-label svg { flex: 0 0 auto; }
-.nav-item-label span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* Count pill — slate-800/400 on the dark rail, rounded-full, far right
-   (mirrors: bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full text-xs). */
+.nav-item-label span { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Count pill — slate-800/400 on the dark rail, rounded-full, pushed to the far
+   right with `ml-auto` inside the flex row (mirrors: bg-slate-800 text-slate-400
+   px-2 py-0.5 rounded-full text-xs). It never shrinks, so a long label ellipsises
+   instead of running underneath the badge. */
 .nav-count {
   display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
   margin-left: auto; min-width: 34px; padding: 2px 8px; border-radius: 9999px;
@@ -4900,15 +4929,26 @@ html[data-color-scheme="dark"] .club-site .club-site-logo-fallback {
    ========================================================================== */
 .flex { display: flex; }
 .inline-flex { display: inline-flex; }
+.flex-col { flex-direction: column; }
 .grid { display: grid; }
 .flex-1 { flex: 1 1 0%; }
 .flex-none { flex: none; }
+/* `shrink-0` / `ml-auto` are the two utilities the sidebar layout leans on:
+   sections and count pills hold their size, badges are pushed to the far right. */
+.shrink-0 { flex: 0 0 auto; }
+.ml-auto { margin-left: auto; }
 .items-center { align-items: center; }
 .items-start { align-items: flex-start; }
 .justify-between { justify-content: space-between; }
 .justify-center { justify-content: center; }
 .min-w-0 { min-width: 0; }
 .w-full { width: 100%; }
+.h-screen { height: 100vh; height: 100dvh; }
+.overflow-hidden { overflow: hidden; }
+.overflow-y-auto { overflow-y: auto; }
+.sticky { position: sticky; }
+.top-0 { top: 0; }
+.scrollbar-thin { scrollbar-width: thin; }
 .gap-1 { gap: 4px; }
 .gap-2 { gap: 8px; }
 .gap-3 { gap: 12px; }
