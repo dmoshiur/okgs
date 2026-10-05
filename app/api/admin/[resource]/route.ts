@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+import { isSuperAdminRole } from "@/lib/roles";
 import { coerceFieldValue, defaultValueFor, fieldsFor, resourceSchema } from "@/lib/content-config";
 import { findUniqueConflict, insertRow, listRows, resolveSlug, rowExists } from "@/lib/db";
 import type { ResourceName } from "@/lib/types";
@@ -36,13 +37,13 @@ export function validatePayload(resource: ResourceName, payload: Record<string, 
     if (!(field.name in payload)) continue;
     const value = String(payload[field.name] ?? "").trim();
     if (field.required && !value) {
-      return { error: `“${field.label}” খালি রাখা যাবে না।`, status: 422 as const };
+      return { error: `“${field.label}” cannot be left empty.`, status: 422 as const };
     }
     if (field.pattern && value && !new RegExp(field.pattern, "u").test(value)) {
-      return { error: field.patternError || `“${field.label}” সঠিক ফরম্যাটে নয়।`, status: 422 as const };
+      return { error: field.patternError || `“${field.label}” is not in the right format.`, status: 422 as const };
     }
     if ((field.type === "url" || field.type === "image") && value && !/^https?:\/\//i.test(value)) {
-      return { error: `“${field.label}”-এ একটি সম্পূর্ণ লিংক দিন (https:// দিয়ে শুরু)।`, status: 422 as const };
+      return { error: `“${field.label}” needs a full URL starting with https://`, status: 422 as const };
     }
   }
   return null;
@@ -56,13 +57,13 @@ export async function validateReferences(resource: ResourceName, payload: Record
     if (!(field.name in payload)) continue;
     const value = String(payload[field.name] ?? "").trim();
     if (!value) {
-      if (field.required) return { error: `“${field.label}” নির্বাচন করুন।`, status: 422 as const };
+      if (field.required) return { error: `Select a value for “${field.label}”.`, status: 422 as const };
       continue;
     }
     const column = field.reference === "clubs" || field.reference === "fairs" ? "slug" : "id";
     if (!(await rowExists(field.reference, column, value))) {
-      const label = field.reference === "clubs" ? "ক্লাব" : "বিজ্ঞান মেলা";
-      return { error: `“${value}” নামে কোনো ${label} নেই — আগে সেটি তৈরি করুন।`, status: 422 as const };
+      const label = field.reference === "clubs" ? "club" : "science fair";
+      return { error: `No ${label} called “${value}” exists — create it first.`, status: 422 as const };
     }
   }
   return null;
@@ -78,24 +79,32 @@ export async function GET(request: Request, context: { params: Promise<{ resourc
   try {
     await requireAdmin();
     const { resource } = await context.params;
-    if (!validResource(resource)) return NextResponse.json({ error: "অজানা কনটেন্ট টাইপ।" }, { status: 404 });
+    if (!validResource(resource)) return NextResponse.json({ error: "Unknown content type." }, { status: 404 });
 
     const url = new URL(request.url);
     const clubSlug = url.searchParams.get("club") || undefined;
     const items = await listRows(resource, { clubSlug });
     return NextResponse.json({ items, resource });
   } catch (error) {
-    if (unauthorized(error)) return NextResponse.json({ error: "লগইন প্রয়োজন।" }, { status: 401 });
+    if (unauthorized(error)) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     console.error("[admin:list]", error);
-    return NextResponse.json({ error: "তথ্য লোড করা যায়নি।" }, { status: 500 });
+    return NextResponse.json({ error: "The data could not be loaded." }, { status: 500 });
   }
 }
 
 export async function POST(request: Request, context: { params: Promise<{ resource: string }> }) {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
     const { resource } = await context.params;
-    if (!validResource(resource)) return NextResponse.json({ error: "অজানা কনটেন্ট টাইপ।" }, { status: 404 });
+    if (!validResource(resource)) return NextResponse.json({ error: "Unknown content type." }, { status: 404 });
+    // The `settings` rows are the site's identity (name, logo, contact details).
+    // They are editable by a SuperAdmin only — via the studio or /admin/settings.
+    if (resource === "settings" && !isSuperAdminRole(session.role)) {
+      return NextResponse.json(
+        { error: "Only a SuperAdmin can change site settings.", errorEn: "Only a SuperAdmin can change site settings." },
+        { status: 403 },
+      );
+    }
 
     const raw = (await request.json()) as Record<string, unknown>;
     const payload = buildPayload(resource, raw, true);
@@ -116,11 +125,11 @@ export async function POST(request: Request, context: { params: Promise<{ resour
     const item = await insertRow(resource, payload);
     return NextResponse.json({ item }, { status: 201 });
   } catch (error) {
-    if (unauthorized(error)) return NextResponse.json({ error: "লগইন প্রয়োজন।" }, { status: 401 });
+    if (unauthorized(error)) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     console.error("[admin:create]", error);
     const message = error instanceof Error && /UNIQUE/i.test(error.message)
-      ? "এই তথ্যটি আগেই যোগ হয়েছে (ইউনিক ঘর একই থাকছে)।"
-      : "সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।";
+      ? "This entry already exists (a unique field repeats)."
+      : "Could not save. Please try again.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

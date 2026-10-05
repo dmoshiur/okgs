@@ -46,10 +46,10 @@ export default async function PortalLoginPage({ searchParams }: { searchParams: 
             </p>
           ) : null}
           <p style={{ display: "flex", alignItems: "center", gap: 8, margin: 0, opacity: 0.92 }}>
-            <GraduationCap size={16} /> শিক্ষার্থী ও শিক্ষক — ID/ইমেইল দিয়ে লগইন
+            <GraduationCap size={16} /> শিক্ষার্থী, শিক্ষক, অভিভাবক ও অ্যাডমিন — একই লগইন
           </p>
           <p style={{ display: "flex", alignItems: "center", gap: 8, margin: 0, opacity: 0.92 }}>
-            <ShieldCheck size={16} /> অ্যাডমিন ও হিসাবরক্ষক — একই লগইন, বাড়তি অনুমতি
+            <ShieldCheck size={16} /> ভূমিকা বাছতে হবে না — ডেটাবেজ থেকেই নিজে চিনে নেয়
           </p>
           <Link className="v2-btn v2-btn-ghost" style={{ background: "rgba(255,255,255,.14)", color: "#fff", borderColor: "rgba(255,255,255,.34)", width: "fit-content" }} href="/">
             স্কুল সাইটে ফিরুন

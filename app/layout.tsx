@@ -34,13 +34,18 @@ import "@fontsource/poppins/600.css";
 import "@fontsource/poppins/700.css";
 import "@fontsource-variable/inter/wght.css";
 import "./globals.css";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { getPublicContent } from "@/lib/db";
 import { settingValue } from "@/lib/club-data";
 import { organizationSchema, siteUrl } from "@/lib/schema";
+import { siteIdentity } from "@/lib/site-settings";
+import { isExemptPath } from "@/lib/maintenance";
+import { canBypassMaintenanceLock } from "@/lib/auth";
 import { JsonLd } from "@/components/public/JsonLd";
 import { VisualModeProvider } from "@/components/public/VisualModeProvider";
 import { ThemeModeProvider } from "@/components/public/ThemeModeProvider";
-import { activeTheme, themeCss } from "@/lib/site";
+import { activeTheme, readFlag, themeCss } from "@/lib/site";
 
 const colorSchemeScript = `(()=>{let saved=null;try{saved=localStorage.getItem("okgs-color-scheme")}catch{}const prefersDark=typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.dataset.colorScheme=saved==="light"||saved==="dark"?saved:(prefersDark?"dark":"light")})()`;
 
@@ -49,11 +54,17 @@ export async function generateMetadata(): Promise<Metadata> {
   let description =
     "প্লে থেকে দশম শ্রেণি, আবাসিক ও অনাবাসিক পাঠদান — এবং সব ক্লাবের আয়োজন, সদস্য, ছবি ও অর্জনের তথ্যকেন্দ্র।";
   let logo: string | undefined;
+  let favicon: string | undefined;
+  let shortName = "ওকেজিএস";
   try {
     const content = await getPublicContent();
-    name = settingValue(content.settings, "site_name", "ওমর কিন্ডারগার্টেন স্কুল | কালাই, জয়পুরহাট").slice(0, 110);
-    description = settingValue(content.settings, "tagline", description);
-    logo = settingValue(content.settings, "logo_url") || undefined;
+    // Every value below is editable from /admin/settings → Site Settings.
+    const site = siteIdentity(content.settings);
+    shortName = site.shortName || shortName;
+    name = (site.siteTitle || site.siteName || name).slice(0, 120);
+    description = settingValue(content.settings, "tagline", description) || description;
+    logo = site.logo || undefined;
+    favicon = site.favicon || undefined;
   } catch {
     // The database may still be bootstrapping on the very first request.
   }
@@ -62,9 +73,12 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(siteUrl()),
     title: {
       default: name,
-      template: "%s | ওমর কিন্ডারগার্টেন স্কুল",
+      template: `%s | ${shortName}`,
     },
     description,
+    icons: favicon
+      ? { icon: [{ url: favicon }], shortcut: [favicon], apple: [favicon] }
+      : undefined,
     keywords: ["ওমর কিন্ডারগার্টেন স্কুল", "OKGS", "ক্লাব", "জয়পুরহাট", "কালাই", "সহশিক্ষা", "বিজ্ঞান মেলা"],
     openGraph: {
       title: name,
@@ -96,11 +110,28 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     content = null;
   }
   const settings = content?.settings ?? [];
+
+  /* -------------------------------------------------------------------------
+     Maintenance fallback.
+     middleware.ts already rewrites public requests to /maintenance while the
+     emergency switch is on. This is the second line of defence for anything the
+     middleware could not see (a cached RSC payload, a host that bypasses it):
+     the layout knows the requested path from the header middleware sets, and it
+     redirects unless the path is exempt or an admin is signed in.
+     ------------------------------------------------------------------------- */
+  const requestPath = (await headers()).get("x-okgs-pathname") || "";
+  const rewritten = (await headers()).get("x-okgs-maintenance") === "1";
+  // The studio is English-only (screen readers, spell-check, hyphenation), every
+  // public page is Bangla — the document language follows the surface.
+  const documentLang = /^\/admin(\/|$)/.test(requestPath) ? "en" : "bn";
+  if (!rewritten && requestPath && !isExemptPath(requestPath) && readFlag(settings, "maintenance_mode", false)) {
+    if (!(await canBypassMaintenanceLock())) redirect("/maintenance");
+  }
   const theme = content ? activeTheme(content) : null;
   const themeStyle = themeCss(theme);
 
   return (
-    <html lang="bn" suppressHydrationWarning>
+    <html lang={documentLang} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: colorSchemeScript }} />
         {themeStyle ? <style id="okgs-theme" dangerouslySetInnerHTML={{ __html: themeStyle }} /> : null}

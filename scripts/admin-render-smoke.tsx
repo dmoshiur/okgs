@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createElement as h } from "react";
 import { AdminSidebar } from "../components/admin/AdminSidebar";
 import { ClubCoverageTable, MetricGrid, RecentActivityList } from "../components/admin/DashboardMetrics";
+import { readFileSync } from "node:fs";
 import { ContentListTable } from "../components/admin/ContentListTable";
 
 const noop = () => {};
@@ -36,21 +37,21 @@ const counts: Record<string, { live: number; total: number }> = {
   club_posts: { live: 0, total: 0 },
 };
 const sidebar = renderToStaticMarkup(
-  h(AdminSidebar, { active: "overview", counts, loading: false, media: null, mobileNav: false, onClose: noop, onNavigate: noop, onLogout: noop }),
+  h(AdminSidebar, { active: "overview", counts, loading: false, media: null, mobileNav: false, isSuperAdmin: true, userName: "Super Admin", userEmail: "admin@okgs.info", onClose: noop, onNavigate: noop }),
 );
 const strip = (s: string) => s.replace(/<[^>]+>/g, "|");
 
 // 1) Label text is clean — no digits concatenated inside the label span.
 const labelChunk = /<span class="whitespace-nowrap truncate">[^<]*<\/span><\/span>/.exec(sidebar);
-check("sidebar: labels contain no raw ৬/৬-style counts", !!labelChunk && !/[\u09E6-\u09EF]\/[\u09E6-\u09EF]/.test(labelChunk[0]));
-check("sidebar: club_events label is 'ক্লাব আয়োজন' alone", /truncate">ক্লাব আয়োজন<\/span><\/span>/.test(sidebar));
+check("sidebar: labels contain no raw 5/6-style counts", !!labelChunk && !/\d+\/\d+/.test(labelChunk[0]));
+check("sidebar: club_events label is 'Club events' alone", /truncate">Club events<\/span><\/span>/.test(sidebar));
 
 // 2) Count lives in a pill AFTER the label group (right side), with slate classes.
-check("sidebar: count pill carries bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full text-xs", /class="nav-count px-2 py-0\.5 rounded-full text-xs"[^>]*>৫\/৬<\/span>/.test(sidebar));
-check("sidebar: zero-count pills render dim ০ not concatenated text", /class="nav-count is-empty px-2 py-0\.5 rounded-full text-xs"/.test(sidebar));
-const pillOrder = /<span class="whitespace-nowrap truncate">ক্লাব আয়োজন<\/span><\/span>\s*<span class="nav-count[^>]*>৫\/৬<\/span>/.test(sidebar);
+check("sidebar: count pill carries bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full text-xs", /class="nav-count px-2 py-0\.5 rounded-full text-xs"[^>]*>5\/6<\/span>/.test(sidebar));
+check("sidebar: zero-count pills render dim 0 not concatenated text", /class="nav-count is-empty px-2 py-0\.5 rounded-full text-xs"/.test(sidebar));
+const pillOrder = /<span class="whitespace-nowrap truncate">Club events<\/span><\/span>\s*<span class="nav-count[^>]*>5\/6<\/span>/.test(sidebar);
 check("sidebar: pill sits after label (justify-between order)", pillOrder);
-check("sidebar: logo copy uses truncation, not a raw span grid", /admin-logo-copy/.test(sidebar) && /truncate">ওকেজিএস</.test(sidebar));
+check("sidebar: logo copy uses truncation, not a raw span grid", /admin-logo-copy/.test(sidebar) && /truncate">OKGS</.test(sidebar));
 check("sidebar: workspace chip truncates", /workspace-copy/.test(sidebar));
 
 /* ---- Coverage progress table ----------------------------------------- */
@@ -65,15 +66,15 @@ const rowChunks = covHtml.split('class="coverage-row"').slice(1);
 check("coverage: 2 club rows rendered", rowChunks.length === 2);
 check("coverage: every row carries exactly 5 count cells", rowChunks.every((chunk) => (chunk.match(/coverage-cell/g) || []).length === 5));
 check("coverage: zero cells are styled chips (is-zero) not bare text", /coverage-cell is-zero/.test(covHtml));
-check("coverage: counts are bengali numerals inside chips", /coverage-cell tabular-nums"[^>]*>৪<\/button>/.test(covHtml));
+check("coverage: counts are plain numerals inside chips", /coverage-cell tabular-nums"[^>]*>4<\/button>/.test(covHtml));
 check("coverage: draft club flagged", /coverage-draft-flag/.test(covHtml));
 
 /* ---- Metric grid ------------------------------------------------------ */
 const metricHtml = renderToStaticMarkup(
-  h(MetricGrid, { stats: { loading: false, clubs: 5, activeClubs: 4, upcoming: 2, totalEvents: 6, cloudinaryImages: 0, mediaNote: "সেটআপ বাকি", drafts: 3, live: 70 } }),
+  h(MetricGrid, { stats: { loading: false, clubs: 5, activeClubs: 4, upcoming: 2, totalEvents: 6, cloudinaryImages: 0, mediaNote: "not configured", drafts: 3, live: 70 } }),
 );
 check("metrics: label and value share the .metric-top row", /<div class="metric-top">[\s\S]*?metric-label[\s\S]*?metric-value[\s\S]*?<\/div>\s*<small class="metric-note/.test(metricHtml));
-check("metrics: value right-anchored with tabular-nums", /metric-value tabular-nums">৫<\/strong>/.test(metricHtml));
+check("metrics: value right-anchored with tabular-nums", /metric-value tabular-nums">5<\/strong>/.test(metricHtml));
 
 /* ---- Recent list ------------------------------------------------------ */
 const recent = renderToStaticMarkup(
@@ -100,6 +101,26 @@ check("table: head + rows live in a shared scroll container", /content-panel[\s\
 check("table: 5 column headers nowrap", (tableHtml.match(/role="columnheader"/g) || []).length === 5);
 check("table: status is a real button pill per row", (tableHtml.match(/<button type="button" class="status-pill/g) || []).length === 6);
 check("table: row title truncates with title attr", /<b class="truncate whitespace-nowrap" title="আয়োজন 0">/.test(tableHtml));
+check("table: status pill reads Published/Draft in English", /Published|Draft/.test(tableHtml));
+
+/* ---- Scroll contract (globals.css) ------------------------------------ */
+/* The studio bugfix: the page never scrolls, the rail and the content pane each
+   scroll on their own, and the topbar stays pinned while the list scrolls. */
+const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+const cssBlock = (selector: string) => {
+  const start = css.indexOf(`${selector} {`);
+  if (start === -1) return "";
+  const end = css.indexOf("}", start);
+  return css.slice(start, end === -1 ? undefined : end);
+};
+const shell = cssBlock(".admin-shell");
+const rail = cssBlock(".admin-sidebar");
+const pane = cssBlock(".admin-content");
+check("css: shell is height-locked and clipped (page itself never scrolls)", /height:\s*100dvh/.test(shell) && /overflow:\s*hidden/.test(shell));
+check("css: rail owns its own vertical scroll", /overflow-y:\s*auto/.test(rail) && /height:\s*100%/.test(rail));
+check("css: content pane owns the other one", /overflow-y:\s*auto/.test(pane) && /flex:\s*1 1 auto/.test(pane));
+check("css: topbar is pinned above the scrolling pane", /flex:\s*0 0 auto/.test(cssBlock(".admin-topbar")));
+check("css: mobile rail is full viewport height", /height:\s*100dvh/.test(rail.replace(/^[^]*?\.admin-sidebar \{/, "")) || /100dvh/.test(css));
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nAll render checks passed.");
 process.exit(failures ? 1 : 0);

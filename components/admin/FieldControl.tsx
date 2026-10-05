@@ -23,7 +23,7 @@ interface FieldControlProps {
 }
 
 function fairPlaceholder(def: FieldDef) {
-  return def.reference === "clubs" ? "— সাধারণ / সব ক্লাব —" : "— চলতি মেলা —";
+  return def.reference === "clubs" ? "— General / all clubs —" : "— Current fair —";
 }
 
 /** `2026-10-01T09:00` / ISO strings → the exact shape <input type=date|datetime-local> wants. */
@@ -92,7 +92,7 @@ export function FieldControl({ def, resource, value, update, clubs, fairs, form,
       return (
         <BaseField def={def} invalid={invalid}>
           <select value={String(value ?? "")} onChange={(event) => update(def.name, event.target.value)}>
-            {!def.required ? <option value="">— নির্বাচন করুন —</option> : null}
+            {!def.required ? <option value="">— Select —</option> : null}
             {(def.options ?? []).map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
@@ -111,7 +111,7 @@ export function FieldControl({ def, resource, value, update, clubs, fairs, form,
       return (
         <BaseField def={def} invalid={invalid}>
           <select value={String(value ?? "")} onChange={(event) => update(def.name, event.target.value)}>
-            {!def.required ? <option value="">{fairPlaceholder(def)}</option> : <option value="">নির্বাচন করুন</option>}
+            {!def.required ? <option value="">{fairPlaceholder(def)}</option> : <option value="">Select an option</option>}
             {options.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
@@ -119,8 +119,8 @@ export function FieldControl({ def, resource, value, update, clubs, fairs, form,
           {empty ? (
             <small className="field-warn">
               {def.reference === "clubs"
-                ? "আগে একটি ক্লাব তৈরি করুন — তাই না থাকলে এই তথ্য কোনো ক্লাবের পাতায় দেখাবে না।"
-                : "আগে একটি বিজ্ঞান মেলা তৈরি করুন।"}
+                ? "Create a club first — without one this content cannot appear on any club page."
+                : "Create a science fair first."}
             </small>
           ) : null}
         </BaseField>
@@ -158,10 +158,10 @@ export function FieldControl({ def, resource, value, update, clubs, fairs, form,
           <textarea
             rows={def.rows ?? (def.name === "body" ? 10 : 4)}
             value={String(value ?? "")}
-            placeholder={def.placeholder || `এখানে ${def.label.toLowerCase()} লিখুন…`}
+            placeholder={def.placeholder || `Write ${def.label.toLowerCase()} here…`}
             onChange={(event) => update(def.name, event.target.value)}
           />
-          {def.name === "objectives" ? <small className="field-hint">{bn(String(value ?? "").split(/\r?\n/).filter((line) => line.trim()).length)} টি পয়েন্ট</small> : null}
+          {def.name === "objectives" ? <small className="field-hint">{bn(String(value ?? "").split(/\r?\n/).filter((line) => line.trim()).length)} points</small> : null}
         </BaseField>
       );
     case "url":
@@ -169,7 +169,7 @@ export function FieldControl({ def, resource, value, update, clubs, fairs, form,
         <BaseField def={def} invalid={invalid}>
           <input type="text" inputMode="url" value={String(value ?? "")} placeholder={def.placeholder || "https://…"} onChange={(event) => update(def.name, event.target.value)} />
           {String(value ?? "").trim() && !/^https?:\/\//i.test(String(value)) ? (
-            <small className="field-hint">সংরক্ষণের সময় https:// যোগ হয়ে যাবে।</small>
+            <small className="field-hint">https:// is added automatically when you save.</small>
           ) : null}
         </BaseField>
       );
@@ -187,14 +187,14 @@ function TextField({ def, value, update, invalid, form }: { def: FieldDef; value
       <input
         type="text"
         value={String(value ?? "")}
-        placeholder={def.placeholder || `${def.label} লিখুন`}
+        placeholder={def.placeholder || `Enter ${def.label.toLowerCase()}`}
         pattern={def.pattern ? def.pattern.replace(/^\^|\$$/g, "") : undefined}
         onChange={(event) => update(def.name, event.target.value)}
       />
       {showSlugTool ? (
         <span className="field-tools">
-          <button type="button" disabled={!source} onClick={() => update("slug", slugify(source))}>শিরোনাম থেকে বানান</button>
-          <button type="button" onClick={() => update("slug", `club-${Date.now().toString(36).slice(-5)}`)}>দৈবিক নাম</button>
+          <button type="button" disabled={!source} onClick={() => update("slug", slugify(source))}>Build from title</button>
+          <button type="button" onClick={() => update("slug", `club-${Date.now().toString(36).slice(-5)}`)}>Random name</button>
         </span>
       ) : null}
     </BaseField>

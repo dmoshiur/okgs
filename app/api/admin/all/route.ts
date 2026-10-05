@@ -21,9 +21,9 @@ export async function GET() {
     return NextResponse.json({ items });
   } catch (error) {
     if (error instanceof Error && error.message === "UNAUTHORIZED") {
-      return NextResponse.json({ error: "লগইন প্রয়োজন।" }, { status: 401 });
+      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     }
     console.error("[admin:all]", error);
-    return NextResponse.json({ error: "স্টুডিও লোড করা যায়নি।" }, { status: 500 });
+    return NextResponse.json({ error: "The studio could not be loaded." }, { status: 500 });
   }
 }

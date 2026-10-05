@@ -3,20 +3,23 @@
 /**
  * ContentListTable — the manager's data list (one row per entry).
  *
- * Fixed here:
+ * Admin UI is English-only; the data itself (titles, captions, club names) is
+ * whatever the school typed, usually Bangla — that content is never translated.
+ *
+ * Layout contract:
  * · header and rows share ONE explicit column template with `align-items: center`,
  *   and the whole table scrolls inside `.content-table` at narrow widths instead of
  *   the shell overflowing (min-width on rows + overflow-x on the wrapper);
- * · column captions are single-line, nowrap, Bengali-safe (no uppercase tracking);
+ * · column captions are single-line, nowrap;
  * · dynamic DB values (title / subtitle / details) go through `truncate` +
- *   `break-words`/`line-clamp-1` rules so any stray long slug or URL can never
- *   push the row grid apart.
+ *   `line-clamp-1` rules so a stray long slug or URL can never push the row grid
+ *   apart.
  */
 import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
 import { fieldsFor, resourceMeta } from "@/lib/content-config";
 import type { ResourceName } from "@/lib/types";
 import { iconFor } from "@/lib/icons";
-import { formatDate } from "@/lib/format";
+import { formatDateEn } from "@/lib/format";
 
 export type ContentItem = Record<string, any> & { id: string };
 
@@ -46,7 +49,7 @@ type ContentListTableProps = {
 
 function titleOf(resource: ResourceName, item: ContentItem) {
   const field = resourceMeta[resource].titleField;
-  return String(item[field] || item.title || item.name || item.label || item.caption || "শিরোনামহীন");
+  return String(item[field] || item.title || item.name || item.label || item.caption || "Untitled");
 }
 
 function subtitleOf(resource: ResourceName, item: ContentItem) {
@@ -112,24 +115,24 @@ function ContentRow({
         className={`status-pill ${isLive ? "" : "is-draft"}`}
         onClick={() => onToggle(item)}
         disabled={busy}
-        title={isLive ? "খসড়াতে নিতে ক্লিক করুন" : "প্রকাশ করতে ক্লিক করুন"}
+        title={isLive ? "Click to move this entry to drafts" : "Click to publish this entry"}
       >
-        <i />{busy ? "…" : isLive ? "প্রকাশিত" : "খসড়া"} {isLive ? <Eye size={11} /> : <EyeOff size={11} />}
+        <i />{busy ? "…" : isLive ? "Published" : "Draft"} {isLive ? <Eye size={11} /> : <EyeOff size={11} />}
       </button>
-      <span className="row-date tabular-nums whitespace-nowrap">{dateValue ? formatDate(dateValue, "short") : "—"}</span>
+      <span className="row-date tabular-nums whitespace-nowrap">{dateValue ? formatDateEn(dateValue, "short") : "—"}</span>
       <span className="row-actions">
         {reorderable ? (
           <>
-            <button onClick={() => onMove(item, -1)} disabled={isFirst || busy} aria-label="উপরে নিন"><ArrowUp size={14} /></button>
-            <button onClick={() => onMove(item, 1)} disabled={isLast || busy} aria-label="নিচে নিন"><ArrowDown size={14} /></button>
+            <button onClick={() => onMove(item, -1)} disabled={isFirst || busy} aria-label="Move up"><ArrowUp size={14} /></button>
+            <button onClick={() => onMove(item, 1)} disabled={isLast || busy} aria-label="Move down"><ArrowDown size={14} /></button>
           </>
         ) : null}
         {canPreview ? (
-          <a href={previewHref(resource, item)} target="_blank" rel="noreferrer" aria-label="সাইটে দেখুন"><Eye size={15} /></a>
+          <a href={previewHref(resource, item)} target="_blank" rel="noreferrer" aria-label="View on the site"><Eye size={15} /></a>
         ) : null}
-        <button onClick={() => onDuplicate(item)} aria-label="নকল তৈরি করুন"><Copy size={15} /></button>
-        <button onClick={() => onEdit(item)} aria-label="সম্পাদনা করুন"><Pencil size={15} /></button>
-        <button className="is-danger" onClick={() => onDelete(item)} aria-label="মুছে ফেলুন"><Trash2 size={15} /></button>
+        <button onClick={() => onDuplicate(item)} aria-label="Duplicate this entry"><Copy size={15} /></button>
+        <button onClick={() => onEdit(item)} aria-label="Edit this entry"><Pencil size={15} /></button>
+        <button className="is-danger" onClick={() => onDelete(item)} aria-label="Delete this entry"><Trash2 size={15} /></button>
       </span>
     </div>
   );
@@ -137,18 +140,19 @@ function ContentRow({
 
 export function ContentListTable({ resource, rows, loading, clubs, busyRowId, reorderable, hasFilters, onCreate, onClearFilters, onEdit, onDuplicate, onDelete, onToggle, onMove }: ContentListTableProps) {
   const visibleIds = rows.map((row) => String(row.id));
+  void visibleIds;
   return (
     <section className="content-panel">
       <div className="content-table">
         <div className="content-table-head" role="row">
           <span role="columnheader">{resourceMeta[resource].singular}</span>
-          <span role="columnheader">{resource === "clubs" ? "স্লাগ" : "বিভাগ / ধরন"}</span>
-          <span role="columnheader">অবস্থা</span>
-          <span role="columnheader">হালনাগাদ</span>
-          <span role="columnheader" aria-label="কাজ" />
+          <span role="columnheader">{resource === "clubs" ? "Slug" : "Category / type"}</span>
+          <span role="columnheader">Status</span>
+          <span role="columnheader">Updated</span>
+          <span role="columnheader" aria-label="Actions" />
         </div>
         {loading ? (
-          <div className="table-loading" role="status" aria-label="লোড হচ্ছে"><span /><span /><span /></div>
+          <div className="table-loading" role="status" aria-label="Loading"><span /><span /><span /></div>
         ) : rows.length ? (
           rows.map((item, index) => (
             <ContentRow
@@ -170,12 +174,12 @@ export function ContentListTable({ resource, rows, loading, clubs, busyRowId, re
         ) : (
           <div className="empty-dashboard content-empty">
             <span className="empty-orb">{(() => { const Icon = iconFor(resourceMeta[resource].icon); return <Icon size={23} />; })()}</span>
-            <h3>{hasFilters ? "এই ছাঁকনিতে কিছু নেই" : `এখনো ${resourceMeta[resource].label} নেই`}</h3>
-            <p>{hasFilters ? "ছাঁকনি সরিয়ে দেখুন, অথবা নতুন এন্ট্রি যোগ করুন।" : "প্রথম এন্ট্রিটি যোগ করলেই সাইটে দেখা যাবে।"}</p>
+            <h3>{hasFilters ? "Nothing matches these filters" : `No ${resourceMeta[resource].label.toLowerCase()} yet`}</h3>
+            <p>{hasFilters ? "Clear the filters, or add a new entry." : "Add the first entry and it appears on the site."}</p>
             <div className="empty-actions">
-              <button className="topbar-preview" onClick={onCreate}><Plus size={14} /> নতুন {resourceMeta[resource].singular}</button>
+              <button className="topbar-preview" onClick={onCreate}><Plus size={14} /> New {resourceMeta[resource].singular.toLowerCase()}</button>
               {hasFilters ? (
-                <button className="topbar-preview" onClick={onClearFilters}><X size={14} /> ছাঁকনি সরান</button>
+                <button className="topbar-preview" onClick={onClearFilters}><X size={14} /> Clear filters</button>
               ) : null}
             </div>
           </div>

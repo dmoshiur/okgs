@@ -9,6 +9,7 @@ import {
   Layers,
   Menu,
   Plus,
+  Power,
   RefreshCw,
   Save,
   Search,
@@ -22,7 +23,7 @@ import type { ResourceName } from "@/lib/types";
 import { iconFor } from "@/lib/icons";
 import { FieldControl } from "@/components/admin/FieldControl";
 import { loadMediaConfig, type MediaConfig } from "@/lib/upload-client";
-import { bn, formatDate } from "@/lib/format";
+import { en, formatDateEn } from "@/lib/format";
 import { AdminSidebar, type ResourceCounts } from "@/components/admin/AdminSidebar";
 import {
   CloudinaryPanel,
@@ -58,7 +59,7 @@ function sortRows(resource: ResourceName, rows: Item[]): Item[] {
 
 function titleOf(resource: ResourceName, item: Item) {
   const field = resourceMeta[resource].titleField;
-  return String(item[field] || item.title || item.name || item.label || item.caption || "শিরোনামহীন");
+  return String(item[field] || item.title || item.name || item.label || item.caption || "Untitled");
 }
 
 function previewHref(resource: ResourceName, item: Item) {
@@ -69,7 +70,14 @@ function previewHref(resource: ResourceName, item: Item) {
   return "/";
 }
 
-export function AdminStudio() {
+export interface StudioSession {
+  name: string;
+  email: string;
+  role: string;
+  isSuperAdmin: boolean;
+}
+
+export function AdminStudio({ session, maintenanceEnabled = false }: { session: StudioSession; maintenanceEnabled?: boolean }) {
   const [data, setData] = useState<DataMap>(emptyData);
   const [active, setActive] = useState<ResourceName | "overview">("overview");
   const [loading, setLoading] = useState(true);
@@ -108,7 +116,7 @@ export function AdminStudio() {
       }
       setData(next);
     } catch {
-      setLoadError("স্টুডিও লোড করা যায়নি — ডেটাবেস বা লগইন পরীক্ষা করুন।");
+      setLoadError("The studio could not be loaded — check the database or your sign-in.");
     } finally {
       setLoading(false);
     }
@@ -210,8 +218,8 @@ export function AdminStudio() {
     const copy = initialForm(resource, item);
     // Leave the slug blank: the API derives one from the copied title and guarantees uniqueness.
     if (hasField(resource, "slug")) copy.slug = "";
-    if (hasField(resource, "title")) copy.title = `${String(item.title || "")} (নকল)`;
-    if (hasField(resource, "name")) copy.name = `${String(item.name || "")} (নকল)`;
+    if (hasField(resource, "title")) copy.title = `${String(item.title || "")} (copy)`;
+    if (hasField(resource, "name")) copy.name = `${String(item.name || "")} (copy)`;
     if (hasField(resource, "key")) copy.key = `${String(item.key || "copy")}_2`;
     setErrors({});
     setForm(copy);
@@ -245,12 +253,12 @@ export function AdminStudio() {
     const missing: Record<string, string> = {};
     for (const field of fieldsFor(resource)) {
       const value = String(form[field.name] ?? "").trim();
-      if (field.required && !value) missing[field.name] = `“${field.label}” খালি রাখা যাবে না।`;
-      if (field.pattern && value && !new RegExp(field.pattern, "u").test(value)) missing[field.name] = field.patternError || `“${field.label}” সঠিক ফরম্যাটে নয়।`;
+      if (field.required && !value) missing[field.name] = `“${field.label}” cannot be left empty.`;
+      if (field.pattern && value && !new RegExp(field.pattern, "u").test(value)) missing[field.name] = field.patternError || `“${field.label}” is not in the right format.`;
     }
     if (Object.keys(missing).length) {
       setErrors(missing);
-      notify("error", "অবশ্যই পূরণ করতে হবে এমন ঘরগুলো দেখুন।");
+      notify("error", "Check the fields marked as required.");
       return;
     }
 
@@ -266,12 +274,12 @@ export function AdminStudio() {
         window.location.href = "/admin/login";
         return;
       }
-      if (!response.ok) throw new Error(result.error || "সংরক্ষণ করা যায়নি।");
+      if (!response.ok) throw new Error(result.error || "Could not save.");
       mergeItem(resource, result.item as Item);
       closeModal();
-      notify("success", mode === "edit" ? "পরিবর্তন সংরক্ষিত হয়েছে।" : "নতুন এন্ট্রি যোগ হয়েছে এবং সাইটে দেখাচ্ছে।");
+      notify("success", mode === "edit" ? "Changes saved." : "New entry added — it is live on the site.");
     } catch (error) {
-      notify("error", error instanceof Error ? error.message : "সংরক্ষণ করা যায়নি।");
+      notify("error", error instanceof Error ? error.message : "Could not save.");
     } finally {
       setSaving(false);
     }
@@ -295,14 +303,14 @@ export function AdminStudio() {
       }
       if (!response.ok) {
         const problem = await response.json().catch(() => ({}));
-        throw new Error(problem.error || "সংরক্ষণ করা যায়নি।");
+        throw new Error(problem.error || "Could not save.");
       }
       const result = await response.json();
       mergeItem(resource, result.item as Item);
       notify("success", message);
     } catch (error) {
       await load();
-      notify("error", error instanceof Error ? error.message : "সংরক্ষণ করা যায়নি।");
+      notify("error", error instanceof Error ? error.message : "Could not save.");
     } finally {
       setBusyRow("");
     }
@@ -329,11 +337,11 @@ export function AdminStudio() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resource, ids }),
       });
-      if (!response.ok) throw new Error("ক্রম সংরক্ষণ করা যায়নি।");
-      notify("success", "ক্রম হালনাগাদ হয়েছে।");
+      if (!response.ok) throw new Error("The order could not be saved.");
+      notify("success", "Order updated.");
     } catch (error) {
       await load();
-      notify("error", error instanceof Error ? error.message : "ক্রম সংরক্ষণ করা যায়নি।");
+      notify("error", error instanceof Error ? error.message : "The order could not be saved.");
     }
   }
 
@@ -341,19 +349,14 @@ export function AdminStudio() {
     try {
       const response = await fetch(`/api/admin/${resource}/${item.id}`, { method: "DELETE" });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || "মুছে ফেলা যায়নি।");
+      if (!response.ok) throw new Error(result.error || "Could not delete the entry.");
       setData((current) => ({ ...current, [resource]: current[resource].filter((row) => row.id !== item.id) }));
       setConfirming(null);
-      const extra = resource === "clubs" && result.cascade ? ` ${bn(result.cascade)} টি সংশ্লিষ্ট এন্ট্রিও মুছে গেছে।` : "";
-      notify("success", `“${titleOf(resource, item)}” মুছে ফেলা হয়েছে।${extra}`);
+      const extra = resource === "clubs" && result.cascade ? ` ${en(result.cascade)} related entries were removed as well.` : "";
+      notify("success", `“${titleOf(resource, item)}” was deleted.${extra}`);
     } catch (error) {
-      notify("error", error instanceof Error ? error.message : "মুছে ফেলা যায়নি।");
+      notify("error", error instanceof Error ? error.message : "Could not delete the entry.");
     }
-  }
-
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/admin/login";
   }
 
   function navigate(next: ResourceName | "overview") {
@@ -385,7 +388,7 @@ export function AdminStudio() {
       upcoming: data.club_events.filter((event) => String(event.event_date || "") >= today).length,
       totalEvents: data.club_events.length,
       cloudinaryImages: all.filter((item) => Object.values(item).some((value) => typeof value === "string" && value.includes("res.cloudinary.com"))).length,
-      mediaNote: media?.enabled ? `${media.cloudName} · ${media.folder}/` : "সেটআপ বাকি",
+      mediaNote: media?.enabled ? `${media.cloudName} · ${media.folder}/` : "not configured",
       drafts: all.length - live,
       live,
     };
@@ -409,20 +412,22 @@ export function AdminStudio() {
         loading={loading}
         media={media}
         mobileNav={mobileNav}
+        isSuperAdmin={session.isSuperAdmin}
+        userName={session.name}
+        userEmail={session.email}
         onClose={() => setMobileNav(false)}
         onNavigate={navigate}
-        onLogout={() => void logout()}
       />
 
-      {mobileNav ? <button className="admin-scrim" onClick={() => setMobileNav(false)} aria-label="মেনু বন্ধ করুন" /> : null}
+      {mobileNav ? <button className="admin-scrim" onClick={() => setMobileNav(false)} aria-label="Close the menu" /> : null}
 
       <main className="admin-main">
         <header className="admin-topbar">
-          <button className="admin-menu-button" onClick={() => setMobileNav(true)} aria-label="মেনু খুলুন"><Menu size={20} /></button>
-          <div className="admin-breadcrumb" aria-label="ব্রেডক্রাম্ব">
-            <span className="whitespace-nowrap">ওকেজিএস স্টুডিও</span>
+          <button className="admin-menu-button" onClick={() => setMobileNav(true)} aria-label="Open the menu"><Menu size={20} /></button>
+          <div className="admin-breadcrumb" aria-label="Breadcrumb">
+            <span className="whitespace-nowrap">OKGS Studio</span>
             <ChevronRight size={14} aria-hidden="true" />
-            <strong className="truncate whitespace-nowrap">{active === "overview" ? "ওভারভিউ" : resourceMeta[active].label}</strong>
+            <strong className="truncate whitespace-nowrap">{active === "overview" ? "Overview" : resourceMeta[active].label}</strong>
             {clubFilter ? (
               <>
                 <ChevronRight size={14} aria-hidden="true" />
@@ -431,14 +436,25 @@ export function AdminStudio() {
             ) : null}
           </div>
           <div className="admin-top-actions">
-            <button className="topbar-preview" onClick={() => void load()} title="আবার লোড করুন">
-              <RefreshCw size={13} className={loading ? "spin" : ""} /> রিফ্রেশ
+            {session.isSuperAdmin ? (
+              <a className={`topbar-preview ${maintenanceEnabled ? "is-danger" : ""}`} href="/admin/maintenance" title="Emergency maintenance switch">
+                <Power size={13} /> {maintenanceEnabled ? "Site is DOWN" : "Maintenance switch"}
+              </a>
+            ) : null}
+            <button className="topbar-preview" onClick={() => void load()} title="Reload the studio data">
+              <RefreshCw size={13} className={loading ? "spin" : ""} /> Refresh
             </button>
-            <a href="/" target="_blank" rel="noreferrer" className="topbar-preview"><span aria-hidden="true" /> লাইভ সাইট <ArrowUpRight size={13} /></a>
+            <a href="/" target="_blank" rel="noreferrer" className="topbar-preview"><span aria-hidden="true" /> Live site <ArrowUpRight size={13} /></a>
           </div>
         </header>
 
         <div className="admin-content">
+          {maintenanceEnabled ? (
+            <div className="system-banner is-danger" role="alert">
+              <strong>Maintenance mode is ON.</strong> Public visitors are seeing the maintenance page right now —{" "}
+              <a href="/admin/maintenance">open the switch</a> to bring the site back.
+            </div>
+          ) : null}
           {loadError ? <p className="studio-error">{loadError}</p> : null}
           {active === "overview" ? (
             <Overview
@@ -465,7 +481,7 @@ export function AdminStudio() {
                       return <Icon size={14} />;
                     })()}
                     <span className="whitespace-nowrap">
-                      {resourceMeta[active].group === "clubs" ? "ক্লাব তথ্যকেন্দ্র" : "কনটেন্ট ম্যানেজমেন্ট"} <span className="heading-dot" /> মোট {bn(currentItems.length)} টি
+                      {resourceMeta[active].group === "clubs" ? "Club information centre" : "Content management"} <span className="heading-dot" /> {en(currentItems.length)} entries in total
                     </span>
                   </p>
                   <h1>{resourceMeta[active].label}</h1>
@@ -473,7 +489,7 @@ export function AdminStudio() {
                 </div>
                 <div className="heading-buttons">
                   <button className="admin-primary-button" onClick={() => openCreate(active)}>
-                    <Plus size={16} /> নতুন {resourceMeta[active].singular}
+                    <Plus size={16} /> New {resourceMeta[active].singular.toLowerCase()}
                   </button>
                 </div>
               </div>
@@ -481,31 +497,31 @@ export function AdminStudio() {
               <div className="manager-toolbar">
                 <div className="search-box">
                   <Search size={16} />
-                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="খুঁজুন…" aria-label="খুঁজুন" />
+                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search…" aria-label="Search" />
                   <kbd>Ctrl K</kbd>
                 </div>
                 <div className="toolbar-filters">
                   {usesClubFilter ? (
                     <label className="filter-select">
-                      <span>ক্লাব</span>
+                      <span>Club</span>
                       <select value={clubFilter} onChange={(event) => setClubFilter(event.target.value)}>
-                        <option value="">সব</option>
+                        <option value="">All</option>
                         {clubs.map((club) => <option key={club.id} value={club.slug}>{club.name}</option>)}
-                        <option value="none">ক্লাববিহীন</option>
+                        <option value="none">Not tied to a club</option>
                       </select>
                     </label>
                   ) : null}
                   {hasField(active, "is_active") ? (
                     <label className="filter-select">
-                      <span>অবস্থা</span>
+                      <span>Status</span>
                       <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as any)}>
-                        <option value="all">সব</option>
-                        <option value="live">প্রকাশিত</option>
-                        <option value="draft">খসড়া</option>
+                        <option value="all">All</option>
+                        <option value="live">Published</option>
+                        <option value="draft">Draft</option>
                       </select>
                     </label>
                   ) : null}
-                  {reorderable ? <span className="toolbar-note"><Layers size={13} /> তীর দিয়ে ক্রম বদলানো যায়</span> : null}
+                  {reorderable ? <span className="toolbar-note"><Layers size={13} /> Use the arrows to reorder</span> : null}
                 </div>
               </div>
 
@@ -522,7 +538,7 @@ export function AdminStudio() {
                 onEdit={(item) => openEdit(active, item)}
                 onDuplicate={(item) => openDuplicate(active, item)}
                 onDelete={(item) => setConfirming({ resource: active, item })}
-                onToggle={(item) => void quickPatch(active, item, { is_active: item.is_active === false }, item.is_active === false ? "প্রকাশ করা হয়েছে।" : "খসড়াতে নেওয়া হয়েছে।")}
+                onToggle={(item) => void quickPatch(active, item, { is_active: item.is_active === false }, item.is_active === false ? "Published." : "Moved to drafts.")}
                 onMove={(item, direction) => void move(active, item, direction, filtered.map((row) => String(row.id)))}
               />
             </>
@@ -598,16 +614,16 @@ function Overview({
       <div className="admin-page-heading">
         <div className="min-w-0">
           <p className="admin-kicker">
-            <span className="whitespace-nowrap">{formatDate(new Date().toISOString())}</span>
+            <span className="whitespace-nowrap">{formatDateEn(new Date().toISOString())}</span>
             <span className="heading-dot" />
-            <span className="whitespace-nowrap">লাইভ ওয়ার্কস্পেস</span>
+            <span className="whitespace-nowrap">Live workspace</span>
           </p>
-          <h1>ক্লাব তথ্য <em>প্যানেল</em></h1>
-          <p className="heading-sub leading-relaxed">স্কুলের সব ক্লাবের আয়োজন, ছবি, সদস্য ও অর্জন এখান থেকেই চালিত হয়। প্রতিটি ঘর সম্পাদনাযোগ্য।</p>
+          <h1>Content <em>studio</em></h1>
+          <p className="heading-sub leading-relaxed">Every club event, photo, member and achievement is managed from here. Every row is editable.</p>
         </div>
         <div className="heading-buttons">
-          <button className="admin-primary-button" onClick={() => onCreate("clubs")}><Trophy size={15} /> নতুন ক্লাব</button>
-          <button className="secondary-button" onClick={() => onCreate("club_events")}><Plus size={15} /> আয়োজন</button>
+          <button className="admin-primary-button" onClick={() => onCreate("clubs")}><Trophy size={15} /> New club</button>
+          <button className="secondary-button" onClick={() => onCreate("club_events")}><Plus size={15} /> Event</button>
         </div>
       </div>
 
@@ -658,7 +674,7 @@ function EditorModal({
 }) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const fields = fieldsFor(resource);
-  const groups = Array.from(new Set(fields.map((field) => field.group || "তথ্য")));
+  const groups = Array.from(new Set(fields.map((field) => field.group || "Details")));
   const clubSlug = form.club_slug || (resource === "clubs" ? form.slug : "");
   const preview = mode === "edit" ? previewHref(resource, item!) : null;
   const Icon = iconFor(resourceMeta[resource].icon);
@@ -669,17 +685,17 @@ function EditorModal({
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="editor-modal" role="dialog" aria-modal="true" aria-label={`${resourceMeta[resource].label} সম্পাদনা`}>
+      <section className="editor-modal" role="dialog" aria-modal="true" aria-label={`Edit ${resourceMeta[resource].label}`}>
         <header className="editor-header">
           <div className="min-w-0">
-            <span className="editor-kicker"><Icon size={14} /> <span className="truncate">{mode === "edit" ? "সম্পাদনা" : "নতুন"} · {resourceMeta[resource].label}</span></span>
-            <h2 className="truncate leading-normal">{mode === "edit" ? titleOf(resource, item!) : `${resourceMeta[resource].singular} যোগ করুন`}</h2>
+            <span className="editor-kicker"><Icon size={14} /> <span className="truncate">{mode === "edit" ? "Edit" : "New"} · {resourceMeta[resource].label}</span></span>
+            <h2 className="truncate leading-normal">{mode === "edit" ? titleOf(resource, item!) : `Add ${resourceMeta[resource].singular}`}</h2>
           </div>
           <div className="editor-header-actions">
             {preview && preview !== "/" ? (
-              <a className="ghost-button" href={preview} target="_blank" rel="noreferrer"><Eye size={13} /> সাইটে দেখুন</a>
+              <a className="ghost-button" href={preview} target="_blank" rel="noreferrer"><Eye size={13} /> View on the site</a>
             ) : null}
-            <button className="modal-close" onClick={onClose} aria-label="বন্ধ করুন"><X size={18} /></button>
+            <button className="modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
           </div>
         </header>
 
@@ -690,7 +706,7 @@ function EditorModal({
                 <section className="field-group" key={group}>
                   {groups.length > 1 ? <h3 className="field-group-title">{group}</h3> : null}
                   <div className="field-grid">
-                    {fields.filter((field) => (field.group || "তথ্য") === group).map((field) => (
+                    {fields.filter((field) => (field.group || "Details") === group).map((field) => (
                       <div key={field.name} className={`field-cell ${field.full || field.type === "image" || field.type === "textarea" ? "is-wide" : ""}`}>
                         <FieldControl
                           def={field}
@@ -715,9 +731,9 @@ function EditorModal({
             <aside className="editor-aside">
               {resource !== "settings" && hasField(resource, "is_active") ? (
                 <div className="editor-aside-card">
-                  <span>প্রকাশনা</span>
+                  <span>Publishing</span>
                   <FieldControl
-                    def={{ name: "is_active", label: "সাইটে দেখান", type: "boolean", help: "বন্ধ রাখলে সাইটে থাকবে না, কিন্তু এখানে থেকে যাবে।" }}
+                    def={{ name: "is_active", label: "Published", type: "boolean", help: "Switch it off and the entry leaves the site but stays here." }}
                     value={form.is_active}
                     update={update}
                     clubs={clubs}
@@ -727,35 +743,35 @@ function EditorModal({
               ) : null}
               {hasField(resource, "club_slug") ? (
                 <div className="editor-aside-card">
-                  <span>ক্লাব</span>
-                  <p>{clubSlug ? String(clubs.find((club) => club.slug === clubSlug)?.name ?? clubSlug) : "সাধারণ — কোনো ক্লাবের সাথে যুক্ত নয়"}</p>
+                  <span>Club</span>
+                  <p>{clubSlug ? String(clubs.find((club) => club.slug === clubSlug)?.name ?? clubSlug) : "General — not tied to any club"}</p>
                   {clubSlug ? (
-                    <a className="text-link" href={`/clubs/${clubSlug}`} target="_blank" rel="noreferrer">ক্লাব পাতা <ArrowUpRight size={13} /></a>
+                    <a className="text-link" href={`/clubs/${clubSlug}`} target="_blank" rel="noreferrer">Club page <ArrowUpRight size={13} /></a>
                   ) : null}
                 </div>
               ) : null}
               {resource === "clubs" ? (
                 <div className="editor-aside-card">
-                  <span>ক্লাবের অন্যান্য তথ্য</span>
-                  <p className="editor-aside-note">আয়োজন, ছবি, সদস্য ও অর্জন প্রতিটি ক্লাবের জন্য আলাদা তালিকায় রাখা হয় — বাঁ মেনু থেকে।</p>
+                  <span>Other club content</span>
+                  <p className="editor-aside-note">Events, photos, members and achievements are kept in separate per-club lists — open them from the left rail.</p>
                 </div>
               ) : null}
               <div className="editor-tip">
                 <Sparkles size={16} />
-                <b>সহজ লেখাই ভালো।</b>
-                <p>প্রথম লাইনে মূল কথা লিখুন; বাকি তথ্য ছোট ছোট অনুচ্ছেদে দিন।</p>
+                <b>Write simply.</b>
+                <p>Lead with the essential line, then keep the rest in short paragraphs.</p>
               </div>
             </aside>
           </div>
 
           <footer className="editor-footer">
             <span className="editor-footer-note">
-              <span className="status-pulse" /> {mode === "edit" ? "বিদ্যমান এন্ট্রি সম্পাদনা" : "সংরক্ষণ করলেই সাইটে দেখাবে"}
+              <span className="status-pulse" /> {mode === "edit" ? "Editing an existing entry" : "Saving publishes it to the site"}
             </span>
             <div>
-              <button className="secondary-button" type="button" onClick={onClose}>বাতিল</button>
+              <button className="secondary-button" type="button" onClick={onClose}>Cancel</button>
               <button className="admin-primary-button" type="submit" disabled={saving}>
-                {saving ? <><RefreshCw size={14} className="spin" /> সংরক্ষণ…</> : <><Save size={15} /> {mode === "edit" ? "পরিবর্তন সংরক্ষণ" : "যোগ করুন"}</>}
+                {saving ? <><RefreshCw size={14} className="spin" /> Saving…</> : <><Save size={15} /> {mode === "edit" ? "Save changes" : "Add entry"}</>}
               </button>
             </div>
           </footer>
@@ -780,19 +796,19 @@ function ConfirmDialog({
 }) {
   return (
     <div className="modal-backdrop is-alert" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onCancel()}>
-      <section className="confirm-card" role="alertdialog" aria-modal="true" aria-label="মুছে ফেলা নিশ্চিত করুন">
+      <section className="confirm-card" role="alertdialog" aria-modal="true" aria-label="Confirm deletion">
         <span className="confirm-icon"><Trash2 size={18} /></span>
-        <h2>“{title}” মুছে ফেলবেন?</h2>
+        <h2>Delete “{title}”?</h2>
         <p>
           {resource === "clubs" && childCount ? (
-            <>এই ক্লাবের {bn(childCount)} টি সংশ্লিষ্ট এন্ট্রি (আয়োজন, ছবি, সদস্য, অর্জন, লেখা) ও মুছে যাবে।</>
+            <>All {en(childCount)} related entries of this club (events, photos, members, achievements, posts) are removed as well.</>
           ) : (
-            <>এই এন্ট্রিটি সাইট থেকে সরে যাবে। ফেরানো যাবে না।</>
+            <>This entry leaves the site for good. It cannot be restored.</>
           )}
         </p>
         <div className="confirm-actions">
-          <button className="secondary-button" onClick={onCancel}>না, রাখি</button>
-          <button className="danger-button" onClick={onConfirm}>হ্যাঁ, মুছে দিন</button>
+          <button className="secondary-button" onClick={onCancel}>Cancel</button>
+          <button className="danger-button" onClick={onConfirm}>Yes, delete it</button>
         </div>
       </section>
     </div>

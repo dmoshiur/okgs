@@ -36,7 +36,9 @@ export async function POST(request: Request) {
   if (!name) return fail("নাম দিতে হবে।", 422);
   if (!allRoles.includes(role)) return fail("ভূমিকাটি ঠিক নয়।", 422);
   if (!email && !studentId) return fail("ইমেইল অথবা স্কুল আইডি নম্বর — অন্তত একটি দিতে হবে।", 422);
-  if (role === "admin" && session.role !== "admin") return fail("কেবল অ্যাডমিন নতুন অ্যাডমিন তৈরি করতে পারেন।", 403);
+  if ((role === "admin" || role === "superadmin") && session.role !== "superadmin") {
+    return fail("কেবল সুপার অ্যাডমিন নতুন অ্যাডমিন তৈরি করতে পারেন।", 403);
+  }
 
   const password = str(body.password) || defaultPortalPassword();
   const { hash, salt } = hashPassword(password);

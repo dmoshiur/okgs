@@ -1,22 +1,26 @@
 "use client";
 
 /**
- * AdminSidebar — the dark navigation rail of the studio.
+ * AdminSidebar — the dark navigation rail of the studio (English UI).
  *
- * Layout contract (fixes the "text runs into the counter" bug):
+ * Layout contract (fixes the “text runs into the counter” bug):
  * · every nav row is a flex `justify-between`: [icon + label] left, count pill right;
- * · labels are `whitespace-nowrap truncate` — Bengali never wraps inside a rail row;
- * · live/total counts live ONLY in the `.nav-count` pill (slate-800 on slate rail) —
- *   no more raw `৬/৬` concatenations baked into the link titles;
- * · the logo header and workspace chip use p-4 / gap-3 with ellipsis, so the brand
- *   avatar and "ওকেজিএস" copy can't clip into each other.
+ * · labels are `whitespace-nowrap truncate` and single-line;
+ * · live/total counts live ONLY in the `.nav-count` pill (slate-800 on the slate
+ *   rail) — no raw `6/6` concatenations baked into link titles;
+ * · the rail itself is the scroll container (`.admin-sidebar { overflow-y:auto }`
+ *   inside a `height:100dvh` shell), so a long resource list scrolls on its own
+ *   while the content column stays put;
+ * · the logo header and workspace chip use p-4 / gap-3 with ellipsis.
  */
-import { CloudUpload, Eye, LayoutDashboard, LogOut, X } from "lucide-react";
+import Link from "next/link";
+import { CloudUpload, Eye, LayoutDashboard, Power, Settings2, Users, X } from "lucide-react";
 import { resourceMeta, studioGroups } from "@/lib/content-config";
 import type { ResourceName } from "@/lib/types";
 import { iconFor } from "@/lib/icons";
-import { bn } from "@/lib/format";
+import { en } from "@/lib/format";
 import type { MediaConfig } from "@/lib/upload-client";
+import { LogoutButton } from "@/components/admin/LogoutButton";
 
 export type ResourceCount = { live: number; total: number };
 export type ResourceCounts = Partial<Record<ResourceName, ResourceCount>>;
@@ -27,9 +31,12 @@ type AdminSidebarProps = {
   loading: boolean;
   media: MediaConfig | null;
   mobileNav: boolean;
+  /** SuperAdmins get the system section (settings, maintenance, accounts). */
+  isSuperAdmin: boolean;
+  userName: string;
+  userEmail: string;
   onClose: () => void;
   onNavigate: (next: ResourceName | "overview") => void;
-  onLogout: () => void;
 };
 
 function CountPill({ count, loading }: { count?: ResourceCount; loading: boolean }) {
@@ -39,44 +46,55 @@ function CountPill({ count, loading }: { count?: ResourceCount; loading: boolean
   const total = count?.total ?? 0;
   const live = count?.live ?? 0;
   if (!total) {
-    return <span className="nav-count is-empty px-2 py-0.5 rounded-full text-xs" title="এখনো কোনো এন্ট্রি নেই">০</span>;
+    return <span className="nav-count is-empty px-2 py-0.5 rounded-full text-xs" title="No entries yet">0</span>;
   }
   return (
-    <span className="nav-count px-2 py-0.5 rounded-full text-xs" title={`${bn(live)} টি প্রকাশিত · মোট ${bn(total)} টি`}>
-      {bn(live)}/{bn(total)}
+    <span className="nav-count px-2 py-0.5 rounded-full text-xs" title={`${en(live)} published · ${en(total)} total`}>
+      {en(live)}/{en(total)}
     </span>
   );
 }
 
-export function AdminSidebar({ active, counts, loading, media, mobileNav, onClose, onNavigate, onLogout }: AdminSidebarProps) {
+export function AdminSidebar({
+  active,
+  counts,
+  loading,
+  media,
+  mobileNav,
+  isSuperAdmin,
+  userName,
+  userEmail,
+  onClose,
+  onNavigate,
+}: AdminSidebarProps) {
   return (
-    <aside className={`admin-sidebar ${mobileNav ? "is-open" : ""}`} aria-label="স্টুডিও নেভিগেশন">
+    <aside className={`admin-sidebar ${mobileNav ? "is-open" : ""}`} aria-label="Studio navigation">
       {/* Brand header — avatar + two text lines, truncate-guarded. */}
       <div className="admin-sidebar-top">
-        <a href="/" className="admin-logo" title="ওকেজিএস — সাইটের হোম">
-          <span className="brand-mark" aria-hidden="true"><span>অ</span></span>
+        <Link href="/" className="admin-logo" title="OKGS — site home">
+          <span className="brand-mark" aria-hidden="true"><span>O</span></span>
           <span className="admin-logo-copy">
-            <b className="truncate">ওকেজিএস</b>
-            <small className="truncate">কনটেন্ট স্টুডিও</small>
+            <b className="truncate">OKGS</b>
+            <small className="truncate">Content Studio</small>
           </span>
-        </a>
-        <button className="sidebar-close" onClick={onClose} aria-label="মেনু বন্ধ করুন"><X size={19} /></button>
+        </Link>
+        <button className="sidebar-close" onClick={onClose} aria-label="Close the menu"><X size={19} /></button>
       </div>
 
-      {/* Workspace chip — school identity, same truncate rules. */}
+      {/* Signed-in account — role and email, same truncate rules. */}
       <div className="workspace-chip">
-        <span className="workspace-avatar" aria-hidden="true">A</span>
+        <span className="workspace-avatar" aria-hidden="true">{isSuperAdmin ? "S" : "A"}</span>
         <span className="workspace-copy">
-          <b className="truncate">ওমর কিন্ডারগার্টেন স্কুল</b>
-          <small className="truncate">সব ক্লাবের তথ্য এক জায়গায়</small>
+          <b className="truncate">{userName || "Administrator"}</b>
+          <small className="truncate">{isSuperAdmin ? "SuperAdmin" : "Admin"} · {userEmail}</small>
         </span>
       </div>
 
-      <nav className="admin-nav" aria-label="প্রধান মেনু">
+      <nav className="admin-nav" aria-label="Main menu">
         <button className={active === "overview" ? "is-active" : ""} onClick={() => onNavigate("overview")} aria-current={active === "overview" ? "page" : undefined}>
           <span className="nav-item-label">
             <LayoutDashboard size={16} strokeWidth={active === "overview" ? 2.2 : 1.8} />
-            <span className="whitespace-nowrap">ওভারভিউ</span>
+            <span className="whitespace-nowrap">Overview</span>
           </span>
         </button>
       </nav>
@@ -92,7 +110,6 @@ export function AdminSidebar({ active, counts, loading, media, mobileNav, onClos
                 <button key={resource} className={isActive ? "is-active" : ""} onClick={() => onNavigate(resource)} aria-current={isActive ? "page" : undefined}>
                   <span className="nav-item-label">
                     <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
-                    {/* Title is just the title — the ৬/৬-style count belongs to the pill. */}
                     <span className="whitespace-nowrap truncate">{resourceMeta[resource].label}</span>
                   </span>
                   <CountPill loading={loading} count={counts[resource]} />
@@ -103,20 +120,45 @@ export function AdminSidebar({ active, counts, loading, media, mobileNav, onClos
         </div>
       ))}
 
+      {/* SuperAdmin-only system section — real pages, not studio panels. */}
+      {isSuperAdmin ? (
+        <div className="admin-nav-group admin-nav-system">
+          <p className="admin-nav-label">System</p>
+          <nav className="admin-nav" aria-label="System pages">
+            <Link href="/admin/settings">
+              <span className="nav-item-label">
+                <Settings2 size={16} />
+                <span className="whitespace-nowrap">Site Settings</span>
+              </span>
+            </Link>
+            <Link href="/admin/maintenance">
+              <span className="nav-item-label">
+                <Power size={16} />
+                <span className="whitespace-nowrap">Maintenance Switch</span>
+              </span>
+            </Link>
+            <Link href="/admin/users">
+              <span className="nav-item-label">
+                <Users size={16} />
+                <span className="whitespace-nowrap">Accounts</span>
+              </span>
+            </Link>
+          </nav>
+        </div>
+      ) : null}
+
       <div className="sidebar-bottom">
-        <div className={`media-chip ${media?.enabled ? "is-on" : "is-off"}`} title={media?.enabled ? `আপলোড: ${media.cloudName}/${media.folder}/` : "Cloudinary কনফিগ দরকার"}>
+        <div className={`media-chip ${media?.enabled ? "is-on" : "is-off"}`} title={media?.enabled ? `Uploads: ${media.cloudName}/${media.folder}/` : "Cloudinary configuration needed"}>
           <CloudUpload size={14} />
           <span className="min-w-0">
-            <b className="truncate">{media?.enabled ? "Cloudinary সংযুক্ত" : "Cloudinary সেটআপ বাকি"}</b>
-            <small className="truncate">{media?.enabled ? `${media.cloudName} · ${media.folder}/` : "ছবি আপলোডের জন্য কনফিগ দরকার"}</small>
+            <b className="truncate">{media?.enabled ? "Cloudinary connected" : "Cloudinary not set up"}</b>
+            <small className="truncate">{media?.enabled ? `${media.cloudName} · ${media.folder}/` : "Image uploads need configuration"}</small>
           </span>
         </div>
-        <a href="/" target="_blank" rel="noreferrer">
-          <span className="nav-item-label"><Eye size={15} /><span className="whitespace-nowrap">সাইট দেখুন</span></span>
-        </a>
-        <button onClick={onLogout}>
-          <span className="nav-item-label"><LogOut size={15} /><span className="whitespace-nowrap">প্রস্থান</span></span>
-        </button>
+        <Link href="/" target="_blank" rel="noreferrer">
+          <span className="nav-item-label"><Eye size={15} /><span className="whitespace-nowrap">View live site</span></span>
+        </Link>
+        <LogoutButton />
       </div>
     </aside>
   );

@@ -2190,13 +2190,31 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
    · letter-spacing is only ever applied to Latin — Bengali with tracking
      splits conjunct clusters, so labels here use .02em at most.
    ========================================================================== */
-.admin-shell { display: grid; grid-template-columns: 272px minmax(0, 1fr); min-height: 100vh; background: var(--surface-alt-2); }
+/* ---------------------------------------------------------------------------
+   Layout contract (fixes the “sidebar/content will not scroll” bug):
+
+     .admin-shell   → height:100dvh + overflow:hidden, so the PAGE never scrolls
+     .admin-sidebar → height:100%, overflow-y:auto  → the rail scrolls alone
+     .admin-main    → height:100%, flex column, overflow:hidden
+     .admin-topbar  → flex:0 0 auto (stays pinned)
+     .admin-content → flex:1 1 auto + overflow-y:auto → the content scrolls alone
+
+   Each column therefore keeps its own scroll position, long resource lists
+   cannot push the sidebar out of view, and `min-height:0` on the flex children
+   stops the classic “grid item refuses to shrink” overflow.
+   --------------------------------------------------------------------------- */
+.admin-shell { display: grid; grid-template-columns: 272px minmax(0, 1fr); height: 100vh; height: 100dvh; overflow: hidden; background: var(--surface-alt-2); }
+.admin-shell > * { min-height: 0; }
 .admin-sidebar {
   display: flex; flex-direction: column; gap: 18px;
+  height: 100%; min-height: 0;
   padding: 16px 14px 20px; background: var(--brand-deep); color: #fff;
   overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
   scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .16) transparent;
 }
+/* The scroll container is the rail itself — keep the nav lists from being
+   squeezed by the flex layout (min-height:auto would otherwise win). */
+.admin-sidebar > nav, .admin-sidebar .admin-nav-group { min-height: 0; }
 .admin-sidebar::-webkit-scrollbar { width: 6px; }
 .admin-sidebar::-webkit-scrollbar-thumb { border-radius: 99px; background: rgba(255, 255, 255, .16); }
 /* Logo header — p-4 + gap-3 rhythm; only the mark is sized, the text truncates. */
@@ -2258,8 +2276,8 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .sidebar-bottom { display: grid; gap: 4px; margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, .14); }
 .sidebar-bottom svg { flex: 0 0 auto; }
 .sidebar-bottom button:hover { background: rgba(255, 99, 99, .16); color: #fff; }
-.admin-main { display: flex; flex-direction: column; min-width: 0; }
-.admin-topbar { display: flex; align-items: center; gap: 16px; min-height: 68px; padding: 12px 32px; background: #fff; border-bottom: 1px solid var(--line); }
+.admin-main { display: flex; flex-direction: column; min-width: 0; height: 100%; min-height: 0; overflow: hidden; }
+.admin-topbar { display: flex; align-items: center; gap: 16px; flex: 0 0 auto; min-height: 68px; padding: 12px 32px; background: #fff; border-bottom: 1px solid var(--line); }
 .admin-menu-button { display: none; flex: 0 0 auto; border: 1px solid var(--line); border-radius: var(--r); background: #fff; padding: 8px; color: var(--ink); cursor: pointer; }
 /* Breadcrumb — single line, ellipsised, never wraps or pushes actions off-canvas. */
 .admin-breadcrumb { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; color: var(--muted); font-size: 14px; line-height: 1.5; white-space: nowrap; overflow: hidden; }
@@ -2270,7 +2288,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .topbar-preview:hover { border-color: var(--brand); color: var(--brand); background: var(--surface-alt); }
 .topbar-preview span { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, .18); }
 .admin-top-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; margin-left: auto; }
-.admin-content { width: min(1400px, 100%); margin-inline: auto; padding: 36px 32px 72px; min-width: 0; }
+.admin-content { flex: 1 1 auto; width: min(1400px, 100%); margin-inline: auto; padding: 36px 32px 72px; min-width: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(15, 30, 54, .22) transparent; }
 .admin-page-heading { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 28px; min-width: 0; }
 /* line-height 1.14 clipped Bengali matras on large display sizes — relaxed to 1.25. */
 .admin-page-heading h1 { font-size: clamp(30px, 4vw, 44px); line-height: 1.28; overflow-wrap: anywhere; }
@@ -2606,7 +2624,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   .overview-grid { grid-template-columns: 1fr; }
 
   .admin-shell { grid-template-columns: 1fr; }
-  .admin-sidebar { position: fixed; z-index: 50; inset: 0 auto 0 0; width: min(312px, 86vw); transform: translateX(-100%); transition: transform .25s ease; box-shadow: var(--shadow-lg); }
+  .admin-sidebar { position: fixed; z-index: 50; inset: 0 auto 0 0; height: 100dvh; width: min(312px, 86vw); transform: translateX(-100%); transition: transform .25s ease; box-shadow: var(--shadow-lg); }
   .admin-sidebar.is-open { transform: translateX(0); }
   /* Full-bleed tap-to-close backdrop (was referenced in markup but never defined). */
   .admin-scrim { position: fixed; z-index: 49; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: rgba(7, 15, 28, .55); cursor: pointer; backdrop-filter: blur(2px); }
@@ -4920,3 +4938,191 @@ html[data-color-scheme="dark"] .club-site .club-site-logo-fallback {
 /* Admin console paints with the same tokens; keep vertical rhythm generous
    so Bengali descenders (ণ-ম ফলা ইত্যাদি) are never cropped inside rows. */
 .admin-shell p, .admin-shell li, .admin-shell td, .admin-shell th { line-height: 1.625; }
+
+/* ==========================================================================
+   Admin authentication (English studio: sign in, forgot, reset)
+   --------------------------------------------------------------------------
+   Same independent-scroll contract as the studio: the page is height-locked and
+   only the form column scrolls, so a 360px phone with the keyboard open can
+   still reach the submit button and the error line above it.
+   ========================================================================== */
+.login-page { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
+.login-art { min-height: 0; overflow: hidden; }
+.login-form-side { min-height: 0; overflow: hidden; padding: 0; display: block; }
+.login-scroll { height: 100%; overflow-y: auto; overscroll-behavior: contain; display: grid; place-items: center; padding: 48px 24px; scrollbar-width: thin; }
+.login-form-wrap { width: min(420px, 100%); }
+.login-form-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.login-form-hint { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; font-weight: 600; }
+.login-brand-note { margin: 18px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+/* Inputs with a leading icon (email fields) keep the icon inside the border. */
+.icon-input { position: relative; display: flex; align-items: center; }
+.icon-input > svg { position: absolute; left: 14px; color: var(--muted); pointer-events: none; }
+.icon-input input { padding-left: 42px; }
+.form-ok { display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 14px; border: 1px solid var(--mint-line); border-radius: var(--r); background: var(--mint-soft); color: var(--mint-text); font-size: 14px; font-weight: 600; }
+/* Result cards (reset link sent / password changed) */
+.auth-result { display: grid; gap: 12px; padding: 24px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface-alt-2); }
+.auth-result-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: var(--mint-soft); color: var(--mint-text); }
+.auth-result-icon.is-ok { background: #dcfce7; color: #15803d; }
+.auth-result h3 { margin: 0; font-size: 20px; }
+.auth-result p { margin: 0; color: var(--body); font-size: 14.5px; line-height: 1.75; }
+.auth-result-actions { margin-top: 6px; }
+.auth-checks { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.auth-checks li { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.auth-checks li.is-ok { color: #15803d; font-weight: 600; }
+.auth-checks svg { flex: 0 0 auto; }
+
+/* ==========================================================================
+   Maintenance mode — the page every public visitor sees while the switch is ON
+   ========================================================================== */
+.maintenance-page {
+  display: grid; place-items: center; min-height: 100vh; min-height: 100dvh;
+  padding: 32px 20px; background: var(--navy-gradient);
+}
+.maintenance-card {
+  display: grid; justify-items: center; gap: 14px; width: min(620px, 100%);
+  padding: 44px 36px; border-radius: var(--r-2xl); background: var(--surface);
+  box-shadow: 0 30px 70px rgba(6, 21, 35, .35); text-align: center;
+}
+.maintenance-badge { display: inline-flex; align-items: center; gap: 8px; padding: 7px 16px; border-radius: var(--r-pill); background: #fff7ed; color: #b45309; font-size: 13px; font-weight: 700; }
+.maintenance-card h1 { margin: 4px 0 0; font-size: clamp(24px, 4vw, 34px); line-height: 1.35; }
+.maintenance-lead { margin: 0; max-width: 46ch; color: var(--body); font-size: 16px; line-height: 1.85; }
+.maintenance-en { margin: 0; color: var(--muted); font-size: 14px; font-style: italic; }
+.maintenance-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 22px; margin-top: 4px; }
+.maintenance-meta a { display: inline-flex; align-items: center; gap: 7px; color: var(--body); font-size: 14px; font-weight: 600; }
+.maintenance-meta a:hover { color: var(--brand-hover); }
+.maintenance-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 8px; }
+.maintenance-note { margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+
+/* ==========================================================================
+   SuperAdmin system pages — settings, maintenance switch, accounts
+   ========================================================================== */
+.system-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 22px; padding: 14px 18px; border-radius: var(--r-lg); font-size: 14.5px; line-height: 1.7; }
+.system-banner.is-danger { border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c; }
+.system-banner a { color: inherit; font-weight: 700; text-decoration: underline; }
+.topbar-preview.is-danger { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
+.topbar-preview.is-danger span { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, .18); }
+.admin-nav-system .admin-nav-label { color: rgba(255, 255, 255, .58); }
+.admin-nav-system a { color: rgba(255, 255, 255, .92); }
+.admin-system-note { display: flex; align-items: flex-start; gap: 9px; padding: 12px; border-radius: var(--r); border: 1px dashed rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .04); color: rgba(255, 255, 255, .74); }
+.admin-system-note svg { flex: 0 0 auto; margin-top: 2px; color: var(--mint); }
+.admin-system-note p { margin: 0; font-size: 12.5px; line-height: 1.65; }
+
+/* ---- Site settings form ---- */
+.settings-form { display: grid; gap: 22px; }
+.settings-preview { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.settings-preview-icon { display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 40px; border-radius: var(--r); background: var(--mint-soft); color: var(--mint-text); }
+.settings-preview b { display: block; font-size: 16px; line-height: 1.5; }
+.settings-preview small { display: block; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.settings-preview-logo { width: 44px; height: 44px; margin-left: auto; object-fit: contain; border-radius: var(--r); background: var(--surface-alt); padding: 4px; }
+.settings-panel { display: grid; gap: 18px; }
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 22px; }
+.settings-field { min-width: 0; }
+.settings-field.is-wide, .settings-grid .is-wide { grid-column: 1 / -1; }
+.field-help { display: block; margin-top: 6px; color: var(--muted); font-size: 12.5px; line-height: 1.65; }
+.field-error { display: block; margin-top: 6px; color: var(--danger); font-size: 12.5px; font-weight: 600; }
+.settings-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; }
+.settings-actions.is-wide { grid-column: 1 / -1; }
+
+/* ---- Maintenance switch ---- */
+.maintenance-panel { display: grid; gap: 20px; }
+.maintenance-switch { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px; padding: 26px 28px; border-radius: var(--r-xl); border: 1px solid var(--line); background: var(--surface); }
+.maintenance-switch.is-down { border-color: #fecaca; background: linear-gradient(180deg, #fff5f5, #fff); }
+.maintenance-switch.is-live { border-color: var(--mint-line); background: linear-gradient(180deg, var(--mint-soft), #fff); }
+.maintenance-switch-copy { display: flex; align-items: flex-start; gap: 16px; min-width: 0; }
+.maintenance-switch-icon { display: grid; place-items: center; width: 48px; height: 48px; flex: 0 0 48px; border-radius: var(--r-lg); background: #fff; box-shadow: inset 0 0 0 1px var(--line); }
+.maintenance-switch.is-down .maintenance-switch-icon { color: #dc2626; }
+.maintenance-switch.is-live .maintenance-switch-icon { color: #15803d; }
+.maintenance-switch h2 { margin: 0 0 4px; font-size: 22px; }
+.maintenance-switch p { margin: 0; max-width: 56ch; color: var(--body); font-size: 14.5px; line-height: 1.75; }
+.maintenance-toggle { display: inline-flex; align-items: center; gap: 12px; padding: 10px 18px 10px 12px; border: 1px solid var(--line); border-radius: var(--r-pill); background: #fff; font-size: 14.5px; font-weight: 700; cursor: pointer; transition: border-color .18s ease, background-color .18s ease; }
+.maintenance-toggle:hover { border-color: var(--brand); }
+.maintenance-toggle.is-on { border-color: #fca5a5; background: #fef2f2; color: #b91c1c; }
+.maintenance-toggle-track { position: relative; display: block; width: 46px; height: 26px; border-radius: 999px; background: #e2e8f0; transition: background-color .2s ease; }
+.maintenance-toggle.is-on .maintenance-toggle-track { background: #dc2626; }
+.maintenance-toggle-thumb { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(15, 23, 42, .3); transition: transform .2s ease; }
+.maintenance-toggle.is-on .maintenance-toggle-thumb { transform: translateX(20px); }
+.maintenance-toggle-label { display: inline-flex; align-items: center; gap: 7px; }
+.maintenance-confirm { display: flex; align-items: flex-start; gap: 14px; padding: 20px 22px; border-radius: var(--r-lg); border: 1px solid #fed7aa; background: #fffbeb; color: #92400e; }
+.maintenance-confirm svg { flex: 0 0 auto; margin-top: 3px; }
+.maintenance-confirm b { display: block; font-size: 16px; line-height: 1.5; }
+.maintenance-confirm p { margin: 6px 0 14px; font-size: 14px; line-height: 1.75; color: #78350f; }
+.maintenance-confirm-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.maintenance-timestamp { display: inline-flex; align-items: center; gap: 7px; margin: 0; color: var(--muted); font-size: 12.5px; }
+
+/* ---- Accounts manager ---- */
+.users-manager { display: grid; gap: 22px; }
+.users-create, .users-list { display: grid; gap: 18px; }
+.users-invite-toggle { grid-column: 1 / -1; }
+.user-invite-link { display: block; margin: 8px 0; padding: 10px 12px; border-radius: var(--r); background: #fff; border: 1px solid var(--line); font-size: 12.5px; word-break: break-all; }
+.users-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.users-toolbar .search-box { min-width: 220px; }
+.users-toolbar select { width: auto; min-width: 150px; }
+.users-table { display: grid; gap: 0; min-width: 0; overflow-x: auto; }
+.users-head, .users-row { display: grid; grid-template-columns: minmax(220px, 2.4fr) minmax(140px, 1fr) minmax(110px, .8fr) minmax(150px, 1fr) 84px; gap: 14px; align-items: center; padding: 12px 8px; min-width: 760px; border-bottom: 1px solid var(--line-2); }
+.users-head { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
+.users-row:last-child { border-bottom: 0; }
+.users-row:hover { background: var(--surface-alt); }
+.users-row-identity { display: grid; gap: 3px; min-width: 0; }
+.users-row-identity b { font-size: 14.5px; font-weight: 600; line-height: 1.5; }
+.users-row-identity small { color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+.users-role-select { padding-block: 8px; }
+.users-row-date { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.users-row-actions { display: flex; justify-content: flex-end; gap: 4px; }
+.users-row-actions button { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: var(--r); background: #fff; color: var(--muted); cursor: pointer; }
+.users-row-actions button:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); }
+
+/* ==========================================================================
+   Public portal — single-card auth pages (/sf/forgot-password, /sf/reset-password)
+   ========================================================================== */
+.portal-auth-single { display: grid; place-items: center; min-height: 100vh; min-height: 100dvh; padding: 32px 20px; background: var(--navy-gradient); }
+.portal-auth-single .portal-card { box-shadow: 0 30px 70px rgba(6, 21, 35, .3); }
+.portal-check { display: flex; align-items: center; gap: 7px; }
+.portal-check.is-ok { color: #b9f2c8; }
+
+@media (max-width: 1024px) {
+  /* The art column is hidden on tablets/phones, so the form column owns the scroll. */
+  .login-form-side { overflow-y: auto; }
+  .login-scroll { padding: 32px 20px 48px; }
+}
+@media (max-width: 768px) {
+  .settings-grid { grid-template-columns: minmax(0, 1fr); }
+  .settings-actions { justify-content: stretch; }
+  .settings-actions > * { flex: 1 1 auto; }
+  .maintenance-card { padding: 32px 22px; }
+  .maintenance-switch { padding: 20px; }
+  .maintenance-toggle { width: 100%; justify-content: center; }
+}
+
+/* ---------------------------------------------------------------------------
+   Metric tones — each card keeps the same geometry and only the icon plate
+   changes colour, so the row still aligns when notes wrap to two lines.
+   --------------------------------------------------------------------------- */
+.metric-card.metric-green .metric-icon { background: #dcfce7; color: #15803d; }
+.metric-card.metric-gold .metric-icon { background: #fef3c7; color: #b45309; }
+.metric-card.metric-lilac .metric-icon { background: #ede9fe; color: #6d28d9; }
+.metric-card.metric-peach .metric-icon { background: #ffe4e6; color: #be123c; }
+.metric-card.metric-green:hover { border-color: #bbf7d0; }
+.metric-card.metric-gold:hover { border-color: #fde68a; }
+.metric-card.metric-lilac:hover { border-color: #ddd6fe; }
+.metric-card.metric-peach:hover { border-color: #fecdd3; }
+
+/* Primary action button — one definition for the studio, settings, the
+   maintenance switch and the accounts manager. */
+.admin-primary-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 18px; border: 1px solid transparent; border-radius: var(--r);
+  background: var(--mint); color: #06281a; font-size: 14.5px; font-weight: 700;
+  line-height: 1.4; white-space: nowrap; cursor: pointer;
+  transition: background-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.admin-primary-button:hover:not(:disabled) { background: var(--mint-strong); box-shadow: var(--shadow-sm); }
+.admin-primary-button:active:not(:disabled) { transform: translateY(1px); }
+.admin-primary-button:disabled { opacity: .55; cursor: not-allowed; }
+.admin-primary-button.is-warn { background: #dc2626; color: #fff; }
+.admin-primary-button.is-warn:hover:not(:disabled) { background: #b91c1c; }
+.admin-primary-button svg { flex: 0 0 auto; }
+html[data-color-scheme="dark"] .admin-primary-button { color: #052e1c; }
+html[data-color-scheme="dark"] .metric-card.metric-green .metric-icon { background: rgba(34, 197, 94, .2); color: #86efac; }
+html[data-color-scheme="dark"] .metric-card.metric-gold .metric-icon { background: rgba(245, 158, 11, .2); color: #fcd34d; }
+html[data-color-scheme="dark"] .metric-card.metric-lilac .metric-icon { background: rgba(139, 92, 246, .22); color: #c4b5fd; }
+html[data-color-scheme="dark"] .metric-card.metric-peach .metric-icon { background: rgba(244, 63, 94, .2); color: #fda4af; }

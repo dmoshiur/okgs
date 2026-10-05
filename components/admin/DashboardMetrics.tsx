@@ -1,19 +1,15 @@
 "use client";
 
 /**
- * DashboardMetrics — the overview header block of the studio.
+ * DashboardMetrics — the overview header block of the studio (English UI).
  *
- * Fixed here:
- * · metric counts now sit on the SAME baseline as their label (icon | label | value),
- *   right-anchored with tabular numerals — they used to drop onto their own grid row
- *   and read as "misplaced";
- * · the club coverage progress list is a real 6-column grid (name + আয়োজন/লেখা/ছবি/
- *   সদস্য/অর্জন, `items-center`). The old sheet declared a 3-track grid while rows
- *   emitted 6 children, which scattered the ০/২/৫ digits onto stray implicit rows;
- *   every number is a chip button now, never an isolated floating glyph;
- * · the "সাম্প্রতিক" recent-activity list renders actual `.recent-row` buttons with
- *   space-y-3 rhythm and a `list-style:none` ul — the b/small lines can't run into
- *   each other and the ul bullets can't escape the container anymore.
+ * · metric counts sit on the SAME baseline as their label (icon | label | value),
+ *   right-anchored with tabular numerals;
+ * · the club coverage list is a real 6-column grid (name + events/posts/photos/
+ *   members/achievements, `items-center`), so counts can never scatter onto
+ *   implicit grid rows;
+ * · the “recently changed” list renders `.recent-row` buttons with space-y-3
+ *   rhythm and a `list-style:none` ul.
  */
 import {
   CalendarDays,
@@ -29,7 +25,7 @@ import {
 import { resourceMeta } from "@/lib/content-config";
 import type { ResourceName } from "@/lib/types";
 import { iconFor } from "@/lib/icons";
-import { bn, formatDate } from "@/lib/format";
+import { en, formatDateEn, plural } from "@/lib/format";
 import type { MediaConfig } from "@/lib/upload-client";
 
 type Item = Record<string, any> & { id: string };
@@ -71,10 +67,10 @@ export function MetricGrid({ stats }: { stats: MetricStats }) {
   const pending = (value: string) => (stats.loading ? "—" : value);
   return (
     <div className="metric-grid">
-      <Metric icon={Trophy} label="ক্লাব" value={pending(bn(stats.clubs))} note={`${bn(stats.activeClubs)} টি সক্রিয় তালিকাভুক্ত`} tone="green" />
-      <Metric icon={CalendarDays} label="আসন্ন আয়োজন" value={pending(bn(stats.upcoming))} note={`মোট ${bn(stats.totalEvents)} টি আয়োজন`} tone="gold" />
-      <Metric icon={ImageIcon} label="Cloudinary ছবি" value={pending(bn(stats.cloudinaryImages))} note={stats.mediaNote} tone="lilac" />
-      <Metric icon={Settings2} label="খসড়া এন্ট্রি" value={pending(bn(stats.drafts))} note={`মোট ${bn(stats.live)} টি প্রকাশিত`} tone="peach" />
+      <Metric icon={Trophy} label="Clubs" value={pending(en(stats.clubs))} note={`${en(stats.activeClubs)} active in the directory`} tone="green" />
+      <Metric icon={CalendarDays} label="Upcoming events" value={pending(en(stats.upcoming))} note={`${en(stats.totalEvents)} events in total`} tone="gold" />
+      <Metric icon={ImageIcon} label="Cloudinary images" value={pending(en(stats.cloudinaryImages))} note={stats.mediaNote} tone="lilac" />
+      <Metric icon={Settings2} label="Draft entries" value={pending(en(stats.drafts))} note={`${en(stats.live)} published`} tone="peach" />
     </div>
   );
 }
@@ -96,16 +92,16 @@ export function ClubCoverageTable({
     <section className="panel">
       <div className="panel-heading">
         <div>
-          <span className="panel-eyebrow">ক্লাব ভরতি</span>
-          <h2>প্রতিটি ক্লাবে কতটুকু তথ্য আছে</h2>
+          <span className="panel-eyebrow">Club coverage</span>
+          <h2>How complete every club profile is</h2>
         </div>
-        <button className="panel-link whitespace-nowrap" onClick={onOpenClubs}>ক্লাব তালিকা <ChevronRight size={14} /></button>
+        <button className="panel-link whitespace-nowrap" onClick={onOpenClubs}>All clubs <ChevronRight size={14} /></button>
       </div>
       {coverage.length ? (
         <div className="coverage-scroll">
-          <div className="coverage-table" role="table" aria-label="ক্লাবভিত্তিক তথ্যের পরিমাণ">
+          <div className="coverage-table" role="table" aria-label="Amount of content per club">
             <div className="coverage-head" role="row">
-              <span role="columnheader">ক্লাব</span>
+              <span role="columnheader">Club</span>
               {clubChildResources.map((resource) => (
                 <span key={resource} role="columnheader" title={resourceMeta[resource].label}>
                   {resourceMeta[resource].singular}
@@ -125,7 +121,7 @@ export function ClubCoverageTable({
                       <span className="coverage-dot" style={{ background: club.accent || "var(--brand)" }} aria-hidden="true" />
                       <button onClick={onOpenClubs} className="truncate whitespace-nowrap">
                         {String(club.name || club.slug || "—")}
-                        {draft ? <small className="coverage-draft-flag">খসড়া</small> : null}
+                        {draft ? <small className="coverage-draft-flag">Draft</small> : null}
                       </button>
                     </span>
                     {clubChildResources.map((resource) => {
@@ -136,9 +132,9 @@ export function ClubCoverageTable({
                           role="cell"
                           className={`coverage-cell ${value ? "tabular-nums" : "is-zero"}`}
                           onClick={() => onOpenClubResource(resource, String(club.slug))}
-                          title={`${club.name} — ${resourceMeta[resource].label}: ${bn(value)} টি`}
+                          title={`${club.name} — ${resourceMeta[resource].label}: ${plural(value, "entry", "entries")}`}
                         >
-                          {bn(value)}
+                          {en(value)}
                         </button>
                       );
                     })}
@@ -149,8 +145,8 @@ export function ClubCoverageTable({
       ) : (
         <div className="empty-dashboard">
           <Trophy size={20} />
-          <p>এখনো কোনো ক্লাব তৈরি হয়নি।</p>
-          <button className="admin-primary-button" onClick={onOpenClubs}>ক্লাব যোগ করুন <ChevronRight size={14} /></button>
+          <p>No club has been created yet.</p>
+          <button className="admin-primary-button" onClick={onOpenClubs}>Add a club <ChevronRight size={14} /></button>
         </div>
       )}
     </section>
@@ -164,8 +160,8 @@ export function RecentActivityList({ items, onOpen }: { items: OverviewItem[]; o
     <section className="panel">
       <div className="panel-heading">
         <div>
-          <span className="panel-eyebrow">সাম্প্রতিক</span>
-          <h2>সবচেয়ে শেষে যা বদলেছে</h2>
+          <span className="panel-eyebrow">Recent</span>
+          <h2>The most recently changed content</h2>
         </div>
       </div>
       <ul className="recent-list space-y-3">
@@ -179,15 +175,15 @@ export function RecentActivityList({ items, onOpen }: { items: OverviewItem[]; o
                 </span>
                 <span className="recent-copy min-w-0">
                   {/* line-clamp-1 + break-words: DB titles never collide with the meta line. */}
-                  <b className="line-clamp-1 break-words leading-normal">{item.title || item.name || item.caption || "শিরোনামহীন"}</b>
-                  <small className="whitespace-nowrap truncate">{resourceMeta[resource].label} · {formatDate(item.updated_at, "short") || "—"}{item.is_active === false ? " · খসড়া" : ""}</small>
+                  <b className="line-clamp-1 break-words leading-normal">{item.title || item.name || item.caption || "Untitled"}</b>
+                  <small className="whitespace-nowrap truncate">{resourceMeta[resource].label} · {formatDateEn(item.updated_at, "short") || "—"}{item.is_active === false ? " · Draft" : ""}</small>
                 </span>
                 <ChevronRight size={15} aria-hidden="true" />
               </button>
             </li>
           );
         })}
-        {!items.length ? <li><p className="empty-note">কনটেন্ট এখানে দেখা যাবে।</p></li> : null}
+        {!items.length ? <li><p className="empty-note">Content will appear here.</p></li> : null}
       </ul>
     </section>
   );
@@ -218,16 +214,16 @@ export function QuickActionsPanel({ onCreateClub, onCreateEvent, onNavigate }: {
     <section className="panel quick-panel">
       <div className="panel-heading">
         <div>
-          <span className="panel-eyebrow">দ্রুত কাজ</span>
-          <h2>এখনি শুরু করুন</h2>
+          <span className="panel-eyebrow">Quick actions</span>
+          <h2>Start right away</h2>
         </div>
         <CirclePlus size={19} className="panel-muted-icon" />
       </div>
-      <QuickAction icon={Trophy} label="নতুন ক্লাব যোগ করুন" detail="নাম, রং, ছবি ও পরিচিতি" onClick={onCreateClub} />
-      <QuickAction icon={CalendarDays} label="আয়োজন প্রকাশ করুন" detail="তারিখ, স্থান ও নিবন্ধন লিংক" onClick={onCreateEvent} />
-      <QuickAction icon={ImageIcon} label="ছবি আপলোড করুন" detail="যেকোনো ছবি ঘরে ড্র্যাগ করে ছাড়ুন" onClick={() => onNavigate("club_gallery")} />
-      <QuickAction icon={Users} label="কমিটির তালিকা" detail="শিক্ষার্থী ও উপদেষ্টা" onClick={() => onNavigate("club_members")} />
-      <QuickAction icon={Settings2} label="স্কুলের তথ্য" detail="ফোন, ঠিকানা, লোগো" onClick={() => onNavigate("settings")} />
+      <QuickAction icon={Trophy} label="Add a new club" detail="Name, colours, photos and profile" onClick={onCreateClub} />
+      <QuickAction icon={CalendarDays} label="Publish an event" detail="Date, venue and registration link" onClick={onCreateEvent} />
+      <QuickAction icon={ImageIcon} label="Upload photos" detail="Drag any image into its field" onClick={() => onNavigate("club_gallery")} />
+      <QuickAction icon={Users} label="Committee list" detail="Students and advisers" onClick={() => onNavigate("club_members")} />
+      <QuickAction icon={Settings2} label="School information" detail="Phone, address, logo" onClick={() => onNavigate("settings")} />
     </section>
   );
 }
@@ -237,32 +233,32 @@ export function CloudinaryPanel({ media, missingCover, onOpenClubs }: { media: M
     <section className="panel">
       <div className="panel-heading">
         <div>
-          <span className="panel-eyebrow">ছবি আপলোড</span>
-          <h2>Cloudinary অবস্থা</h2>
+          <span className="panel-eyebrow">Image upload</span>
+          <h2>Cloudinary status</h2>
         </div>
         <CloudUpload size={19} className={media?.enabled ? "is-ok" : "is-warn"} />
       </div>
       {media?.enabled ? (
         <>
-          <p className="panel-copy">সংযুক্ত — <code>{media.cloudName}</code>, ফোল্ডার <code>{media.folder}/</code>, প্রিসেট <code>{media.uploadPreset}</code></p>
-          <p className="panel-copy">যেকোনো ছবি ঘরে গিয়ে ফাইল টেনে ছেড়ে দিন বা <kbd>Ctrl</kbd>+<kbd>V</kbd> দিয়ে পেস্ট করুন। লিংক স্বয়ংক্রিয়ভাবে সাইটে বসে যাবে।</p>
+          <p className="panel-copy">Connected — <code>{media.cloudName}</code>, folder <code>{media.folder}/</code>, preset <code>{media.uploadPreset}</code></p>
+          <p className="panel-copy">Open any image field and drag a file in, or paste with <kbd>Ctrl</kbd>+<kbd>V</kbd>. The link is written into the site automatically.</p>
         </>
       ) : (
         <>
-          <p className="panel-copy">এখনো সেটআপ হয়নি। তবুও ছবির লিংক দিয়ে কাজ করা যায়।</p>
+          <p className="panel-copy">Not configured yet — you can still work with pasted image links.</p>
           <ol className="panel-steps space-y-2">
-            <li><code>.env.local</code>-এ যোগ করুন: <code>CLOUDINARY_CLOUD_NAME</code>, <code>CLOUDINARY_UPLOAD_PRESET</code></li>
-            <li>Cloudinary Dashboard → Settings → Upload presets → একটি <b>Unsigned</b> preset বানান</li>
-            <li>সার্ভার রিস্টার্ট করলেই আপলোড চালু হয়ে যাবে</li>
+            <li>Add <code>CLOUDINARY_CLOUD_NAME</code> and <code>CLOUDINARY_UPLOAD_PRESET</code> to <code>.env.local</code></li>
+            <li>Cloudinary Dashboard → Settings → Upload presets → create an <b>Unsigned</b> preset</li>
+            <li>Restart the server and uploads start working</li>
           </ol>
         </>
       )}
       {missingCover ? (
         <button className="panel-alert" onClick={onOpenClubs}>
-          {bn(missingCover)} টি ক্লাবের ছবি নেই — ছবি যোগ করুন <ChevronRight size={14} />
+          {plural(missingCover, "club has", "clubs have")} no cover image — add one <ChevronRight size={14} />
         </button>
       ) : (
-        <p className="panel-ok"><Check size={13} /> সব ক্লাবের ছবি যুক্ত আছে।</p>
+        <p className="panel-ok"><Check size={13} /> Every club has a cover image.</p>
       )}
     </section>
   );
