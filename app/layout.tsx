@@ -56,11 +56,14 @@ export async function generateMetadata(): Promise<Metadata> {
   let logo: string | undefined;
   let favicon: string | undefined;
   let shortName = "ওকেজিএস";
+  // OpenGraph siteName — bound to Site Settings, never a hardcoded literal.
+  let siteName = "ওকেজিএস";
   try {
     const content = await getPublicContent();
     // Every value below is editable from /admin/settings → Site Settings.
     const site = siteIdentity(content.settings);
     shortName = site.shortName || shortName;
+    siteName = site.siteName || site.shortName || "OKGS";
     name = (site.siteTitle || site.siteName || name).slice(0, 120);
     description = settingValue(content.settings, "tagline", description) || description;
     logo = site.logo || undefined;
@@ -84,7 +87,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title: name,
       description,
       url: siteUrl(),
-      siteName: "Main",
+      siteName,
       type: "website",
       locale: "bn_BD",
       images: logo ? [{ url: logo }] : undefined,
