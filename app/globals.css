@@ -159,7 +159,9 @@ body {
   line-height: 1.8;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overflow-wrap: anywhere;
+  /* Let Bengali use natural word/cluster breaks; apply emergency wrapping only
+     to specific long URLs or data fields that need it. */
+  overflow-wrap: normal;
 }
 body.no-scroll { overflow: hidden; }
 a { color: inherit; text-decoration: none; }
@@ -425,13 +427,39 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   color: var(--muted); font-size: 12.5px; line-height: 1.4;
   text-overflow: ellipsis; white-space: nowrap;
 }
-.main-nav { display: flex; align-items: center; gap: 2px; margin-inline: auto; }
+.main-nav {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+  flex: 0 1 auto;
+  margin-inline: auto;
+  padding-block: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  white-space: nowrap;
+}
+.main-nav::-webkit-scrollbar { display: none; }
 .main-nav a {
   position: relative;
-  display: inline-flex; align-items: center; height: 42px; padding: 0 14px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  height: 42px;
+  padding: 0 8px;
   border-radius: 9px;
   color: var(--ink-2);
-  font-family: var(--font-ui); font-size: 15px; font-weight: 500;
+  font-family: "Hind Siliguri", var(--font-ui), sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.6;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
   transition: color .18s ease, background-color .18s ease;
 }
 .main-nav a:hover { color: var(--brand); background: var(--surface-alt); }
@@ -2415,7 +2443,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 }
 
 @media (max-width: 1180px) {
-  .main-nav { gap: 0; }
+  .main-nav { gap: 4px; }
   .main-nav a { padding: 0 11px; font-size: 14.5px; }
   .header-link span { display: none; }
   .directory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -3494,7 +3522,7 @@ body[data-visual-mode="science-fair"] .fair-mega::before {
     color: inherit;
     font-size: 10.5px;
     font-weight: 600;
-    line-height: 1.2;
+    line-height: 1.45;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
