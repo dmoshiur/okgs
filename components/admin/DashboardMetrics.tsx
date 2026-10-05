@@ -240,15 +240,22 @@ export function CloudinaryPanel({ media, missingCover, onOpenClubs }: { media: M
       </div>
       {media?.enabled ? (
         <>
-          <p className="panel-copy">Connected — <code>{media.cloudName}</code>, folder <code>{media.folder}/</code>, preset <code>{media.uploadPreset}</code></p>
+          <p className="panel-copy">
+            Connected — <code>{media.cloudName}</code>, folder <code>{media.folder}/</code>,{" "}
+            {media.uploadPreset ? (
+              <>preset <code>{media.uploadPreset}</code></>
+            ) : (
+              <><b>signed uploads</b> (server-side API key + secret)</>
+            )}
+          </p>
           <p className="panel-copy">Open any image field and drag a file in, or paste with <kbd>Ctrl</kbd>+<kbd>V</kbd>. The link is written into the site automatically.</p>
         </>
       ) : (
         <>
           <p className="panel-copy">Not configured yet — you can still work with pasted image links.</p>
           <ol className="panel-steps space-y-2">
-            <li>Add <code>CLOUDINARY_CLOUD_NAME</code> and <code>CLOUDINARY_UPLOAD_PRESET</code> to <code>.env.local</code></li>
-            <li>Cloudinary Dashboard → Settings → Upload presets → create an <b>Unsigned</b> preset</li>
+            <li>Add <code>CLOUDINARY_CLOUD_NAME</code>, <code>CLOUDINARY_API_KEY</code> and <code>CLOUDINARY_API_SECRET</code> to <code>.env.local</code> — the server signs each upload</li>
+            <li>Or add <code>CLOUDINARY_UPLOAD_PRESET</code> with an <b>Unsigned</b> preset (Cloudinary Dashboard → Settings → Upload presets)</li>
             <li>Restart the server and uploads start working</li>
           </ol>
         </>

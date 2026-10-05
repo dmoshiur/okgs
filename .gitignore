@@ -11,3 +11,6 @@ local.db-wal
 !.env.example
 npm-debug.log*
 .DS_Store
+
+# Local verification artefacts (Playwright before/after screenshots)
+.screens/

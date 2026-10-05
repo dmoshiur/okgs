@@ -84,6 +84,16 @@ npm run dev
 ২. `.env.local`-এ বসান: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`।
 ৩. API key/secret না দিলে অ্যাপ পুরোনো **unsigned preset** পথে ফিরে যায় (`CLOUDINARY_UPLOAD_PRESET`)।
 
+### স্বাক্ষর কীভাবে তৈরি হয় (যেন `401 Invalid Signature` না আসে)
+
+সার্ভার timestamp, folder, public_id ও tags — এই প্রতিটি প্যারামিটার নিয়ে বর্ণানুক্রমে (`folder=…&public_id=…&tags=…&timestamp=…`) সাজিয়ে শেষে API secret জোড়া দিয়ে SHA-1 হ্যাশ করে। ব্রাউজার ঠিক সেই প্যারামিটারগুলোই (`params`) ফাইল, `api_key` ও `signature`-এর সাথে POST করে — নিজে থেকে কোনো প্যারামিটার যোগ করে না।
+
+`401 Invalid Signature` এলে দেখে নিন:
+
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` একই প্রোডাক্ট এনভায়রনমেন্টের কি না (env বদলালে সার্ভার রিস্টার্ট করুন)।
+- অ্যাকাউন্টটি কেবল **SHA-256** স্বাক্ষর নেয় কিনা — সেটি হলে `CLOUDINARY_SIGNATURE_ALGORITHM=sha256` বসান (ডিফল্ট `sha1`)।
+- স্বাক্ষর ও প্যারামিটারের মিল যাচাই: `npm run smoke` (নেটওয়ার্ক ছাড়াই) বা `npx tsx scripts/cloudinary-signature-smoke.ts`।
+
 <details><summary>পুরোনো unsigned প্রিসেট পদ্ধতি</summary>
 
 ১. Cloudinary → **Settings → Upload → Upload presets → Add** → **Signing Mode: `unsigned`** রাখুন। ব্রাউজার থেকে আপলোড হয়, তাই API secret যাওয়া সম্ভব না — signed preset দিলে আপলোড ব্যর্থ হবে।

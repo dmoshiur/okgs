@@ -2505,7 +2505,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .field-error { color: #b91c1c; font-size: 13px; }
 .field-warn { color: var(--warn-text); font-size: 13px; }
 .field-hint { color: var(--muted); font-size: 13px; }
-.field-block { display: grid; gap: 8px; }
+.field-block { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
 .field-group { display: grid; gap: 16px; padding: 20px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface-alt-2); }
 .field-group-title { margin: 0; font-size: 16px; }
 .field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
@@ -2523,31 +2523,59 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 @keyframes modal-in { from { opacity: 0; transform: translateY(12px) scale(.99); } to { opacity: 1; transform: none; } }
 
 /* ---------------------------------------------------------- image field -- */
-.image-field { display: grid; gap: 14px; padding: 20px; border: 1px solid var(--line); border-radius: var(--r-lg); background: #fff; }
+/* Layout contract: every box here can shrink (`min-width: 0`) and every piece of
+   copy can break mid-word (`overflow-wrap: anywhere`). Upload errors quote the
+   provider verbatim — one long unbroken token used to blow the card out of the
+   settings grid and squash the neighbouring uploader. */
+.image-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: var(--r-lg); background: #fff; }
 .image-field.is-busy { opacity: .7; }
-.image-field-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.image-field-title { color: var(--ink); font-size: 15px; font-weight: 600; }
-.image-field-body { display: flex; align-items: center; gap: 16px; }
+.image-field-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.image-field-title { min-width: 0; color: var(--ink); font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.image-field-actions { flex: 0 1 auto; }
+.image-field-body { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; min-width: 0; }
 .image-thumb { display: grid; place-items: center; width: 120px; height: 90px; flex: 0 0 auto; overflow: hidden; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface-alt); color: var(--muted); }
 .image-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .image-drop {
-  flex: 1; display: grid; place-items: center; gap: 6px; min-height: 108px; padding: 16px;
+  flex: 1 1 220px; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; gap: 6px;
+  min-width: 0; min-height: 108px; padding: 16px;
   border: 1px dashed var(--line); border-radius: var(--r); background: var(--surface-alt-2);
   color: var(--muted); font-size: 14px; text-align: center; cursor: pointer;
+  overflow-wrap: anywhere; word-break: break-word;
 }
 .image-drop:hover { border-color: var(--brand); color: var(--mint-text); }
-.image-drop-copy { display: grid; gap: 4px; }
-.image-field-actions, .image-field-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.image-drop:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.image-drop-copy { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; max-width: 100%; }
+.image-drop-copy small { min-width: 0; overflow-wrap: anywhere; }
+.image-field-actions, .image-field-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
 .image-field-foot { justify-content: space-between; color: var(--muted); font-size: 13px; }
-.inline-url-field { display: flex; gap: 10px; }
-.inline-url-field input { flex: 1; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r); font-size: 14px; }
+.image-field-foot > * { min-width: 0; }
+.inline-url-field { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
+.inline-url-field input { flex: 1 1 160px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r); font-size: 14px; }
 .image-help, .image-msg { color: var(--muted); font-size: 13px; }
+/* Message row: wraps instead of overflowing, icon never shrinks, long provider
+   text breaks anywhere. */
+.image-msg {
+  display: flex; flex: 1 1 200px; align-items: flex-start; gap: 6px;
+  min-width: 0; margin: 0; overflow-wrap: anywhere; word-break: break-word;
+}
+.image-msg svg { flex: 0 0 auto; margin-top: 2px; }
+.image-msg.is-error { color: var(--danger); font-weight: 600; }
+.image-msg.is-done { color: var(--mint-text); }
 .image-empty { color: var(--muted); font-size: 14px; }
 .image-busy { color: var(--mint-text); font-size: 13px; }
-.image-open { display: inline-flex; align-items: center; gap: 6px; color: var(--mint-text); font-size: 13px; font-weight: 600; }
-.image-url-raw { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.upload-progress { height: 6px; overflow: hidden; border-radius: var(--r-pill); background: var(--surface-alt); }
-.upload-progress span { display: block; height: 100%; background: var(--brand); transition: width .3s ease; }
+.image-open { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; color: var(--mint-text); font-size: 13px; font-weight: 600; }
+.image-url-raw { display: block; width: 100%; min-width: 0; box-sizing: border-box; resize: none; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+/* Progress bar — the fill element is an <i>, so style it directly (a bare
+   inline span never rendered at 6px either). */
+.upload-progress { display: block; width: 100%; max-width: 320px; height: 6px; overflow: hidden; border-radius: var(--r-pill); background: var(--surface-alt); }
+.upload-progress i, .upload-progress > span { display: block; height: 100%; background: var(--brand); transition: width .3s ease; }
+html[data-color-scheme="dark"] .image-msg.is-error { color: #fca5a5; }
+@media (max-width: 560px) {
+  .image-field { padding: 16px; }
+  .image-field-body { align-items: stretch; }
+  .image-thumb { width: 100%; height: 132px; }
+  .image-field-foot { justify-content: flex-start; }
+}
 .media-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: var(--r-pill); border: 1px solid var(--line); font-size: 12px; font-weight: 600; }
 .media-chip.is-on { border-color: var(--mint-line); background: var(--mint-soft); color: var(--mint-text); }
 .media-chip.is-off { background: var(--surface-alt); color: var(--muted); }
