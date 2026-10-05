@@ -36,8 +36,9 @@ function galleryUrls(club: Club) {
  * pick a club and the grid fills with that club's slides and gallery pictures,
  * plus a link to the club's own website.
  *
- * Rebuilt as a responsive media grid: no horizontal overflow, every tile the
- * same height, captions clamped to keep the rhythm even.
+ * Rebuilt as a responsive media grid: no horizontal overflow, and tiles
+ * have content-driven heights so full club names stay visible. Descriptions
+ * remain clamped, but headings are never shortened.
  */
 export function ClubShowcase({ clubs, slides, counts = {} }: ShowcaseProps) {
   const [active, setActive] = useState<string>("all");

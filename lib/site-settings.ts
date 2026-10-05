@@ -33,7 +33,7 @@ export interface SiteSettingField {
 export const siteSettingFields: SiteSettingField[] = [
   { key: "site_name", label: "Site Name", kind: "text", group: "identity", placeholder: "ওমর কিন্ডারগার্টেন স্কুল", help: "Shown in the header, footer, mail and the JSON-LD organisation card." },
   { key: "site_title", label: "Browser Title", kind: "text", group: "identity", placeholder: "ওমর কিন্ডারগার্টেন স্কুল | কালাই, জয়পুরহাট", help: "The default <title> of the public pages. Page-level titles append “| site name” automatically." },
-  { key: "short_name", label: "Short Name", kind: "text", group: "identity", placeholder: "ওকেজিএস", help: "Compact badge in the footer and the mobile navigation." },
+  { key: "short_name", label: "Short Name", kind: "text", group: "identity", placeholder: "ওকেজিএস", help: "Compact badge in the footer. Headers and mobile navigation use the full Site Name." },
   { key: "tagline", label: "Tagline", kind: "text", group: "identity", placeholder: "কালাই, জয়পুরহাট", help: "One-line description used as the meta description fallback." },
   { key: "address", label: "Address", kind: "text", group: "contact", placeholder: "কালাই সদর, জয়পুরহাট", help: "Shown in the footer, the contact block and the organisation schema." },
   { key: "phone", label: "Primary Phone", kind: "tel", group: "contact", placeholder: "01711857205", help: "Main switchboard number on the topline and footer." },

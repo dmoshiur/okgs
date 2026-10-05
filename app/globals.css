@@ -412,7 +412,8 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   backdrop-filter: blur(16px) saturate(140%);
 }
 .header-inner {
-  display: flex; align-items: center; gap: clamp(16px, 3vw, 44px);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: 12px 24px;
   min-height: var(--header-h);
   padding-block: 10px;
 }
@@ -429,19 +430,22 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   font-family: var(--font-display); font-size: 20px; font-weight: 700;
 }
 .official-logo.is-compact, .official-logo-fallback.is-compact { width: 38px; height: 38px; flex-basis: 38px; }
-.brand-copy { display: flex; flex-direction: column; min-width: 0; }
+/* Full identity text grows vertically instead of clipping at any breakpoint. */
+.brand-copy {
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  white-space: normal; overflow-wrap: anywhere;
+}
 .brand-copy strong {
   color: var(--ink);
   font-family: var(--font-ui); font-size: 16.5px; font-weight: 700;
-  line-height: 1.3; letter-spacing: -.01em;
+  line-height: 1.45; letter-spacing: -.01em;
   transition: color .18s ease;
 }
 .brand-copy small {
-  overflow: hidden; max-width: 34ch;
-  color: var(--muted); font-size: 12.5px; line-height: 1.4;
-  text-overflow: ellipsis; white-space: nowrap;
+  color: var(--muted); font-size: 12.5px; line-height: 1.5;
 }
 .main-nav {
+  grid-row: 2; grid-column: 1 / -1;
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
@@ -482,7 +486,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   content: ""; position: absolute; left: 14px; right: 14px; bottom: 4px;
   height: 2px; border-radius: 2px; background: var(--mint);
 }
-.header-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.header-actions { grid-row: 1; grid-column: 2; display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
 .header-link {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 9px 12px; border-radius: 9px;
@@ -824,7 +828,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   transition: opacity .22s ease, transform .22s ease;
 }
 .club-card:hover .club-open { opacity: 1; transform: none; }
-.club-card-copy { display: flex; flex-direction: column; gap: 12px; flex: 1; padding: 20px 22px 22px; }
+.club-card-copy { min-width: 0; display: flex; flex-direction: column; gap: 12px; flex: 1; padding: 20px 22px 22px; }
 .club-card p { margin: 0; }
 .club-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .club-index { display: none; }
@@ -842,7 +846,10 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   color: var(--muted);
   font-family: var(--font-ui); font-size: 11.5px; font-weight: 600;
 }
-.club-card h3 { font-size: 1.1875rem; line-height: 1.45; }
+.club-card h3 {
+  min-width: 0; white-space: normal; overflow-wrap: anywhere;
+  font-size: 1.1875rem; line-height: 1.5;
+}
 .club-card h3 a { color: var(--ink); transition: color .18s ease; }
 .club-card:hover h3 a { color: var(--brand-mid); }
 .club-card-stretch::after { content: ""; position: absolute; inset: 0; z-index: 1; }
@@ -981,8 +988,9 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   position: relative;
   display: flex; flex-direction: column; justify-content: flex-end;
   overflow: hidden;
-  aspect-ratio: 3 / 2;
-  padding: 22px;
+  /* A minimum, not an aspect-ratio height: long names must grow the tile. */
+  min-width: 0; min-height: 240px;
+  padding: 76px 22px 22px;
   border-radius: var(--r-lg);
   background: var(--brand-deep) center/cover no-repeat;
   color: #fff;
@@ -997,6 +1005,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   background: linear-gradient(180deg, rgba(6, 21, 35, .05) 25%, rgba(6, 21, 35, .82) 100%);
 }
 .showcase-card h3 {
+  flex-shrink: 0; white-space: normal; overflow-wrap: anywhere;
   margin: 10px 0 4px; color: #fff;
   font-size: 1.125rem; line-height: 1.45;
 }
@@ -2640,6 +2649,13 @@ html[data-color-scheme="dark"] .image-msg.is-error { color: #fca5a5; }
   .hero-grid { gap: 80px; }
 }
 
+/* Keep the full name beside the controls; put navigation below on laptops. */
+@media (min-width: 1440px) {
+  .header-inner { grid-template-columns: minmax(300px, 1fr) auto auto; }
+  .header-inner .main-nav { grid-row: 1; grid-column: 2; }
+  .header-inner .header-actions { grid-column: 3; }
+}
+
 /* ---- 1200px and below: 4-up becomes 3-up ------------------------------ */
 @media (max-width: 1280px) {
   .clubs-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -2658,8 +2674,8 @@ html[data-color-scheme="dark"] .image-msg.is-error { color: #fca5a5; }
 @media (max-width: 1024px) {
   .main-nav, .header-actions, .header-link { display: none; }
   .mobile-menu { display: inline-flex; }
-  .header-inner { justify-content: space-between; }
-  .brand-copy small { max-width: 46ch; }
+  .header-inner { display: flex; justify-content: space-between; }
+  .header-inner > .brand { flex: 1; }
 
   .hero-grid { grid-template-columns: 1fr; gap: 40px; }
   .hero-copy h1 { max-width: 30ch; }
@@ -3344,7 +3360,9 @@ body[data-visual-mode="science-fair"] .fair-mega::before {
   padding-bottom: 16px;
   border-bottom: 1px solid var(--line-2);
 }
+.mobile-panel-head > div { min-width: 0; }
 .mobile-panel-kicker {
+  white-space: normal; overflow-wrap: anywhere;
   margin: 0 0 3px;
   color: var(--accent-ink);
   font-family: var(--font-ui);
