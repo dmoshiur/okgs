@@ -17,27 +17,41 @@ import {
   Target,
   UserRound,
   UsersRound,
+  Youtube,
 } from "lucide-react";
 import { clubThemeCss, leadershipCards, loadClubSite } from "@/lib/club-sites";
 import { bn } from "@/lib/format";
+import { backgroundStyle } from "@/lib/cloudinary";
+import { normalizeHexColor, readableTextColor } from "@/lib/club-colors";
+import { ClubSiteSubnav } from "@/components/public/ClubSiteSubnav";
+import { MobileNav } from "@/components/public/MobileNav";
+import { ThemeModeToggle } from "@/components/public/ThemeModeToggle";
 
 export const dynamic = "force-dynamic";
 
 type ClubSiteProps = { params: Promise<{ slug: string }> };
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://okgs.info";
 
 export async function generateMetadata({ params }: ClubSiteProps): Promise<Metadata> {
   const { slug } = await params;
   const site = await loadClubSite(slug);
   if (!site) return { title: "ক্লাব সাইট পাওয়া যায়নি" };
   const image = site.cover_image_url || site.logo_url;
+  const description = site.tagline || site.about || `${site.name} (${site.name_en}) ক্লাব সাইট।`;
+  const canonical = `${siteUrl}/clubs/${site.slug}/site`;
   return {
     title: `${site.name} — ক্লাব সাইট`,
-    description: site.tagline || site.about || `${site.name} (${site.name_en}) ক্লাব সাইট।`,
+    description,
+    alternates: { canonical },
     openGraph: {
       title: `${site.name} | ${site.name_en}`,
-      description: site.tagline || site.about || "",
+      description,
+      url: canonical,
+      siteName: site.name,
       images: image ? [image] : undefined,
+      type: "website",
     },
+    twitter: { card: "summary_large_image", title: site.name, description, images: image ? [image] : undefined },
   };
 }
 
@@ -49,29 +63,56 @@ export default async function ClubSitePage({ params }: ClubSiteProps) {
   const css = await clubThemeCss(slug);
   const leaders = leadershipCards(site);
   const gallery = site.galleryItems.slice(0, 18);
-  const events = site.clubEvents.length
-    ? site.clubEvents.map((event) => ({
-        title: event.title,
-        date: event.event_date || "",
-        description: event.description,
-        image_url: event.image_url,
-      }))
-    : site.events;
+  const eventRows = [
+    ...site.clubEvents.map((event) => ({
+      title: event.title,
+      date: event.event_date || "",
+      description: event.description,
+      image_url: event.image_url,
+    })),
+    ...site.events,
+  ];
+  const seenEvents = new Set<string>();
+  const events = eventRows.filter((event) => {
+    const key = `${event.title.trim().normalize("NFC").toLocaleLowerCase("bn-BD")}|${event.date || ""}`;
+    if (seenEvents.has(key)) return false;
+    seenEvents.add(key);
+    return true;
+  });
 
   const stats = [
-    { label: "সদস্য", value: site.members.length || site.record?.member_count || 0, icon: <UsersRound size={15} /> },
-    { label: "আয়োজন", value: events.length, icon: <CalendarDays size={15} /> },
-    { label: "ছবি", value: gallery.length, icon: <Images size={15} /> },
-    { label: "প্রতিষ্ঠা", value: site.founded_year || 0, icon: <Sparkles size={15} /> },
+    { label: "সদস্য", value: site.member_count || site.members.length || 0, icon: <UsersRound size={16} /> },
+    { label: "আয়োজন", value: events.length, icon: <CalendarDays size={16} /> },
+    { label: "ছবি", value: gallery.length, icon: <Images size={16} /> },
+    { label: "প্রতিষ্ঠা", value: site.founded_year || 0, icon: <Sparkles size={16} /> },
   ].filter((item) => Number(item.value) > 0);
 
-  const heroStyle = site.cover_image_url ? { backgroundImage: `url("${site.cover_image_url}")` } : undefined;
+  const accent = normalizeHexColor(site.accent, "#2563eb");
+  const accent2 = normalizeHexColor(site.accent_2, "#14b8a6");
+  const clubStyle = {
+    "--club-accent": accent,
+    "--club-accent-text": `color-mix(in srgb, ${accent} 56%, var(--ink))`,
+    "--club-accent-2": accent2,
+    "--club-accent-ink": readableTextColor(accent),
+    "--club-accent-wash": `color-mix(in srgb, ${accent} 12%, var(--surface))`,
+    "--club-accent-line": `color-mix(in srgb, ${accent} 26%, var(--line))`,
+  } as React.CSSProperties;
+  const heroStyle = backgroundStyle(site.cover_image_url, { width: 1600, fit: "cover" });
+  const siteNav = [
+    { id: "about", label: "পরিচিতি", show: Boolean(site.about || site.mission.length || site.objectives.length) },
+    { id: "leaders", label: "নেতৃত্ব", show: leaders.length > 0 },
+    { id: "events", label: "আয়োজন", show: events.length > 0 },
+    { id: "gallery", label: "ছবিঘর", show: gallery.length > 0 },
+    { id: "members", label: "সদস্য", show: site.members.length > 0 },
+    { id: "contact", label: "যোগাযোগ", show: true },
+  ].filter((item) => item.show).map(({ id, label }) => ({ id, label }));
 
   return (
-    <div className="club-site" data-club={slug}>
+    <div className="club-site" data-club={slug} style={clubStyle}>
       {css ? <style dangerouslySetInnerHTML={{ __html: css }} /> : null}
 
-      <header className="club-site-hero" style={heroStyle}>
+      <header className="club-site-hero">
+        {heroStyle ? <div className="club-site-hero-cover" aria-hidden="true" style={heroStyle} /> : null}
         <div className="v2-wrap club-site-hero-inner">
           <div className="club-site-hero-top">
             <Link className="cs-back" href={`/clubs/${slug}`}>
@@ -88,9 +129,15 @@ export default async function ClubSitePage({ params }: ClubSiteProps) {
                   <Facebook size={15} /> ফেসবুক
                 </a>
               ) : null}
+              {site.youtube ? (
+                <a href={site.youtube} target="_blank" rel="noreferrer noopener">
+                  <Youtube size={15} /> ইউটিউব
+                </a>
+              ) : null}
               <Link href={`/clubs/${slug}/admin`}>
                 <ShieldCheck size={15} /> ক্লাব অ্যাডমিন
               </Link>
+              <ThemeModeToggle compact />
             </div>
           </div>
 
@@ -123,6 +170,11 @@ export default async function ClubSitePage({ params }: ClubSiteProps) {
                 <Facebook size={16} /> ফেসবুক পেজ
               </a>
             ) : null}
+            {site.youtube ? (
+              <a className="v2-btn v2-btn-ghost" href={site.youtube} target="_blank" rel="noreferrer noopener">
+                <Youtube size={16} /> ইউটিউব
+              </a>
+            ) : null}
             {site.website ? (
               <a className="v2-btn v2-btn-ghost" href={site.website} target="_blank" rel="noreferrer noopener">
                 <Globe size={16} /> {site.subdomain}
@@ -131,16 +183,22 @@ export default async function ClubSitePage({ params }: ClubSiteProps) {
           </div>
 
           {stats.length ? (
-            <div className="club-site-stats">
+            <div className="club-site-stats" aria-label="ক্লাবের পরিসংখ্যান">
               {stats.map((item) => (
-                <span key={item.label}>
-                  {item.icon} {item.label}: <strong>{bn(item.value)}</strong>
-                </span>
+                <article className="club-site-stat" key={item.label}>
+                  <span className="club-site-stat-icon" aria-hidden="true">{item.icon}</span>
+                  <span className="club-site-stat-copy">
+                    <small>{item.label}</small>
+                    <strong>{bn(item.value)}</strong>
+                  </span>
+                </article>
               ))}
             </div>
           ) : null}
         </div>
       </header>
+
+      {siteNav.length > 1 ? <ClubSiteSubnav items={siteNav} /> : null}
 
       <main className="v2-wrap club-site-body">
         {site.notice ? (
@@ -352,12 +410,22 @@ export default async function ClubSitePage({ params }: ClubSiteProps) {
             <Link href="/clubs">সব ক্লাব</Link>
             <Link href={`/clubs/${slug}`}>ক্লাব তথ্য</Link>
             <Link href={`/clubs/${slug}/admin`}>অ্যাডমিন</Link>
-            <a href={site.facebook || "https://www.facebook.com/omarkgschool"} target="_blank" rel="noreferrer noopener">
-              ফেসবুক
-            </a>
+            {site.facebook ? <a href={site.facebook} target="_blank" rel="noreferrer noopener">ফেসবুক</a> : null}
+            {site.youtube ? <a href={site.youtube} target="_blank" rel="noreferrer noopener">ইউটিউব</a> : null}
           </div>
         </div>
       </footer>
+      <MobileNav
+        site={{
+          name: site.name,
+          shortName: "Main",
+          tagline: site.tagline || site.name,
+          email: site.contact.email || "",
+          phone: site.contact.phone || "",
+        }}
+        active="clubs"
+        showMenuButton={false}
+      />
     </div>
   );
 }

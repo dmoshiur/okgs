@@ -29,8 +29,10 @@ export function VisualModeProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (!ready) return;
     document.body.dataset.visualMode = mode;
+    // Palette tokens live on <html>; the color-scheme layer can then override
+    // them on <body> without fighting inline styles when dark mode is selected.
     Object.entries(visualThemes[mode].tokens).forEach(([name, value]) => {
-      document.body.style.setProperty(name, value);
+      document.documentElement.style.setProperty(name, value);
     });
     try {
       window.localStorage.setItem(VISUAL_MODE_STORAGE_KEY, mode);

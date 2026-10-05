@@ -73,6 +73,7 @@ export interface ClubFile {
   tagline: string;
   motto: string;
   founded_year: number;
+  member_count: number;
   accent: string;
   accent_2: string;
   logo_url: string;
@@ -95,6 +96,8 @@ export interface ClubOverride {
   tagline?: string;
   motto?: string;
   about?: string;
+  founded_year?: number;
+  member_count?: number;
   mission?: string[];
   objectives?: string[];
   notice?: string;
@@ -178,6 +181,7 @@ export async function readClubFile(slug: string): Promise<ClubFile | null> {
       tagline: parsed.tagline || "",
       motto: parsed.motto || "",
       founded_year: Number(parsed.founded_year || 0),
+      member_count: Number(parsed.member_count || 0),
       accent: parsed.accent || "#0f766e",
       accent_2: parsed.accent_2 || "#eab308",
       logo_url: parsed.logo_url || "",
@@ -246,6 +250,7 @@ export async function loadClubSite(slug: string): Promise<ClubSite | null> {
       tagline: record?.tagline || "",
       motto: record?.motto || "",
       founded_year: record?.founded_year || 0,
+      member_count: record?.member_count || 0,
       accent: record?.accent || "#0f766e",
       accent_2: "#eab308",
       logo_url: record?.logo_url || "",
@@ -263,32 +268,36 @@ export async function loadClubSite(slug: string): Promise<ClubSite | null> {
 
   const override = readOverride(content.settings, slug);
 
+  const recordMission = cleanList(toLines(record?.mission), base.mission);
+  const recordObjectives = cleanList(toLines(record?.objectives), base.objectives);
   const merged: ClubFile = {
     ...base,
-    name: override.name || record?.name || base.name,
-    name_en: override.name_en || record?.name_en || base.name_en,
+    name: override.name ?? record?.name ?? base.name,
+    name_en: override.name_en ?? record?.name_en ?? base.name_en,
     short_code: record?.short_code || base.short_code,
     subdomain: record?.subdomain || base.subdomain,
-    website: override.website || record?.domain || base.website,
-    facebook: override.facebook || record?.facebook_url || base.facebook,
-    youtube: override.youtube || record?.youtube_url || base.youtube || "",
-    tagline: override.tagline || record?.tagline || base.tagline,
-    motto: override.motto || record?.motto || base.motto,
-    founded_year: record?.founded_year || base.founded_year,
+    website: override.website !== undefined ? override.website : record?.domain || base.website,
+    facebook: override.facebook !== undefined ? override.facebook : record?.facebook_url || base.facebook,
+    youtube: override.youtube !== undefined ? override.youtube : record?.youtube_url || base.youtube || "",
+    tagline: override.tagline !== undefined ? override.tagline : record?.tagline || base.tagline,
+    motto: override.motto !== undefined ? override.motto : record?.motto || base.motto,
+    founded_year: override.founded_year ?? record?.founded_year ?? base.founded_year,
+    member_count: override.member_count ?? record?.member_count ?? base.member_count,
     accent: override.accent || record?.accent || base.accent,
     accent_2: override.accent_2 || base.accent_2,
-    logo_url: override.logo_url || record?.logo_url || base.logo_url,
-    cover_image_url: override.cover_image_url || record?.cover_image_url || record?.image_url || base.cover_image_url,
-    about: override.about || record?.description || base.about || "",
-    mission: cleanList(override.mission, cleanList(toLines(record?.mission), base.mission)),
-    objectives: cleanList(override.objectives, cleanList(toLines(record?.objectives), base.objectives)),
+    logo_url: override.logo_url !== undefined ? override.logo_url : record?.logo_url || base.logo_url,
+    cover_image_url: override.cover_image_url !== undefined ? override.cover_image_url : record?.cover_image_url || record?.image_url || base.cover_image_url,
+    about: override.about !== undefined ? override.about : record?.description || base.about || "",
+    mission: override.mission !== undefined ? override.mission : recordMission,
+    objectives: override.objectives !== undefined ? override.objectives : recordObjectives,
     notice: override.notice ?? base.notice,
     contact: { ...base.contact, ...(override.contact || {}) },
     meeting: { ...base.meeting, ...(override.meeting || {}) },
-    // Lists: an admin-saved list replaces the file default; empty keeps the default.
-    leaders: override.leaders?.length ? override.leaders : base.leaders,
-    events: override.events?.length ? override.events : base.events,
-    gallery: override.gallery?.length ? override.gallery : base.gallery,
+    // An explicitly saved empty list is a deliberate clear; only an absent
+    // override falls back to the club.json defaults.
+    leaders: override.leaders !== undefined ? override.leaders : base.leaders,
+    events: override.events !== undefined ? override.events : base.events,
+    gallery: override.gallery !== undefined ? override.gallery : base.gallery,
   };
 
   const members = content.club_members.filter((member) => member.club_slug === slug);
@@ -299,7 +308,7 @@ export async function loadClubSite(slug: string): Promise<ClubSite | null> {
     .filter((item) => item.club_slug === slug)
     .map((item) => ({ url: item.image_url, caption: item.caption }));
 
-  const galleryItems = [...(override.gallery || []), ...dbGallery, ...(file ? base.gallery : [])].filter((item) => item?.url);
+  const galleryItems = [...merged.gallery, ...dbGallery].filter((item) => item?.url);
 
   return {
     ...merged,

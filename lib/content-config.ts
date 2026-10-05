@@ -277,7 +277,7 @@ export const resourceSchema: Record<ResourceName, FieldDef[]> = {
     { name: "motto", label: "স্লোগান", type: "text", full: true, group: groupBasics, placeholder: "Explore · Experiment · Excel" },
     { name: "icon", label: "আইকন", type: "select", group: groupBasics, default: "Atom", options: iconOptions },
     { name: "accent", label: "নিজস্ব রং", type: "color", group: groupBasics, default: "#e7c27e", help: "কার্ড, হেডার ও ট্যাবে এই রং ব্যবহৃত হবে।" },
-    { name: "logo_url", label: "ক্লাবের লোগো", type: "image", full: true, group: groupMedia, help: "বর্গাকার PNG/SVG লোগো — কার্ড, হেডার ও টিকিটে দেখানো হবে।" },
+    { name: "logo_url", label: "ক্লাবের লোগো", type: "image", full: true, group: groupMedia, help: "PNG বা SVG লোগো আপলোড করুন — প্রিভিউ দেখাবে, অ্যাকসেন্ট রং স্বয়ংক্রিয়ভাবে লোগো থেকে নেওয়া হবে।" },
     { name: "image_url", label: "কার্ডের ছবি", type: "image", full: true, group: groupMedia, help: "হোমপেজ ও ক্লাব তালিকার ছবি।" },
     { name: "cover_image_url", label: "কভার / হিরো ছবি", type: "image", full: true, group: groupMedia, help: "ক্লাব পাতার উপরের বড় ছবি।" },
     { name: "gallery_urls", label: "সলিডার/গ্যালারি ছবির লিংক", type: "textarea", full: true, group: groupMedia, rows: 3, help: "প্রতি লাইনে একটি ছবির লিংক — ক্লাব পাতার স্লাইডারে ঘুরে ঘুরে দেখাবে।" },
