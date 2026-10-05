@@ -18,6 +18,9 @@ import { readSetting, setSetting } from "@/lib/site";
 import { getPortalSession } from "@/lib/portal-auth";
 import { isAdmin } from "@/lib/auth";
 import { toLines } from "@/lib/content-config";
+import { normalizeHexColor } from "@/lib/club-colors";
+import { buildClubPalette, type ClubPalette } from "@/lib/club-palette";
+import { logoSwatches } from "@/lib/logo-swatches";
 import { DEFAULT_CLUB_SLUGS } from "@/lib/club-slugs";
 import type { Club, ClubEvent, ClubMember, ClubPost } from "@/lib/types";
 
@@ -76,6 +79,8 @@ export interface ClubFile {
   member_count: number;
   accent: string;
   accent_2: string;
+  /** Colours lifted from the logo, most prominent first (see lib/logo-swatches.ts). */
+  logo_colors: string[];
   logo_url: string;
   cover_image_url: string;
   about?: string;
@@ -105,6 +110,11 @@ export interface ClubOverride {
   cover_image_url?: string;
   accent?: string;
   accent_2?: string;
+  /**
+   * The palette the club logo produced. Filled in automatically by the uploader
+   * on save, and by the server sampler when it is missing.
+   */
+  logo_colors?: string[];
   website?: string;
   facebook?: string;
   youtube?: string;
@@ -184,6 +194,7 @@ export async function readClubFile(slug: string): Promise<ClubFile | null> {
       member_count: Number(parsed.member_count || 0),
       accent: parsed.accent || "#0f766e",
       accent_2: parsed.accent_2 || "#eab308",
+      logo_colors: hexList(parsed.logo_colors),
       logo_url: parsed.logo_url || "",
       cover_image_url: parsed.cover_image_url || "",
       about: parsed.about || "",
@@ -223,6 +234,13 @@ export function readOverride(settings: { key: string; value: string }[], slug: s
   }
 }
 
+/** Keeps only real `#rrggbb` values, most prominent first, capped at 8. */
+export function hexList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const list = value.map((item) => normalizeHexColor(item, "")).filter(Boolean);
+  return [...new Set(list)].slice(0, 8);
+}
+
 function cleanList(value: unknown, fallback: string[]): string[] {
   const list = Array.isArray(value) ? value.map((item) => String(item ?? "").trim()).filter(Boolean) : [];
   return list.length ? list : fallback;
@@ -253,6 +271,7 @@ export async function loadClubSite(slug: string): Promise<ClubSite | null> {
       member_count: record?.member_count || 0,
       accent: record?.accent || "#0f766e",
       accent_2: "#eab308",
+      logo_colors: [],
       logo_url: record?.logo_url || "",
       cover_image_url: record?.cover_image_url || "",
       about: record?.description || "",
@@ -285,6 +304,7 @@ export async function loadClubSite(slug: string): Promise<ClubSite | null> {
     member_count: override.member_count ?? record?.member_count ?? base.member_count,
     accent: override.accent || record?.accent || base.accent,
     accent_2: override.accent_2 || base.accent_2,
+    logo_colors: override.logo_colors !== undefined ? hexList(override.logo_colors) : base.logo_colors,
     logo_url: override.logo_url !== undefined ? override.logo_url : record?.logo_url || base.logo_url,
     cover_image_url: override.cover_image_url !== undefined ? override.cover_image_url : record?.cover_image_url || record?.image_url || base.cover_image_url,
     about: override.about !== undefined ? override.about : record?.description || base.about || "",
@@ -351,6 +371,22 @@ export function leadershipCards(site: ClubSite): ClubLeader[] {
     const bi = leadershipOrder.indexOf(b.role);
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
   });
+}
+
+/**
+ * The colours a club site should be painted with.
+ *
+ * Priority: a palette saved from the admin panel → a palette sampled from the
+ * logo on the server → the stored accent pair. Sampling runs only on club-site
+ * routes (never in the directory loop) and is cached, so a slow image host
+ * cannot make browsing feel slow.
+ */
+export async function clubSitePalette(
+  site: Pick<ClubFile, "accent" | "accent_2" | "logo_url" | "logo_colors">,
+): Promise<ClubPalette> {
+  const stored = hexList(site.logo_colors);
+  const swatches = stored.length ? stored : hexList(await logoSwatches(site.logo_url));
+  return buildClubPalette({ accent: site.accent, accent2: site.accent_2, swatches });
 }
 
 export interface ClubGridCard {

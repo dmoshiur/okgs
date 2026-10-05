@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -19,10 +19,9 @@ import {
   UsersRound,
   Youtube,
 } from "lucide-react";
-import { clubThemeCss, leadershipCards, loadClubSite } from "@/lib/club-sites";
+import { clubSitePalette, clubThemeCss, leadershipCards, loadClubSite } from "@/lib/club-sites";
 import { bn } from "@/lib/format";
 import { backgroundStyle } from "@/lib/cloudinary";
-import { normalizeHexColor, readableTextColor } from "@/lib/club-colors";
 import { ClubSiteSubnav } from "@/components/public/ClubSiteSubnav";
 import { MobileNav } from "@/components/public/MobileNav";
 import { ThemeModeToggle } from "@/components/public/ThemeModeToggle";
@@ -53,6 +52,15 @@ export async function generateMetadata({ params }: ClubSiteProps): Promise<Metad
     },
     twitter: { card: "summary_large_image", title: site.name, description, images: image ? [image] : undefined },
   };
+}
+
+/** The phone chrome borrows the club's brand instead of the school default. */
+export async function generateViewport({ params }: ClubSiteProps): Promise<Viewport> {
+  const { slug } = await params;
+  const site = await loadClubSite(slug);
+  if (!site) return {};
+  const palette = await clubSitePalette(site);
+  return { themeColor: palette.deep };
 }
 
 export default async function ClubSitePage({ params }: ClubSiteProps) {
@@ -87,16 +95,12 @@ export default async function ClubSitePage({ params }: ClubSiteProps) {
     { label: "প্রতিষ্ঠা", value: site.founded_year || 0, icon: <Sparkles size={16} /> },
   ].filter((item) => Number(item.value) > 0);
 
-  const accent = normalizeHexColor(site.accent, "#2563eb");
-  const accent2 = normalizeHexColor(site.accent_2, "#14b8a6");
-  const clubStyle = {
-    "--club-accent": accent,
-    "--club-accent-text": `color-mix(in srgb, ${accent} 56%, var(--ink))`,
-    "--club-accent-2": accent2,
-    "--club-accent-ink": readableTextColor(accent),
-    "--club-accent-wash": `color-mix(in srgb, ${accent} 12%, var(--surface))`,
-    "--club-accent-line": `color-mix(in srgb, ${accent} 26%, var(--line))`,
-  } as React.CSSProperties;
+  // Everything below is painted from the club's own logo: a palette saved by the
+  // club admin, a server-side sample of the logo file, or — only when neither
+  // exists — the accent pair from the studio. `lib/club-palette.ts` turns that
+  // into ramps, gradients, glows and readable text colours.
+  const palette = await clubSitePalette(site);
+  const clubStyle = palette.vars as React.CSSProperties;
   const heroStyle = backgroundStyle(site.cover_image_url, { width: 1600, fit: "cover" });
   const siteNav = [
     { id: "about", label: "পরিচিতি", show: Boolean(site.about || site.mission.length || site.objectives.length) },
@@ -108,7 +112,7 @@ export default async function ClubSitePage({ params }: ClubSiteProps) {
   ].filter((item) => item.show).map(({ id, label }) => ({ id, label }));
 
   return (
-    <div className="club-site" data-club={slug} style={clubStyle}>
+    <div className="club-site" data-club={slug} data-club-palette={palette.source} style={clubStyle}>
       {css ? <style dangerouslySetInnerHTML={{ __html: css }} /> : null}
 
       <header className="club-site-hero">

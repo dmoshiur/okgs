@@ -10,7 +10,9 @@ import {
   Image as ImageIcon,
   LogIn,
   LogOut,
+  Palette,
   Plus,
+  RefreshCw,
   Save,
   ShieldCheck,
   Trash2,
@@ -20,7 +22,8 @@ import {
 import { Panel, postJson, useApi } from "@/components/sf/console/ui";
 import { uploadToCloudinary } from "@/lib/upload-client";
 import { NumberField } from "@/components/club/NumberField";
-import { extractDominantLogoColor } from "@/lib/club-colors";
+import { extractLogoPalette } from "@/lib/club-colors";
+import { buildClubPalette } from "@/lib/club-palette";
 import type { ClubGalleryItem, ClubLeader, ClubOverride } from "@/lib/club-sites";
 
 type EventRow = { title: string; date?: string; description?: string; image_url?: string };
@@ -45,6 +48,7 @@ interface SitePayload {
     cover_image_url: string;
     accent: string;
     accent_2: string;
+    logo_colors: string[];
     website: string;
     facebook: string;
     youtube: string;
@@ -184,12 +188,146 @@ const tabs = [
   { id: "contact", label: "যোগাযোগ" },
 ] as const;
 
+/**
+ * Brand palette panel.
+ *
+ * The micro-site derives everything (ramps, gradients, glows, readable text
+ * colours) from whatever colours are attached to the club, so the admin only
+ * has to approve or nudge the swatches the logo produced. The preview at the
+ * bottom runs through the very same `buildClubPalette`, so what is shown here
+ * is what the site renders.
+ */
+function PaletteStudio({
+  slug,
+  logoUrl,
+  colors,
+  accent,
+  accent2,
+  clubName,
+  shortCode,
+  tagline,
+  note,
+  onNote,
+  onApply,
+}: {
+  slug: string;
+  logoUrl: string;
+  colors: string[];
+  accent: string;
+  accent2: string;
+  clubName: string;
+  shortCode: string;
+  tagline: string;
+  note: string;
+  onNote: (value: string) => void;
+  onApply: (patch: { accent?: string; accent_2?: string; logo_colors?: string[] }) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const palette = buildClubPalette({ accent, accent2, swatches: colors.length ? colors : null });
+  const previewStyle = palette.vars as React.CSSProperties;
+
+  const sampleNow = async () => {
+    if (!logoUrl) {
+      onNote("আগে ক্লাবের লোগো আপলোড করুন বা লোগোর লিংক দিন।");
+      return;
+    }
+    setBusy(true);
+    const paletteFromLogo = await extractLogoPalette(logoUrl, { accent, accent2 }).catch(() => null);
+    setBusy(false);
+    if (!paletteFromLogo) {
+      onNote("এই লোগো থেকে রঙ তোলা যায়নি (ছবিটি অন্য ডোমেইন থেকে আসলে ব্রাউজার ব্লক করে)। রঙ নিচে নিজেও বেছে নিতে পারেন।");
+      return;
+    }
+    onApply({ accent: paletteFromLogo.accent, accent_2: paletteFromLogo.accent2, logo_colors: paletteFromLogo.swatches });
+    onNote(`লোগো থেকে ${paletteFromLogo.swatches.length}টি রঙ পাওয়া হয়েছে।`);
+  };
+
+  const useSwatch = (hex: string, slot: "primary" | "secondary") => {
+    if (slot === "primary") onApply({ accent: hex });
+    else onApply({ accent_2: hex });
+  };
+
+  return (
+    // `.club-brand` opts this panel into the same accent mapping the public
+    // micro-site uses, so the preview is painted by identical rules.
+    <div className="cs-palette club-brand" style={previewStyle}>
+      <div className="cs-palette-head">
+        <span className="cs-palette-title">
+          <Palette size={14} /> লোগো-থেকে-রঙ
+        </span>
+        <span className={`cs-palette-source is-${palette.source}`}>
+          {palette.source === "logo" ? "লোগো থেকে তোলা" : palette.source === "studio" ? "হাতে দেওয়া" : "ডিফল্ট"}
+        </span>
+        <button type="button" className="ghost-button" onClick={() => void sampleNow()} disabled={busy}>
+          <RefreshCw size={13} className={busy ? "spin" : undefined} /> {busy ? "তোলা হচ্ছে…" : "লোগো থেকে রঙ নিন"}
+        </button>
+      </div>
+
+      {colors.length ? (
+        <p className="cs-palette-foot">
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => {
+              onApply({ logo_colors: [] });
+              onNote("অটো প্যালেট মুছে গেছে — এখন থেকে উপরের প্রধান ও দ্বিতীয় রঙই পুরো সাইটে চলবে।");
+            }}
+          >
+            <Trash2 size={13} /> অটো প্যালেট মুছুন
+          </button>
+          <small>মুছে ফেললে লোগো-স্যাম্পলিং বন্ধ হয়ে হাতে বেছে নেওয়া রঙ প্রয়োগ হবে।</small>
+        </p>
+      ) : null}
+
+      <div className="cs-swatches">
+        {(colors.length ? colors : [accent, accent2]).map((hex, index) => (
+          <span className="cs-swatch" key={`${hex}-${index}`} style={{ background: hex }}>
+            <span className="cs-swatch-copy">
+              <b>{index === 0 ? "প্রধান" : `রঙ ${index + 1}`}</b>
+              <small>{hex}</small>
+            </span>
+            <span className="cs-swatch-actions">
+              <button type="button" onClick={() => useSwatch(hex, "primary")} title="প্রধান রঙ হিসেবে বসান">
+                P
+              </button>
+              <button type="button" onClick={() => useSwatch(hex, "secondary")} title="দ্বিতীয় রঙ হিসেবে বসান">
+                S
+              </button>
+            </span>
+          </span>
+        ))}
+      </div>
+
+      <div className="cs-palette-preview">
+        <span className="cs-preview-logo">{logoUrl ? <img src={logoUrl} alt="" /> : shortCode.slice(0, 3)}</span>
+        <span className="cs-preview-copy">
+          <b>{clubName}</b>
+          <small>{tagline || "আপনার ক্লাবের পরিচয় এখানে দেখা যাবে।"}</small>
+          <span className="cs-preview-rail" />
+        </span>
+        <span className="cs-preview-btn">নিবন্ধন</span>
+      </div>
+
+      <p className="cs-palette-note">
+        {note ||
+          "রঙ স্বয়ংক্রিয়ভাবে লোগো থেকে আসে। পছন্দ না হলে নিচের দুটি ঘরে বদলান — পুরো সাইট (হিরো, নেভিগেশন, কার্ড, টাইমলাইন, ফুটার) সঙ্গে সঙ্গে নতুন প্যালেটে সাজবে।"}
+      </p>
+      <p className="cs-palette-note cs-palette-link">
+        <Link href={`/clubs/${slug}/site`} target="_blank">
+          সাইটে প্রয়োগ কেমন দেখাচ্ছে ↗
+        </Link>
+      </p>
+    </div>
+  );
+}
+
 export function ClubSiteAdmin({ slug }: { slug: string }) {
   const { data, loading, error, reload } = useApi<SitePayload>(`/api/clubs/${slug}/site`);
   const [tab, setTab] = useState<(typeof tabs)[number]["id"]>("identity");
   const [draft, setDraft] = useState<ClubOverride | null>(null);
   const [message, setMessage] = useState("");
   const [problem, setProblem] = useState("");
+  const [paletteNote, setPaletteNote] = useState("");
   const [busy, setBusy] = useState(false);
 
   const [identifier, setIdentifier] = useState("");
@@ -214,6 +352,7 @@ export function ClubSiteAdmin({ slug }: { slug: string }) {
       cover_image_url: site.cover_image_url,
       accent: site.accent,
       accent_2: site.accent_2,
+      logo_colors: site.logo_colors || [],
       website: site.website,
       facebook: site.facebook,
       youtube: site.youtube,
@@ -229,6 +368,11 @@ export function ClubSiteAdmin({ slug }: { slug: string }) {
 
   const set = useCallback(<K extends keyof ClubOverride>(key: K, value: ClubOverride[K]) => {
     setDraft((current) => ({ ...(current || {}), [key]: value }));
+  }, []);
+
+  /** Several fields at once — the logo sampler writes accent, secondary and palette together. */
+  const setMany = useCallback((patch: Partial<ClubOverride>) => {
+    setDraft((current) => ({ ...(current || {}), ...patch }));
   }, []);
 
   const login = async () => {
@@ -405,8 +549,12 @@ export function ClubSiteAdmin({ slug }: { slug: string }) {
               value={draft.logo_url || ""}
               accept="image/png,image/svg+xml,.png,.svg"
               onFileSelected={(file) => {
-                void extractDominantLogoColor(file).then((color) => {
-                  if (color) set("accent", color);
+                // One upload re-skins the whole micro-site: read the logo's
+                // palette and keep it alongside the primary/secondary picks.
+                void extractLogoPalette(file, { accent: draft.accent, accent2: draft.accent_2 }).then((palette) => {
+                  if (!palette) return;
+                  setMany({ accent: palette.accent, accent_2: palette.accent2, logo_colors: palette.swatches });
+                  setPaletteNote(`লোগো থেকে ${palette.swatches.length}টি রঙ তোলা হয়েছে — সংরক্ষণ করলে সাইটে যান্ত্রিকভাবে প্রয়োগ হবে।`);
                 });
               }}
               onChange={(value) => set("logo_url", value)}
@@ -429,8 +577,24 @@ export function ClubSiteAdmin({ slug }: { slug: string }) {
               </span>
             </label>
           </div>
+          <PaletteStudio
+            slug={slug}
+            logoUrl={draft.logo_url || ""}
+            colors={draft.logo_colors || []}
+            accent={draft.accent || "#0f766e"}
+            accent2={draft.accent_2 || "#eab308"}
+            clubName={draft.name || site.name}
+            shortCode={site.short_code}
+            tagline={draft.tagline || ""}
+            note={paletteNote}
+            onNote={setPaletteNote}
+            onApply={(values) => {
+              setMany(values);
+              setPaletteNote("রঙ বদল হয়েছে — দেখতে চাইলে সাইট দেখুন বাটনে যান।");
+            }}
+          />
           <p className="panel-copy">
-            PNG/SVG লোগো আপলোড করলে রঙের প্রাধান্য স্বয়ংক্রিয়ভাবে প্রধান অ্যাকসেন্টে বসবে। ছবি Cloudinary-তে এবং তথ্য ক্লাব-ভিত্তিক Turso সেটিংসে সংরক্ষিত হয়।
+            লোগো আপলোড করলে তার প্রধান রঙ স্বয়ংক্রিয়ভাবে সাইট জুড়ে বসে যায় — হিরো, নেভিগেশন, কার্ড, টাইমলাইন ও ফুটার একই প্যালেট থেকে তৈরি গ্রেডিয়েন্টে সাজানো হয়। রঙ ক্লাব-ভিত্তিক Turso সেটিংসে সংরক্ষিত থাকে, ছবি থাকে Cloudinary-তে।
           </p>
         </Panel>
       ) : null}

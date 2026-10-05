@@ -4228,3 +4228,485 @@ html[data-color-scheme="dark"] .internal-loading-card {
 .club-site .cs-event em,
 .club-site .cs-foot-links a:hover { color: var(--club-accent-text, var(--club-accent)); }
 .club-admin .cs-picker-preview img { object-fit: contain; padding: 8px; }
+
+/* ==========================================================================
+   Club micro-site — the whole theme comes from the logo
+   --------------------------------------------------------------------------
+   `lib/club-palette.ts` turns a club's logo into a brand system and the page
+   publishes it on `.club-site` as `--club-*-base` tokens plus ramps, gradients,
+   glows and readable ink. Everything below consumes that, so one logo upload in
+   the club panel repaints hero, sub-nav, chips, cards, timeline, gallery,
+   tables and footer without anyone touching CSS.
+
+   Why the mapping rule exists: a custom property set *inline* by React can
+   never be re-pointed by an attribute selector, so the palette never writes
+   `--club-accent` directly. This stylesheet derives it from `--club-accent-base`
+   (light) or the brighter twin (dark), and the wash/line/text tokens are all
+   `color-mix()` expressions of `var(--club-accent)` — so both schemes stay in
+   contrast-safe territory from one set of rules.
+   ========================================================================== */
+.club-site,
+.club-brand {
+  --club-accent: var(--club-accent-base, var(--brand-mid));
+  --club-accent-2: var(--club-accent-2-base, var(--mint));
+  --club-accent-ink: var(--club-accent-ink-light, #ffffff);
+  --club-accent-rgb: var(--club-accent-rgb-base, 29, 75, 214);
+  --club-accent-2-rgb: var(--club-accent-2-rgb-base, 200, 150, 62);
+}
+html[data-color-scheme="dark"] .club-site,
+html[data-color-scheme="dark"] .club-brand {
+  --club-accent: var(--club-accent-bright, var(--club-accent-base, var(--brand-mid)));
+  --club-accent-2: var(--club-accent-2-bright, var(--club-accent-2-base, var(--mint)));
+  --club-accent-ink: var(--club-accent-ink-bright, #0b1220);
+  --club-accent-rgb: var(--club-accent-rgb-bright, var(--club-accent-rgb-base, 29, 75, 214));
+  --club-accent-2-rgb: var(--club-accent-2-rgb-bright, var(--club-accent-2-rgb-base, 200, 150, 62));
+}
+
+/* --- hero: layered brand wash over a glass card ------------------------- */
+.club-site .club-site-hero::before { background: var(--club-mesh); }
+.club-site .club-site-hero-cover {
+  opacity: .3;
+  filter: blur(46px) saturate(1.35);
+  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, .62) 58%, transparent 96%);
+}
+.club-site .club-site-hero-inner {
+  position: relative;
+  border-color: color-mix(in srgb, var(--club-accent) 22%, var(--line));
+  background-color: color-mix(in srgb, var(--surface) 90%, var(--club-accent) 5%);
+  background-image: var(--club-grad-hero);
+  box-shadow: var(--club-glow), var(--shadow-lg);
+}
+/* The 3px gradient rail across the top edge is the signature detail — it reads
+   as intentional branding at a glance without tinting the content. */
+.club-site .club-site-hero-inner::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  border-top-left-radius: clamp(22px, 3vw, 32px);
+  border-top-right-radius: clamp(22px, 3vw, 32px);
+  background: var(--club-grad-rail);
+  pointer-events: none;
+}
+.club-site .club-site-hero h1 { letter-spacing: -.015em; }
+.club-site .cs-kicker {
+  border-color: var(--club-accent-line);
+  background-color: var(--surface);
+  background-image: var(--club-grad-chip);
+  color: var(--club-accent-text);
+  font-weight: 700;
+}
+.club-site .cs-tagline { font-weight: 500; }
+.club-site .cs-motto { color: var(--club-accent); font-weight: 700; }
+
+/* --- logo gets a gradient ring derived from its own palette ------------- */
+.club-site .club-site-logo,
+.club-site .club-site-logo-fallback {
+  padding: 8px;
+  border: 2px solid transparent;
+  border-radius: 20px;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    var(--club-grad-ring) border-box;
+  box-shadow: var(--club-glow-soft);
+  transition: transform .24s ease, box-shadow .24s ease;
+}
+.club-site .club-site-logo:hover { transform: translateY(-2px); }
+.club-site .club-site-logo-fallback {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+/* --- actions ------------------------------------------------------------ */
+.club-site .cs-actions .v2-btn {
+  background-color: var(--club-accent);
+  background-image: var(--club-grad-btn);
+  color: var(--club-accent-ink);
+  border: 1px solid color-mix(in srgb, var(--club-accent) 60%, #000 8%);
+  box-shadow: 0 12px 26px -14px rgba(var(--club-accent-rgb), .75);
+}
+.club-site .cs-actions .v2-btn:hover {
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--club-accent) 88%, #000), var(--club-accent));
+  transform: translateY(-1px);
+}
+.club-site .cs-actions .v2-btn-ghost {
+  background-color: var(--surface);
+  background-image: linear-gradient(135deg, rgba(var(--club-accent-rgb), .08), rgba(var(--club-accent-2-rgb), .08));
+  border-color: var(--club-accent-line);
+  color: var(--club-accent-text);
+}
+.club-site .cs-actions .v2-btn-ghost:hover { background-image: var(--club-grad-chip); }
+
+/* --- stats ------------------------------------------------------------- */
+.club-site .club-site-stat {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--club-accent) 20%, var(--line));
+  background-color: color-mix(in srgb, var(--surface) 92%, var(--club-accent) 4%);
+  background-image: var(--club-grad-sheen);
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+.club-site .club-site-stat::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: var(--club-grad-rail);
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.club-site .club-site-stat:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--club-accent) 42%, var(--line));
+  box-shadow: var(--club-glow-soft);
+}
+.club-site .club-site-stat:hover::after { opacity: 1; }
+.club-site .club-site-stat-icon {
+  border-radius: 12px;
+  background-color: var(--club-accent-wash);
+  background-image: var(--club-grad-chip);
+  color: var(--club-accent);
+  box-shadow: inset 0 0 0 1px var(--club-accent-line);
+}
+.club-site .club-site-stat:nth-child(even) .club-site-stat-icon {
+  background-color: var(--club-accent-wash-2);
+  color: var(--club-accent-2-text);
+  box-shadow: inset 0 0 0 1px var(--club-accent-line-2);
+}
+
+/* --- sub-nav: sticky, frosted, gradient-active -------------------------- */
+.club-site .cs-subnav { position: sticky; top: 8px; z-index: 7; }
+.club-site .cs-subnav-track {
+  border-color: var(--club-accent-line);
+  background-color: color-mix(in srgb, var(--surface) 88%, var(--club-accent) 5%);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+.club-site .cs-subnav-pill { border-radius: var(--r-pill); }
+.club-site .cs-subnav-pill:hover { background-image: var(--club-grad-chip); color: var(--club-accent-text); }
+.club-site .cs-subnav-pill.is-active {
+  background-color: var(--club-accent);
+  background-image: var(--club-grad-btn);
+  color: var(--club-accent-ink);
+  box-shadow: 0 8px 18px -10px rgba(var(--club-accent-rgb), .8);
+}
+.club-site .cs-section { scroll-margin-top: calc(var(--header-h) + 74px); }
+
+/* --- section heads: chip with a live dot, gradient rail under the title -- */
+.club-site .cs-head { position: relative; padding-bottom: 12px; }
+.club-site .cs-head::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 74px;
+  height: 3px;
+  border-radius: var(--r-pill);
+  background: var(--club-grad-rail);
+  box-shadow: 0 8px 20px -10px rgba(var(--club-accent-rgb), .9);
+}
+.club-site .cs-head h2 { letter-spacing: -.02em; }
+.club-site .cs-head .v2-chip {
+  gap: 8px;
+  border-color: var(--club-accent-line);
+  background-color: var(--club-accent-wash);
+  background-image: var(--club-grad-chip);
+  color: var(--club-accent-text);
+  font-weight: 700;
+}
+.club-site .cs-head .v2-chip::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--club-accent);
+  box-shadow: 0 0 0 3px rgba(var(--club-accent-rgb), .18);
+}
+
+/* --- cards, notice, timeline, gallery, table ---------------------------- */
+.club-site .cs-card,
+.club-site .cs-leader,
+.club-site .cs-event {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-xl);
+  background-color: color-mix(in srgb, var(--surface) 97%, var(--club-accent) 2%);
+  background-image: var(--club-grad-sheen);
+  transition: transform .24s ease, box-shadow .24s ease, border-color .24s ease;
+}
+.club-site .cs-card::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: var(--club-grad-rail);
+  transform: scaleX(.24);
+  transform-origin: left;
+  opacity: 0;
+  transition: transform .32s ease, opacity .2s ease;
+}
+.club-site .cs-card:hover,
+.club-site .cs-leader:hover,
+.club-site .cs-event:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--club-accent) 38%, var(--line));
+  box-shadow: var(--club-glow-soft), var(--shadow-md);
+}
+.club-site .cs-card:hover::before { transform: none; opacity: 1; }
+.club-site .cs-card h3 { gap: 12px; }
+.club-site .cs-card h3 svg {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  padding: 7px;
+  border-radius: 10px;
+  background-color: var(--club-accent-wash);
+  background-image: var(--club-grad-chip);
+  box-shadow: inset 0 0 0 1px var(--club-accent-line);
+}
+.club-site .cs-list li::marker { color: var(--club-accent); font-weight: 700; }
+.club-site .cs-notice {
+  position: relative;
+  padding-left: 26px;
+  border-color: var(--club-accent-line);
+  background-color: var(--club-accent-wash);
+  background-image: linear-gradient(120deg, rgba(var(--club-accent-rgb), .14), rgba(var(--club-accent-2-rgb), .1) 72%, transparent);
+}
+.club-site .cs-notice::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  border-radius: var(--r-pill);
+  background: var(--club-grad-rail);
+}
+.club-site .cs-leader-photo { box-shadow: 0 0 0 1px var(--club-accent-line), 0 0 0 6px rgba(var(--club-accent-rgb), .07); }
+.club-site .cs-event {
+  border-left: 1px solid color-mix(in srgb, var(--club-accent) 15%, var(--line));
+  overflow: visible;
+}
+.club-site .cs-event::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 3px 0 0 3px;
+  background: var(--club-grad-rail);
+}
+.club-site .cs-event-dot {
+  display: block;
+  position: absolute;
+  left: -4px;
+  top: 26px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--club-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--club-accent) 16%, transparent);
+}
+.club-site .cs-event em {
+  display: inline-flex;
+  width: fit-content;
+  padding: 3px 11px;
+  border-radius: var(--r-pill);
+  background-color: var(--club-accent-wash);
+  background-image: var(--club-grad-chip);
+  color: var(--club-accent-text);
+  font-weight: 700;
+}
+.club-site .cs-gallery figure {
+  border-color: var(--club-accent-line);
+  box-shadow: var(--shadow-xs);
+}
+.club-site .cs-gallery figure::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, transparent 52%, rgba(var(--club-brand-deep-rgb), .62));
+  opacity: 0;
+  transition: opacity .26s ease;
+  pointer-events: none;
+}
+.club-site .cs-gallery figure:hover::after { opacity: 1; }
+.club-site .cs-gallery figcaption {
+  background: linear-gradient(180deg, transparent, rgba(var(--club-brand-deep-rgb), .92));
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+.club-site .cs-table-wrap {
+  border-color: var(--club-accent-line);
+  box-shadow: var(--shadow-xs);
+}
+.club-site .cs-table th {
+  background-color: var(--club-accent-wash);
+  background-image: var(--club-grad-chip);
+  color: var(--club-accent-text);
+  border-bottom: 1px solid var(--club-accent-line);
+}
+.club-site .cs-table tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--club-accent) 4%, var(--surface)); }
+.club-site .cs-table td:first-child { font-weight: 600; color: var(--ink); }
+.club-site .cs-table tr:hover td { background: color-mix(in srgb, var(--club-accent) 10%, var(--surface)); }
+
+/* --- footer: gradient ground with a brand rail on top ------------------- */
+.club-site .cs-foot {
+  position: relative;
+  border-top: 1px solid var(--club-accent-line);
+  background-color: color-mix(in srgb, var(--surface) 92%, var(--club-accent) 7%);
+  background-image: var(--club-grad-foot);
+}
+.club-site .cs-foot::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--club-grad-rail);
+}
+.club-site .cs-foot-inner { position: relative; }
+.club-site .cs-foot-links a { color: var(--club-accent-text); }
+.club-site .cs-foot-links a:hover { color: var(--club-accent); }
+
+/* A palette that came from a real logo earns a slightly richer wash; the
+   studio/default fallback stays quieter so nothing looks invented. */
+.club-site[data-club-palette="logo"] .club-site-hero-inner {
+  border-color: color-mix(in srgb, var(--club-accent) 30%, var(--line));
+  box-shadow: var(--club-glow), var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, .5);
+}
+
+@media (min-width: 720px) {
+  .club-site .cs-gallery figure:first-child { grid-column: span 2; }
+  .club-site .cs-gallery figure:first-child img { height: 320px; }
+}
+@media (max-width: 639px) {
+  .club-site .club-site-logo,
+  .club-site .club-site-logo-fallback { padding: 6px; border-radius: 16px; }
+  .club-site .cs-subnav { top: 4px; }
+  .club-site .club-site-hero-inner::before { border-top-left-radius: 22px; border-top-right-radius: 22px; }
+}
+html[data-color-scheme="dark"] .club-site .club-site-hero-inner {
+  box-shadow: var(--club-glow), var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+html[data-color-scheme="dark"] .club-site .club-site-logo,
+html[data-color-scheme="dark"] .club-site .club-site-logo-fallback {
+  background:
+    linear-gradient(var(--surface-alt), var(--surface-alt)) padding-box,
+    var(--club-grad-ring) border-box;
+}
+
+/* --- club panel: palette studio ----------------------------------------- */
+.cs-palette {
+  display: grid;
+  gap: 14px;
+  margin-top: 4px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--surface) 94%, var(--club-accent) 4%);
+}
+.cs-palette-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.cs-palette-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--ink);
+}
+.cs-palette-head .ghost-button { margin-inline-start: auto; }
+.cs-palette-source {
+  padding: 3px 10px;
+  border: 1px solid var(--club-accent-line, var(--line));
+  border-radius: var(--r-pill);
+  background: var(--club-accent-wash, var(--surface-alt));
+  color: var(--club-accent-text, var(--body));
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.cs-palette-source.is-studio { border-color: var(--mint-line); background: var(--mint-soft); color: var(--mint-text); }
+.cs-palette-source.is-default { border-color: var(--line); background: var(--surface-alt); color: var(--muted); }
+.cs-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.cs-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 132px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(15, 27, 40, .12);
+  color: #fff;
+}
+.cs-swatch-copy { display: grid; gap: 1px; font-family: var(--font-ui); }
+.cs-swatch-copy b { font-size: 12px; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+.cs-swatch-copy small { font-size: 11px; opacity: .92; letter-spacing: .04em; }
+.cs-swatch-actions { display: inline-flex; gap: 4px; }
+.cs-swatch-actions button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .55);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .16);
+  color: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.cs-swatch-actions button:hover { background: rgba(255, 255, 255, .34); }
+.cs-palette-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--club-accent-line, var(--line));
+  border-radius: var(--r-lg);
+  background-color: var(--surface);
+  background-image: var(--club-grad-hero);
+  box-shadow: var(--club-glow-soft, var(--shadow-sm));
+}
+.cs-preview-logo {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 4px;
+  border: 2px solid transparent;
+  border-radius: 13px;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    var(--club-grad-ring) border-box;
+  color: var(--club-accent);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+}
+.cs-preview-logo img { width: 100%; height: 100%; object-fit: contain; }
+.cs-preview-copy { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.cs-preview-copy b { font-size: 14.5px; color: var(--club-accent-text, var(--ink)); }
+.cs-preview-copy small { color: var(--muted); font-size: 12px; }
+.cs-preview-rail { height: 3px; border-radius: var(--r-pill); background: var(--club-grad-rail); }
+.cs-preview-btn {
+  padding: 7px 13px;
+  border-radius: var(--r-pill);
+  background-color: var(--club-accent);
+  background-image: var(--club-grad-btn);
+  color: var(--club-accent-ink, #fff);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+}
+.cs-palette-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0; }
+.cs-palette-foot small { color: var(--muted); font-size: 12px; }
+.cs-palette-note { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+.cs-palette-link a { color: var(--club-accent-text, var(--brand-mid)); font-weight: 600; }
