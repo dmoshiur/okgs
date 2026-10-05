@@ -11,6 +11,7 @@ import type { PublicContent, SiteSetting } from "@/lib/types";
 import { settingValue } from "@/lib/club-data";
 import { SchoolLogo } from "@/components/public/SchoolLogo";
 import { MobileNav } from "@/components/public/MobileNav";
+import { ThemeModeToggle } from "@/components/public/ThemeModeToggle";
 import { VisualModeToggle } from "@/components/public/VisualModeToggle";
 import { primaryNav } from "@/components/public/NavigationData";
 import { optimizedImage } from "@/lib/cloudinary";
@@ -43,14 +44,22 @@ export function PublicChrome({
   content,
   active = "",
   internal = false,
+
+  contextLabel,
   children,
 }: {
   content: PublicContent;
   active?: string;
   internal?: boolean;
+
+  /** Replaces the generic institution name with the current club/section in the header. */
+  contextLabel?: string;
+
   children: React.ReactNode;
 }) {
   const site = siteInfo(content.settings);
+  const activeNav = primaryNav.find((item) => item.key === active);
+  const headerContext = contextLabel || (activeNav ? `${site.name} · ${activeNav.label}` : site.name);
   const topNotice = content.notices[0];
   const year = bn(new Date().getFullYear());
   const tel = (value: string) => `tel:${value.replace(/[\s-]/g, "")}`;
@@ -92,8 +101,8 @@ export function PublicChrome({
           <a href="/" className="brand" aria-label={`${site.name} — হোম`}>
             <SchoolLogo src={optimizedImage(site.logo, { width: 160 })} name={site.name} />
             <span className="brand-copy">
-              <strong>{site.shortName}</strong>
-              <small>{site.name}</small>
+              <strong>Main</strong>
+              <small>{headerContext}</small>
             </span>
           </a>
 
@@ -106,7 +115,8 @@ export function PublicChrome({
           </nav>
 
           <div className="header-actions">
-            <VisualModeToggle />
+            <ThemeModeToggle />
+            <VisualModeToggle compact />
             <a className="header-link" href="/me">
               <span>শিক্ষার্থী পোর্টাল</span>
               <ArrowUpRight size={13} aria-hidden />
@@ -116,7 +126,7 @@ export function PublicChrome({
             </a>
           </div>
 
-          <MobileNav site={site} active={active} />
+          <MobileNav site={{ ...site, shortName: "Main" }} active={active} />
         </div>
       </header>
 

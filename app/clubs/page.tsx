@@ -38,6 +38,8 @@ export default async function ClubsPage() {
 
   return (
     <PublicChrome content={content} active="clubs" internal>
+    <PublicChrome content={content} active="clubs" internal contextLabel="ক্লাব তথ্যকেন্দ্র">
+
       <InternalPageShell className="club-directory-page">
         <InternalPageHeader
           className="club-index-hero"

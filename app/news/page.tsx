@@ -23,6 +23,9 @@ export default async function NewsIndexPage() {
 
   return (
     <PublicChrome content={content} active="news" internal>
+
+    <PublicChrome content={content} active="news" internal contextLabel="সংবাদ ও নোটিশ">
+
       <InternalPageShell className="story-page">
         <InternalPageHeader
           className="journal-index-hero"

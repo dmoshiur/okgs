@@ -49,6 +49,9 @@ export default async function NewsStoryPage({ params }: NewsPageProps) {
 
   return (
     <PublicChrome content={content} active="news" internal>
+
+    <PublicChrome content={content} active="news" internal contextLabel={story.title}>
+
       <JsonLd schema={[newsArticleSchema(story, club), breadcrumbSchema([{ name: "সংবাদ", url: "/news" }, { name: story.title, url: `/news/${story.slug}` }])]} />
       <InternalPageShell className="story-page">
         <article className="page-width story-article">

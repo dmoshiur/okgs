@@ -1,6 +1,9 @@
 import { fail, ok, str } from "@/lib/api";
-import { clubAccess, loadClubSite, saveClubSite, type ClubOverride } from "@/lib/club-sites";
+import { clubAccess, hexList, loadClubSite, saveClubSite, type ClubOverride } from "@/lib/club-sites";
 import { logActivity } from "@/lib/portal-db";
+import { updateRow } from "@/lib/db";
+import { normalizeHexColor } from "@/lib/club-colors";
+import { logoSwatches } from "@/lib/logo-swatches";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +69,11 @@ const stringList = (value: unknown, limit = 40) =>
         .filter(Boolean)
     : undefined;
 
+const nonNegativeInteger = (value: unknown, maximum = 1000000) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.min(maximum, Math.max(0, Math.floor(parsed))) : 0;
+};
+
 /** GET /api/clubs/<slug>/site — public club-site data (also feeds the admin panel). */
 export async function GET(_request: Request, { params }: Params) {
   const { slug } = await params;
@@ -98,6 +106,16 @@ export async function POST(request: Request, { params }: Params) {
   for (const key of text) {
     if (body[key] !== undefined) (patch as Record<string, unknown>)[key] = str(body[key]);
   }
+  if (patch.name !== undefined && !patch.name.trim()) return fail("ক্লাবের নাম খালি রাখা যাবে না।", 422);
+  if (patch.accent) patch.accent = normalizeHexColor(patch.accent);
+  if (patch.accent_2) patch.accent_2 = normalizeHexColor(patch.accent_2);
+  if (body.founded_year !== undefined) patch.founded_year = nonNegativeInteger(body.founded_year, new Date().getFullYear());
+  if (body.member_count !== undefined) patch.member_count = nonNegativeInteger(body.member_count);
+
+  // The club panel sends the palette it sampled from the uploaded logo.
+  if (body.logo_colors !== undefined) {
+    patch.logo_colors = Array.isArray(body.logo_colors) ? hexList(body.logo_colors) : [];
+  }
 
   const mission = stringList(body.mission);
   if (mission) patch.mission = mission;
@@ -122,7 +140,38 @@ export async function POST(request: Request, { params }: Params) {
 
   if (!Object.keys(patch).length) return fail("সংরক্ষণ করার মতো কিছু পাওয়া যায়নি।", 422);
 
+  // A new logo but no sampled palette (CORS blocked the browser canvas, or the
+  // URL was pasted by hand)? Sample it here so the site still re-skins itself.
+  if (patch.logo_url !== undefined && patch.logo_colors === undefined && !patch.accent) {
+    const sampled = await logoSwatches(patch.logo_url);
+    if (sampled.length) patch.logo_colors = sampled;
+  }
+
+  const before = await loadClubSite(slug);
   const saved = await saveClubSite(slug, patch, { name: access.name, id: access.userId });
+
+  // Keep the directory and the club's main profile in sync with the micro-site
+  // editor. The override remains the source for club-only lists and theme data.
+  if (before?.record?.id) {
+    const clubPatch: Record<string, string | number> = {};
+    if (patch.name !== undefined) clubPatch.name = patch.name;
+    if (patch.name_en !== undefined) clubPatch.name_en = patch.name_en;
+    if (patch.tagline !== undefined) clubPatch.tagline = patch.tagline;
+    if (patch.motto !== undefined) clubPatch.motto = patch.motto;
+    if (patch.about !== undefined) clubPatch.description = patch.about;
+    if (patch.mission !== undefined) clubPatch.mission = patch.mission.join("\n");
+    if (patch.objectives !== undefined) clubPatch.objectives = patch.objectives.join("\n");
+    if (patch.founded_year !== undefined) clubPatch.founded_year = patch.founded_year;
+    if (patch.member_count !== undefined) clubPatch.member_count = patch.member_count;
+    if (patch.logo_url !== undefined) clubPatch.logo_url = patch.logo_url;
+    if (patch.cover_image_url !== undefined) clubPatch.cover_image_url = patch.cover_image_url;
+    if (patch.accent !== undefined) clubPatch.accent = patch.accent;
+    if (patch.website !== undefined) clubPatch.domain = patch.website;
+    if (patch.facebook !== undefined) clubPatch.facebook_url = patch.facebook;
+    if (patch.youtube !== undefined) clubPatch.youtube_url = patch.youtube;
+    if (Object.keys(clubPatch).length) await updateRow("clubs", before.record.id, clubPatch);
+  }
+
   await logActivity({
     actor_id: access.userId,
     actor_name: access.name,

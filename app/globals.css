@@ -2741,7 +2741,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
    OKGS DESIGN SYSTEM — semantic tokens and global visual modes
    Keep palette/radius/elevation decisions here rather than in components.
    ======================================================================== */
-body {
+:root {
   /* Premium Academic palette */
   --page-bg: #FAF8F3;
   --surface: #FFFFFF;
@@ -2788,14 +2788,14 @@ body {
   --shadow-md: 0 8px 24px rgba(42, 36, 24, .075);
   --shadow-lg: 0 16px 34px rgba(42, 36, 24, .12);
   --shadow-card: 0 22px 52px rgba(42, 36, 24, .14);
+}
+
+html { background: var(--page-bg); }
+body {
   background-color: var(--page-bg);
   color: var(--ink);
   transition: background-color .28s ease, color .28s ease;
 }
-
-
-
-html { background: #FAF8F3; }
 body, .public-site { background: var(--page-bg); }
 .public-site { transition: background-color .28s ease; }
 body, .public-site, .site-main { min-width: 0; }
@@ -3564,3 +3564,1149 @@ body[data-visual-mode="science-fair"] .fair-mega::before {
     transition-duration: .01ms !important;
   }
 }
+
+/* ==========================================================================
+   Accessible color scheme + club brand system
+   ========================================================================== */
+html[data-color-scheme="dark"] {
+  color-scheme: dark;
+  background: #0b1220;
+}
+html[data-color-scheme="light"] { color-scheme: light; }
+html[data-color-scheme="dark"] body {
+  color-scheme: dark;
+  --page-bg: #0b1220;
+  --surface: #111c2d;
+  --surface-alt: #172438;
+  --surface-alt-2: #0f1929;
+  --ink: #f1f5fb;
+  --ink-2: #e3eaf3;
+  --body: #c0cad8;
+  --muted: #9ba9bb;
+  --line: #2a394e;
+  --line-2: #243248;
+  --brand-deep: #070d18;
+  --brand-dark: #101b2d;
+  --mint-text: color-mix(in srgb, var(--mint) 78%, #ffffff);
+  --accent-ink: var(--mint-text);
+  --mint-soft: color-mix(in srgb, var(--mint) 13%, var(--surface));
+  --mint-soft-2: color-mix(in srgb, var(--mint) 8%, var(--surface));
+  --mint-line: color-mix(in srgb, var(--mint) 34%, var(--line));
+  --warn-bg: #322916;
+  --warn-text: #f8d68e;
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, .22);
+  --shadow-sm: 0 3px 12px rgba(0, 0, 0, .24);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, .3);
+  --shadow-lg: 0 18px 42px rgba(0, 0, 0, .4);
+  --shadow-card: 0 24px 60px rgba(0, 0, 0, .44);
+}
+html[data-color-scheme="light"] body {
+  color-scheme: light;
+  /* A site-level dark template must not override a visitor's light selection. */
+  --mint-text: color-mix(in srgb, var(--mint) 58%, #33240a);
+  --accent-ink: var(--mint-text);
+}
+
+html[data-color-scheme="dark"] input,
+html[data-color-scheme="dark"] textarea,
+html[data-color-scheme="dark"] select {
+  color-scheme: dark;
+  border-color: var(--line);
+  background-color: var(--surface);
+  color: var(--ink);
+}
+html[data-color-scheme="dark"] .v2-card,
+html[data-color-scheme="dark"] .portal-card,
+html[data-color-scheme="dark"] .metric,
+html[data-color-scheme="dark"] .panel,
+html[data-color-scheme="dark"] .metric-card,
+html[data-color-scheme="dark"] .app-top,
+html[data-color-scheme="dark"] .admin-topbar,
+html[data-color-scheme="dark"] .admin-main,
+html[data-color-scheme="dark"] .image-field,
+html[data-color-scheme="dark"] .editor-modal,
+html[data-color-scheme="dark"] .confirm-card,
+html[data-color-scheme="dark"] .club-aside-card,
+html[data-color-scheme="dark"] .club-block,
+html[data-color-scheme="dark"] .club-overview,
+html[data-color-scheme="dark"] .club-card,
+html[data-color-scheme="dark"] .club-pulse-card {
+  background-color: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+}
+html[data-color-scheme="dark"] .hero {
+  background:
+    radial-gradient(ellipse at 84% 8%, color-mix(in srgb, var(--brand) 17%, transparent), transparent 40%),
+    linear-gradient(180deg, #111c2d 0%, var(--page-bg) 78%);
+}
+html[data-color-scheme="dark"] .site-header {
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+}
+html[data-color-scheme="dark"] .site-footer { background: #070d18; }
+html[data-color-scheme="dark"] .mobile-bottom-nav {
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  border-color: var(--line);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, .42);
+}
+html[data-color-scheme="dark"] .mobile-panel,
+html[data-color-scheme="dark"] .mobile-panel-close {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+}
+html[data-color-scheme="dark"] .mobile-panel-backdrop { background: rgba(0, 0, 0, .62); }
+html[data-color-scheme="dark"] .internal-loading-crumb,
+html[data-color-scheme="dark"] .internal-loading-eyebrow,
+html[data-color-scheme="dark"] .internal-loading-title,
+html[data-color-scheme="dark"] .internal-loading-copy,
+html[data-color-scheme="dark"] .internal-loading-card {
+  background: linear-gradient(100deg, var(--surface-alt) 20%, var(--surface-alt-2) 45%, var(--surface-alt) 70%);
+}
+
+.theme-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .18s ease, border-color .18s ease, background .18s ease, transform .18s ease;
+}
+.theme-mode-toggle svg { flex: 0 0 auto; color: var(--brand); }
+.theme-mode-toggle:hover { transform: translateY(-1px); border-color: var(--brand-mid); background: var(--surface-alt); }
+.theme-mode-toggle:disabled { opacity: .7; cursor: wait; }
+.theme-mode-toggle.is-dark svg { color: #f6c453; }
+.theme-mode-toggle-compact { width: 40px; min-width: 40px; padding: 0; border-radius: 12px; }
+.header-actions .theme-mode-toggle { flex: 0 0 auto; }
+.mobile-panel-themes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mobile-panel-themes > * { width: 100%; min-height: 46px; }
+.mobile-panel-themes .visual-mode-toggle { justify-content: center; }
+.mobile-drawer-actions > .theme-mode-toggle { width: 100%; min-height: 46px; }
+
+/* Directory hero: quiet glass card instead of a hard-coded navy/gold banner. */
+.club-index-hero {
+  overflow: visible;
+  padding-block: clamp(22px, 4vw, 46px);
+  background: transparent;
+  color: var(--ink);
+}
+.club-index-hero::before { display: none; }
+.club-index-hero .internal-page-header-inner {
+  gap: 14px;
+  padding: clamp(22px, 4vw, 44px);
+  border: 1px solid var(--line);
+  border-radius: clamp(20px, 3vw, 30px);
+  background: color-mix(in srgb, var(--surface) 88%, var(--brand) 4%);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(20px) saturate(135%);
+  -webkit-backdrop-filter: blur(20px) saturate(135%);
+}
+.club-index-hero h1 { color: var(--ink); }
+.club-index-hero h1 em { color: var(--brand); }
+.club-index-hero .internal-page-description { color: var(--body); }
+.club-index-link { color: var(--brand-mid); }
+.club-index-link:hover { color: var(--brand); }
+.club-index-actions .button-gold { background: var(--brand); color: #fff; }
+.club-index-actions .button-gold:hover { background: var(--brand-hover); color: #fff; }
+
+/* Club overview hero and micro-site header share a theme-aware glass surface. */
+.club-hero {
+  overflow: visible;
+  padding-block: clamp(14px, 2.5vw, 28px);
+  background: transparent;
+  color: var(--ink);
+}
+.club-hero-bg {
+  z-index: 0;
+  opacity: .1;
+  filter: blur(26px) saturate(.75);
+  transform: scale(1.08);
+}
+.club-hero::after {
+  background: radial-gradient(60% 100% at 88% 0%, color-mix(in srgb, var(--club-accent, var(--brand)) 16%, transparent), transparent 70%);
+}
+.club-hero-inner {
+  overflow: hidden;
+  max-width: min(100% - 32px, 1080px);
+  padding: clamp(22px, 4vw, 42px);
+  border: 1px solid color-mix(in srgb, var(--club-accent, var(--brand)) 24%, var(--line));
+  border-radius: clamp(20px, 3vw, 30px);
+  background: color-mix(in srgb, var(--surface) 88%, var(--club-accent, var(--brand)) 5%);
+  color: var(--ink);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(20px) saturate(135%);
+  -webkit-backdrop-filter: blur(20px) saturate(135%);
+}
+.club-hero .internal-breadcrumb-light { color: var(--muted); }
+.club-hero .internal-breadcrumb-light a { color: var(--brand-mid); }
+.club-hero-kicker {
+  border-color: color-mix(in srgb, var(--club-accent, var(--brand)) 26%, var(--line));
+  background: color-mix(in srgb, var(--club-accent, var(--brand)) 9%, var(--surface));
+  color: var(--body);
+}
+.club-hero h1 { color: var(--ink); }
+.club-hero-tagline { color: color-mix(in srgb, var(--club-accent, var(--brand)) 78%, var(--ink)); }
+
+.club-site { min-width: 0; width: 100%; overflow-x: clip; background: var(--page-bg); }
+.club-site-hero {
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
+  margin: clamp(16px, 3vw, 34px) 0 0;
+  padding: 0;
+  background: transparent;
+  color: var(--ink);
+}
+.club-site-hero::before {
+  inset: 0;
+  background: radial-gradient(70% 110% at 88% 0%, color-mix(in srgb, var(--club-accent) 17%, transparent), transparent 72%);
+}
+.club-site-hero-cover {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background-position: center;
+  background-size: cover;
+  opacity: .16;
+  filter: blur(32px) saturate(.72);
+  transform: scale(1.08);
+  mask-image: linear-gradient(180deg, #000 0%, transparent 96%);
+  pointer-events: none;
+}
+.club-site-hero-inner {
+  display: grid;
+  gap: clamp(14px, 2.2vw, 22px);
+  width: 100%;
+  max-width: 1080px;
+  padding: clamp(20px, 3.6vw, 38px);
+  border: 1px solid color-mix(in srgb, var(--club-accent) 24%, var(--line));
+  border-radius: clamp(22px, 3vw, 32px);
+  background: color-mix(in srgb, var(--surface) 88%, var(--club-accent) 5%);
+  color: var(--ink);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(22px) saturate(145%);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+}
+.club-site-hero-top { gap: 10px; }
+.club-site .cs-back {
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  color: var(--body);
+}
+.club-site .cs-back:hover { color: var(--club-accent); border-color: var(--club-accent-line); }
+.club-site .cs-hero-links { align-items: center; gap: 8px; }
+.club-site .cs-hero-links > a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  color: var(--body);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.club-site .cs-hero-links > a:hover { color: var(--club-accent); border-color: var(--club-accent-line); }
+.club-site .club-site-hero h1 {
+  color: var(--ink);
+  font-size: clamp(1.8rem, 4.2vw, 3rem);
+  line-height: 1.24;
+}
+.club-site .cs-kicker {
+  border-color: var(--club-accent-line);
+  background: var(--club-accent-wash);
+  color: color-mix(in srgb, var(--club-accent) 72%, var(--ink));
+}
+.club-site .cs-name-en { color: var(--muted); }
+.club-site .cs-tagline { color: color-mix(in srgb, var(--club-accent) 78%, var(--ink)); }
+.club-site .cs-motto { color: var(--club-accent); }
+.club-site .club-site-logo,
+.club-site .club-site-logo-fallback {
+  border: 1px solid var(--club-accent-line);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.club-site .club-site-logo-fallback { color: var(--club-accent); }
+.club-site .cs-actions { gap: 9px; }
+.club-site .cs-actions .v2-btn {
+  background: var(--club-accent);
+  color: var(--club-accent-ink);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--club-accent) 22%, transparent);
+}
+.club-site .cs-actions .v2-btn:hover { background: color-mix(in srgb, var(--club-accent) 88%, #000); }
+.club-site .cs-actions .v2-btn-ghost {
+  background: var(--surface);
+  border-color: var(--club-accent-line);
+  color: var(--club-accent);
+  box-shadow: none;
+}
+.club-site .cs-actions .v2-btn-ghost:hover { background: var(--club-accent-wash); }
+
+.club-site-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 2px;
+}
+.club-site-stat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 13px 15px;
+  border: 1px solid var(--club-accent-line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 89%, var(--club-accent) 4%);
+}
+.club-site-stat-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 12px;
+  background: var(--club-accent-wash);
+  color: var(--club-accent);
+}
+.club-site-stat-copy { display: grid; gap: 1px; min-width: 0; }
+.club-site-stat-copy small { color: var(--muted); font-size: 12px; font-weight: 600; line-height: 1.4; }
+.club-site-stat-copy strong { color: var(--ink); font-family: var(--font-display); font-size: 20px; line-height: 1.3; }
+
+.cs-subnav {
+  position: relative;
+  z-index: 2;
+  max-width: 1080px;
+  min-width: 0;
+  margin-block: 16px 0;
+}
+.cs-subnav-track {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--surface) 92%, var(--club-accent) 2%);
+  box-shadow: var(--shadow-xs);
+}
+.cs-subnav-track::-webkit-scrollbar { display: none; }
+.cs-subnav-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 15px;
+  border-radius: var(--r-pill);
+  color: var(--body);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+  scroll-snap-align: center;
+  transition: background .18s ease, color .18s ease, box-shadow .18s ease;
+}
+.cs-subnav-pill:hover { background: var(--club-accent-wash); color: var(--club-accent); }
+.cs-subnav-pill.is-active { background: var(--club-accent); color: var(--club-accent-ink); box-shadow: 0 3px 10px color-mix(in srgb, var(--club-accent) 22%, transparent); }
+
+.club-site-body { max-width: 1080px; min-width: 0; }
+.club-site .cs-section {
+  min-width: 0;
+  padding-top: clamp(16px, 2.4vw, 24px);
+  border-top: 1px solid color-mix(in srgb, var(--club-accent) 17%, var(--line));
+}
+.club-site .cs-head { display: grid; justify-items: start; gap: 9px; }
+.club-site .cs-head .v2-chip {
+  border-color: var(--club-accent-line);
+  background: var(--club-accent-wash);
+  color: var(--club-accent);
+}
+.club-site .cs-head h2 { font-size: clamp(1.35rem, 3vw, 1.9rem); }
+.club-site .cs-lead,
+.club-site .cs-list,
+.club-site .cs-card p,
+.club-site .cs-event p,
+.club-site .cs-table td { font-size: 15.5px; line-height: 1.85; }
+.club-site .cs-card {
+  border-color: color-mix(in srgb, var(--club-accent) 15%, var(--line));
+  background: color-mix(in srgb, var(--surface) 96%, var(--club-accent) 1%);
+  box-shadow: var(--shadow-xs);
+}
+.club-site .cs-card:hover,
+.club-site .cs-leader:hover {
+  border-color: color-mix(in srgb, var(--club-accent) 40%, var(--line));
+}
+.club-site .cs-card h3 svg { color: var(--club-accent); }
+.club-site .cs-notice {
+  border-color: var(--club-accent-line);
+  background: var(--club-accent-wash);
+  color: var(--ink);
+}
+.club-site .cs-notice svg { flex: 0 0 auto; color: var(--club-accent); }
+.club-site .cs-leader { border-color: color-mix(in srgb, var(--club-accent) 15%, var(--line)); }
+.club-site .cs-leader em { color: var(--club-accent); }
+.club-site .cs-leader-photo { background: var(--club-accent-wash); color: var(--club-accent); }
+.club-site .cs-leader-links a:hover { color: var(--club-accent); }
+.club-site .cs-event {
+  border-color: color-mix(in srgb, var(--club-accent) 15%, var(--line));
+  border-left: 3px solid var(--club-accent);
+  background: var(--surface);
+}
+.club-site .cs-event em { color: var(--club-accent); }
+.club-site .cs-gallery figure { border: 1px solid var(--line); }
+.club-site .cs-table-wrap { border-color: var(--club-accent-line); }
+.club-site .cs-table th { background: var(--surface-alt); }
+.club-site .cs-table tr:hover td { background: var(--club-accent-wash); }
+.club-site .cs-foot {
+  border-top: 1px solid var(--club-accent-line);
+  background: color-mix(in srgb, var(--surface) 90%, var(--club-accent) 7%);
+  color: var(--ink);
+}
+.club-site .cs-foot p { color: var(--muted); }
+.club-site .cs-foot-links a { color: var(--body); }
+.club-site .cs-foot-links a:hover { color: var(--club-accent); }
+.club-site .cs-picker-preview img { object-fit: contain; }
+
+/* Make all logo-derived accent treatments use the same accessible color. */
+.club-card .club-icon { color: var(--club-accent, var(--brand)); }
+.club-card .club-code { color: color-mix(in srgb, var(--club-accent, var(--brand)) 72%, var(--ink)); }
+.club-card .club-tagline { color: color-mix(in srgb, var(--club-accent, var(--brand)) 68%, var(--ink)); }
+.club-card .club-next { border-left-color: var(--club-accent, var(--brand)); }
+.club-card .club-next-date,
+.club-card .club-link,
+.club-card:hover h3 a { color: var(--club-accent, var(--brand)); }
+.club-tabs { touch-action: pan-x; scroll-snap-type: x proximity; }
+.club-tab { scroll-snap-align: center; }
+.club-tab.is-active {
+  background: var(--club-accent, var(--brand));
+  color: var(--club-accent-ink, #fff);
+}
+.club-tab:hover { color: var(--club-accent, var(--brand)); }
+.club-overview-stats a:hover { background: color-mix(in srgb, var(--club-accent, var(--brand)) 9%, var(--surface)); }
+.club-overview-stats strong { color: var(--club-accent, var(--brand)); }
+
+/* Scroll containers stay inside their cards; the fixed five-item mobile dock
+   keeps equal tap targets from 320px phones upward. */
+.filter-row,
+.club-tabs,
+.cs-subnav-track { max-width: 100%; min-width: 0; }
+.club-tabs { scroll-padding-inline: 8px; }
+@media (max-width: 768px) {
+  .club-site { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+  .club-site-hero { margin-top: 14px; }
+  .club-site-hero-inner {
+    gap: 15px;
+    padding: 18px;
+    border-radius: 22px;
+  }
+  .club-site-hero-top { align-items: flex-start; }
+  .club-site-hero-main { grid-template-columns: 58px minmax(0, 1fr); gap: 12px; padding-top: 4px; }
+  .club-site-logo, .club-site-logo-fallback { width: 58px; height: 58px; padding: 7px; border-radius: 15px; }
+  .club-site .club-site-hero h1 { font-size: clamp(1.45rem, 6.5vw, 2rem); }
+  .club-site .cs-name-en { font-size: 12.5px; line-height: 1.55; }
+  .club-site .cs-tagline { font-size: 14.5px; line-height: 1.6; }
+  .club-site .cs-motto { font-size: 14px; line-height: 1.6; }
+  .club-site .cs-hero-links { gap: 6px; }
+  .club-site .cs-hero-links > a { min-height: 35px; padding: 6px 9px; font-size: 11.5px; }
+  .club-site .cs-hero-links .theme-mode-toggle-compact { flex: 0 0 35px; width: 35px; min-width: 35px; min-height: 35px; }
+  .club-site .cs-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  .club-site .cs-actions > * { width: 100%; min-width: 0; }
+  .club-site-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .club-site-stat { gap: 9px; padding: 10px; border-radius: 14px; }
+  .club-site-stat-icon { width: 32px; height: 32px; flex-basis: 32px; border-radius: 10px; }
+  .club-site-stat-copy small { font-size: 11.5px; }
+  .club-site-stat-copy strong { font-size: 18px; }
+  .cs-subnav { margin-top: 12px; }
+  .cs-subnav-track { gap: 6px; padding: 5px; border-radius: 18px; }
+  .cs-subnav-pill { min-height: 38px; padding-inline: 12px; font-size: 12.5px; }
+  .club-site-body { gap: 28px; padding-top: 22px; }
+  .club-site .cs-grid-2,
+  .club-site .cs-grid-3 { grid-template-columns: minmax(0, 1fr); }
+  .club-site .cs-card { padding: 18px; }
+  .club-site .cs-lead,
+  .club-site .cs-list,
+  .club-site .cs-card p,
+  .club-site .cs-event p,
+  .club-site .cs-table td { font-size: 14.5px; line-height: 1.8; }
+  .club-site .cs-event { padding: 17px; }
+  .club-site .cs-foot-inner { align-items: flex-start; }
+  .club-site .cs-foot-links { gap: 10px 14px; }
+  .club-tabs { border-radius: 18px; }
+  .club-tab { min-height: 42px; padding-inline: 13px; font-size: 13px; }
+  .mobile-bottom-nav {
+    box-sizing: border-box;
+    width: min(540px, calc(100vw - 16px));
+    max-width: 100vw;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 1px;
+    padding: 5px;
+  }
+  .mobile-bottom-link { min-width: 0; padding-inline: 1px; }
+  .mobile-bottom-icon { width: 28px; }
+  .mobile-bottom-label { font-size: clamp(9px, 2.7vw, 10.5px); }
+}
+@media (max-width: 360px) {
+  .club-site .cs-hero-links > a { padding-inline: 8px; }
+  .club-site .cs-actions { grid-template-columns: minmax(0, 1fr); }
+  .club-site-stats { gap: 6px; }
+  .club-site-stat { gap: 7px; padding: 9px 8px; }
+  .mobile-bottom-nav { width: calc(100vw - 12px); padding: 4px; }
+  .mobile-bottom-icon { width: 25px; height: 25px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .club-site .cs-gallery img,
+  .club-site .cs-card,
+  .club-site .cs-subnav-pill,
+  .theme-mode-toggle { transition-duration: .01ms !important; }
+}
+
+/* Extend the club's extracted brand color through its content, not just tabs. */
+.club-card { border-color: var(--club-accent-line, var(--line)); }
+.club-card:hover { border-color: color-mix(in srgb, var(--club-accent, var(--brand)) 48%, var(--line)); }
+.club-card-chip { border-color: var(--club-accent-line, var(--line)); }
+.club-card .club-meta svg { color: var(--club-accent, var(--brand)); }
+.club-body .club-overview,
+.club-body .club-block,
+.club-body .club-join {
+  border-color: var(--club-accent-line, var(--line));
+}
+.club-body .club-overview { background: color-mix(in srgb, var(--surface) 96%, var(--club-accent) 4%); }
+.club-body .club-overview-stats strong,
+.club-body .club-facts dd { color: var(--club-accent, var(--ink)); }
+.club-body .club-tabs { border-color: var(--club-accent-line, var(--line)); }
+.club-body .club-section-head .eyebrow-dot { background: var(--club-accent, var(--brand)); }
+.club-body .club-section-head .internal-section-action .button-primary,
+.club-body .club-overview-actions .button-primary,
+.club-body .club-join-actions .button-primary {
+  border-color: var(--club-accent, var(--brand));
+  background: var(--club-accent, var(--brand));
+  color: var(--club-accent-ink, #fff);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--club-accent, var(--brand)) 22%, transparent);
+}
+.club-body .club-section-head .internal-section-action .button-primary:hover,
+.club-body .club-overview-actions .button-primary:hover,
+.club-body .club-join-actions .button-primary:hover {
+  border-color: color-mix(in srgb, var(--club-accent, var(--brand)) 88%, #000);
+  background: color-mix(in srgb, var(--club-accent, var(--brand)) 88%, #000);
+  color: var(--club-accent-ink, #fff);
+}
+.club-body .club-overview-actions .button-outline,
+.club-body .club-join-actions .button-outline {
+  border-color: var(--club-accent-line, var(--line));
+  color: var(--club-accent, var(--brand));
+}
+.club-body .club-overview-actions .button-outline:hover,
+.club-body .club-join-actions .button-outline:hover {
+  border-color: var(--club-accent, var(--brand));
+  background: var(--club-accent-wash, var(--surface-alt));
+  color: var(--club-accent, var(--brand));
+}
+.club-body .club-objectives svg,
+.club-body .club-join-list svg,
+.club-body .club-side-card h3 svg,
+.club-body .club-aside-card h3 svg,
+.club-body .club-news-row > svg { color: var(--club-accent, var(--brand)); }
+.club-body .club-side-list a:hover,
+.club-body .club-aside-quick a:hover,
+.club-body .club-admin-link:hover,
+.club-body .text-link:hover { color: var(--club-accent, var(--brand)); }
+.club-body .event-card,
+.club-body .member-card,
+.club-body .achievement-card { border-color: color-mix(in srgb, var(--club-accent, var(--brand)) 16%, var(--line)); }
+.club-body .event-card:hover,
+.club-body .member-card:hover,
+.club-body .achievement-card:hover { border-color: color-mix(in srgb, var(--club-accent, var(--brand)) 44%, var(--line)); }
+.club-body .event-date strong,
+.club-body .event-type,
+.club-body .event-flag,
+.club-body .post-flag,
+.club-body .club-notice-type,
+.club-body .achievement-level,
+.club-body .member-role,
+.club-body .achievement-pos { color: var(--club-accent, var(--brand)); }
+.club-body .event-type,
+.club-body .event-flag,
+.club-body .post-flag,
+.club-body .club-notice-type,
+.club-body .achievement-level,
+.club-body .member-photo:not(:has(img)),
+.club-body .member-initials,
+.club-body .achievement-index {
+  border-color: var(--club-accent-line, var(--line));
+  background: var(--club-accent-wash, var(--surface-alt));
+}
+.club-body .event-facts span svg,
+.club-body .member-achievement svg { color: var(--club-accent, var(--brand)); }
+
+.club-post-head {
+  border-bottom: 1px solid var(--club-accent-line, var(--line));
+  background: color-mix(in srgb, var(--surface) 92%, var(--club-accent, var(--brand)) 8%);
+  color: var(--ink);
+}
+.club-post-head h1 { color: var(--ink); }
+.club-post-head .internal-breadcrumb-light { color: var(--muted); }
+.club-post-head .internal-breadcrumb-light a,
+.club-post-meta span svg { color: var(--club-accent, var(--brand)); }
+.club-post-excerpt { color: var(--body); }
+.club-post-meta { color: var(--muted); }
+.club-post-article a { color: var(--club-accent, var(--brand)); }
+.club-post-article blockquote,
+.club-post-note { border-color: var(--club-accent, var(--brand)); }
+
+/* Text colors use a darker/lightened companion to keep vivid logo hues legible. */
+.club-card .club-icon,
+.club-card .club-code,
+.club-card .club-tagline,
+.club-card .club-next-date,
+.club-card .club-link,
+.club-card:hover h3 a,
+.club-card .club-meta svg { color: var(--club-accent-text, var(--club-accent, var(--brand))); }
+.club-body .club-overview-stats strong { color: var(--club-accent-text, var(--club-accent, var(--brand))); }
+.club-body .club-facts dd { color: var(--ink); }
+.club-body .club-overview-actions .button-outline,
+.club-body .club-join-actions .button-outline { color: var(--club-accent-text, var(--club-accent, var(--brand))); }
+.club-body .club-side-list a:hover,
+.club-body .club-aside-quick a:hover,
+.club-body .club-admin-link:hover,
+.club-body .text-link:hover,
+.club-body .club-objectives svg,
+.club-body .club-join-list svg,
+.club-body .club-side-card h3 svg,
+.club-body .club-aside-card h3 svg,
+.club-body .club-news-row > svg,
+.club-body .event-date strong,
+.club-body .event-type,
+.club-body .event-flag,
+.club-body .post-flag,
+.club-body .club-notice-type,
+.club-body .achievement-level,
+.club-body .member-role,
+.club-body .achievement-pos,
+.club-body .event-facts span svg,
+.club-body .member-achievement svg { color: var(--club-accent-text, var(--club-accent, var(--brand))); }
+.club-hero-kicker a,
+.club-hero-tagline { color: var(--club-accent-text, var(--club-accent, var(--brand))); }
+.club-site .cs-back:hover,
+.club-site .cs-hero-links > a:hover,
+.club-site .cs-kicker,
+.club-site .cs-tagline,
+.club-site .cs-motto,
+.club-site .club-site-logo-fallback,
+.club-site .cs-actions .v2-btn-ghost,
+.club-site .club-site-stat-icon,
+.club-site .cs-subnav-pill:hover,
+.club-site .cs-head .v2-chip,
+.club-site .cs-card h3 svg,
+.club-site .cs-notice svg,
+.club-site .cs-leader em,
+.club-site .cs-leader-photo,
+.club-site .cs-leader-links a:hover,
+.club-site .cs-event em,
+.club-site .cs-foot-links a:hover { color: var(--club-accent-text, var(--club-accent)); }
+.club-admin .cs-picker-preview img { object-fit: contain; padding: 8px; }
+
+/* ==========================================================================
+   Club micro-site — the whole theme comes from the logo
+   --------------------------------------------------------------------------
+   `lib/club-palette.ts` turns a club's logo into a brand system and the page
+   publishes it on `.club-site` as `--club-*-base` tokens plus ramps, gradients,
+   glows and readable ink. Everything below consumes that, so one logo upload in
+   the club panel repaints hero, sub-nav, chips, cards, timeline, gallery,
+   tables and footer without anyone touching CSS.
+
+   Why the mapping rule exists: a custom property set *inline* by React can
+   never be re-pointed by an attribute selector, so the palette never writes
+   `--club-accent` directly. This stylesheet derives it from `--club-accent-base`
+   (light) or the brighter twin (dark), and the wash/line/text tokens are all
+   `color-mix()` expressions of `var(--club-accent)` — so both schemes stay in
+   contrast-safe territory from one set of rules.
+   ========================================================================== */
+.club-site,
+.club-brand {
+  --club-accent: var(--club-accent-base, var(--brand-mid));
+  --club-accent-2: var(--club-accent-2-base, var(--mint));
+  --club-accent-ink: var(--club-accent-ink-light, #ffffff);
+  --club-accent-rgb: var(--club-accent-rgb-base, 29, 75, 214);
+  --club-accent-2-rgb: var(--club-accent-2-rgb-base, 200, 150, 62);
+}
+html[data-color-scheme="dark"] .club-site,
+html[data-color-scheme="dark"] .club-brand {
+  --club-accent: var(--club-accent-bright, var(--club-accent-base, var(--brand-mid)));
+  --club-accent-2: var(--club-accent-2-bright, var(--club-accent-2-base, var(--mint)));
+  --club-accent-ink: var(--club-accent-ink-bright, #0b1220);
+  --club-accent-rgb: var(--club-accent-rgb-bright, var(--club-accent-rgb-base, 29, 75, 214));
+  --club-accent-2-rgb: var(--club-accent-2-rgb-bright, var(--club-accent-2-rgb-base, 200, 150, 62));
+}
+
+/* --- hero: layered brand wash over a glass card ------------------------- */
+.club-site .club-site-hero::before { background: var(--club-mesh); }
+.club-site .club-site-hero-cover {
+  opacity: .3;
+  filter: blur(46px) saturate(1.35);
+  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, .62) 58%, transparent 96%);
+}
+.club-site .club-site-hero-inner {
+  position: relative;
+  border-color: color-mix(in srgb, var(--club-accent) 22%, var(--line));
+  background-color: color-mix(in srgb, var(--surface) 90%, var(--club-accent) 5%);
+  background-image: var(--club-grad-hero);
+  box-shadow: var(--club-glow), var(--shadow-lg);
+}
+/* The 3px gradient rail across the top edge is the signature detail — it reads
+   as intentional branding at a glance without tinting the content. */
+.club-site .club-site-hero-inner::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  border-top-left-radius: clamp(22px, 3vw, 32px);
+  border-top-right-radius: clamp(22px, 3vw, 32px);
+  background: var(--club-grad-rail);
+  pointer-events: none;
+}
+.club-site .club-site-hero h1 { letter-spacing: -.015em; }
+.club-site .cs-kicker {
+  border-color: var(--club-accent-line);
+  background-color: var(--surface);
+  background-image: var(--club-grad-chip);
+  color: var(--club-accent-text);
+  font-weight: 700;
+}
+.club-site .cs-tagline { font-weight: 500; }
+.club-site .cs-motto { color: var(--club-accent); font-weight: 700; }
+
+/* --- logo gets a gradient ring derived from its own palette ------------- */
+.club-site .club-site-logo,
+.club-site .club-site-logo-fallback {
+  padding: 8px;
+  border: 2px solid transparent;
+  border-radius: 20px;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    var(--club-grad-ring) border-box;
+  box-shadow: var(--club-glow-soft);
+  transition: transform .24s ease, box-shadow .24s ease;
+}
+.club-site .club-site-logo:hover { transform: translateY(-2px); }
+.club-site .club-site-logo-fallback {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+/* --- actions ------------------------------------------------------------ */
+.club-site .cs-actions .v2-btn {
+  background-color: var(--club-accent);
+  background-image: var(--club-grad-btn);
+  color: var(--club-accent-ink);
+  border: 1px solid color-mix(in srgb, var(--club-accent) 60%, #000 8%);
+  box-shadow: 0 12px 26px -14px rgba(var(--club-accent-rgb), .75);
+}
+.club-site .cs-actions .v2-btn:hover {
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--club-accent) 88%, #000), var(--club-accent));
+  transform: translateY(-1px);
+}
+.club-site .cs-actions .v2-btn-ghost {
+  background-color: var(--surface);
+  background-image: linear-gradient(135deg, rgba(var(--club-accent-rgb), .08), rgba(var(--club-accent-2-rgb), .08));
+  border-color: var(--club-accent-line);
+  color: var(--club-accent-text);
+}
+.club-site .cs-actions .v2-btn-ghost:hover { background-image: var(--club-grad-chip); }
+
+/* --- stats ------------------------------------------------------------- */
+.club-site .club-site-stat {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--club-accent) 20%, var(--line));
+  background-color: color-mix(in srgb, var(--surface) 92%, var(--club-accent) 4%);
+  background-image: var(--club-grad-sheen);
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+.club-site .club-site-stat::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: var(--club-grad-rail);
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.club-site .club-site-stat:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--club-accent) 42%, var(--line));
+  box-shadow: var(--club-glow-soft);
+}
+.club-site .club-site-stat:hover::after { opacity: 1; }
+.club-site .club-site-stat-icon {
+  border-radius: 12px;
+  background-color: var(--club-accent-wash);
+  background-image: var(--club-grad-chip);
+  color: var(--club-accent);
+  box-shadow: inset 0 0 0 1px var(--club-accent-line);
+}
+.club-site .club-site-stat:nth-child(even) .club-site-stat-icon {
+  background-color: var(--club-accent-wash-2);
+  color: var(--club-accent-2-text);
+  box-shadow: inset 0 0 0 1px var(--club-accent-line-2);
+}
+
+/* --- sub-nav: sticky, frosted, gradient-active -------------------------- */
+.club-site .cs-subnav { position: sticky; top: 8px; z-index: 7; }
+.club-site .cs-subnav-track {
+  border-color: var(--club-accent-line);
+  background-color: color-mix(in srgb, var(--surface) 88%, var(--club-accent) 5%);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+.club-site .cs-subnav-pill { border-radius: var(--r-pill); }
+.club-site .cs-subnav-pill:hover { background-image: var(--club-grad-chip); color: var(--club-accent-text); }
+.club-site .cs-subnav-pill.is-active {
+  background-color: var(--club-accent);
+  background-image: var(--club-grad-btn);
+  color: var(--club-accent-ink);
+  box-shadow: 0 8px 18px -10px rgba(var(--club-accent-rgb), .8);
+}
+.club-site .cs-section { scroll-margin-top: calc(var(--header-h) + 74px); }
+
+/* --- section heads: chip with a live dot, gradient rail under the title -- */
+.club-site .cs-head { position: relative; padding-bottom: 12px; }
+.club-site .cs-head::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 74px;
+  height: 3px;
+  border-radius: var(--r-pill);
+  background: var(--club-grad-rail);
+  box-shadow: 0 8px 20px -10px rgba(var(--club-accent-rgb), .9);
+}
+.club-site .cs-head h2 { letter-spacing: -.02em; }
+.club-site .cs-head .v2-chip {
+  gap: 8px;
+  border-color: var(--club-accent-line);
+  background-color: var(--club-accent-wash);
+  background-image: var(--club-grad-chip);
+  color: var(--club-accent-text);
+  font-weight: 700;
+}
+.club-site .cs-head .v2-chip::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--club-accent);
+  box-shadow: 0 0 0 3px rgba(var(--club-accent-rgb), .18);
+}
+
+/* --- cards, notice, timeline, gallery, table ---------------------------- */
+.club-site .cs-card,
+.club-site .cs-leader,
+.club-site .cs-event {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-xl);
+  background-color: color-mix(in srgb, var(--surface) 97%, var(--club-accent) 2%);
+  background-image: var(--club-grad-sheen);
+  transition: transform .24s ease, box-shadow .24s ease, border-color .24s ease;
+}
+.club-site .cs-card::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: var(--club-grad-rail);
+  transform: scaleX(.24);
+  transform-origin: left;
+  opacity: 0;
+  transition: transform .32s ease, opacity .2s ease;
+}
+.club-site .cs-card:hover,
+.club-site .cs-leader:hover,
+.club-site .cs-event:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--club-accent) 38%, var(--line));
+  box-shadow: var(--club-glow-soft), var(--shadow-md);
+}
+.club-site .cs-card:hover::before { transform: none; opacity: 1; }
+.club-site .cs-card h3 { gap: 12px; }
+.club-site .cs-card h3 svg {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  padding: 7px;
+  border-radius: 10px;
+  background-color: var(--club-accent-wash);
+  background-image: var(--club-grad-chip);
+  box-shadow: inset 0 0 0 1px var(--club-accent-line);
+}
+.club-site .cs-list li::marker { color: var(--club-accent); font-weight: 700; }
+.club-site .cs-notice {
+  position: relative;
+  padding-left: 26px;
+  border-color: var(--club-accent-line);
+  background-color: var(--club-accent-wash);
+  background-image: linear-gradient(120deg, rgba(var(--club-accent-rgb), .14), rgba(var(--club-accent-2-rgb), .1) 72%, transparent);
+}
+.club-site .cs-notice::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  border-radius: var(--r-pill);
+  background: var(--club-grad-rail);
+}
+.club-site .cs-leader-photo { box-shadow: 0 0 0 1px var(--club-accent-line), 0 0 0 6px rgba(var(--club-accent-rgb), .07); }
+.club-site .cs-event {
+  border-left: 1px solid color-mix(in srgb, var(--club-accent) 15%, var(--line));
+  overflow: visible;
+}
+.club-site .cs-event::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 3px 0 0 3px;
+  background: var(--club-grad-rail);
+}
+.club-site .cs-event-dot {
+  display: block;
+  position: absolute;
+  left: -4px;
+  top: 26px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--club-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--club-accent) 16%, transparent);
+}
+.club-site .cs-event em {
+  display: inline-flex;
+  width: fit-content;
+  padding: 3px 11px;
+  border-radius: var(--r-pill);
+  background-color: var(--club-accent-wash);
+  background-image: var(--club-grad-chip);
+  color: var(--club-accent-text);
+  font-weight: 700;
+}
+.club-site .cs-gallery figure {
+  border-color: var(--club-accent-line);
+  box-shadow: var(--shadow-xs);
+}
+.club-site .cs-gallery figure::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, transparent 52%, rgba(var(--club-brand-deep-rgb), .62));
+  opacity: 0;
+  transition: opacity .26s ease;
+  pointer-events: none;
+}
+.club-site .cs-gallery figure:hover::after { opacity: 1; }
+.club-site .cs-gallery figcaption {
+  background: linear-gradient(180deg, transparent, rgba(var(--club-brand-deep-rgb), .92));
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+.club-site .cs-table-wrap {
+  border-color: var(--club-accent-line);
+  box-shadow: var(--shadow-xs);
+}
+.club-site .cs-table th {
+  background-color: var(--club-accent-wash);
+  background-image: var(--club-grad-chip);
+  color: var(--club-accent-text);
+  border-bottom: 1px solid var(--club-accent-line);
+}
+.club-site .cs-table tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--club-accent) 4%, var(--surface)); }
+.club-site .cs-table td:first-child { font-weight: 600; color: var(--ink); }
+.club-site .cs-table tr:hover td { background: color-mix(in srgb, var(--club-accent) 10%, var(--surface)); }
+
+/* --- footer: gradient ground with a brand rail on top ------------------- */
+.club-site .cs-foot {
+  position: relative;
+  border-top: 1px solid var(--club-accent-line);
+  background-color: color-mix(in srgb, var(--surface) 92%, var(--club-accent) 7%);
+  background-image: var(--club-grad-foot);
+}
+.club-site .cs-foot::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--club-grad-rail);
+}
+.club-site .cs-foot-inner { position: relative; }
+.club-site .cs-foot-links a { color: var(--club-accent-text); }
+.club-site .cs-foot-links a:hover { color: var(--club-accent); }
+
+/* A palette that came from a real logo earns a slightly richer wash; the
+   studio/default fallback stays quieter so nothing looks invented. */
+.club-site[data-club-palette="logo"] .club-site-hero-inner {
+  border-color: color-mix(in srgb, var(--club-accent) 30%, var(--line));
+  box-shadow: var(--club-glow), var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, .5);
+}
+
+@media (min-width: 720px) {
+  .club-site .cs-gallery figure:first-child { grid-column: span 2; }
+  .club-site .cs-gallery figure:first-child img { height: 320px; }
+}
+@media (max-width: 639px) {
+  .club-site .club-site-logo,
+  .club-site .club-site-logo-fallback { padding: 6px; border-radius: 16px; }
+  .club-site .cs-subnav { top: 4px; }
+  .club-site .club-site-hero-inner::before { border-top-left-radius: 22px; border-top-right-radius: 22px; }
+}
+html[data-color-scheme="dark"] .club-site .club-site-hero-inner {
+  box-shadow: var(--club-glow), var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+html[data-color-scheme="dark"] .club-site .club-site-logo,
+html[data-color-scheme="dark"] .club-site .club-site-logo-fallback {
+  background:
+    linear-gradient(var(--surface-alt), var(--surface-alt)) padding-box,
+    var(--club-grad-ring) border-box;
+}
+
+/* --- club panel: palette studio ----------------------------------------- */
+.cs-palette {
+  display: grid;
+  gap: 14px;
+  margin-top: 4px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--surface) 94%, var(--club-accent) 4%);
+}
+.cs-palette-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.cs-palette-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--ink);
+}
+.cs-palette-head .ghost-button { margin-inline-start: auto; }
+.cs-palette-source {
+  padding: 3px 10px;
+  border: 1px solid var(--club-accent-line, var(--line));
+  border-radius: var(--r-pill);
+  background: var(--club-accent-wash, var(--surface-alt));
+  color: var(--club-accent-text, var(--body));
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.cs-palette-source.is-studio { border-color: var(--mint-line); background: var(--mint-soft); color: var(--mint-text); }
+.cs-palette-source.is-default { border-color: var(--line); background: var(--surface-alt); color: var(--muted); }
+.cs-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.cs-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 132px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(15, 27, 40, .12);
+  color: #fff;
+}
+.cs-swatch-copy { display: grid; gap: 1px; font-family: var(--font-ui); }
+.cs-swatch-copy b { font-size: 12px; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+.cs-swatch-copy small { font-size: 11px; opacity: .92; letter-spacing: .04em; }
+.cs-swatch-actions { display: inline-flex; gap: 4px; }
+.cs-swatch-actions button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .55);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .16);
+  color: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.cs-swatch-actions button:hover { background: rgba(255, 255, 255, .34); }
+.cs-palette-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--club-accent-line, var(--line));
+  border-radius: var(--r-lg);
+  background-color: var(--surface);
+  background-image: var(--club-grad-hero);
+  box-shadow: var(--club-glow-soft, var(--shadow-sm));
+}
+.cs-preview-logo {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 4px;
+  border: 2px solid transparent;
+  border-radius: 13px;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    var(--club-grad-ring) border-box;
+  color: var(--club-accent);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+}
+.cs-preview-logo img { width: 100%; height: 100%; object-fit: contain; }
+.cs-preview-copy { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.cs-preview-copy b { font-size: 14.5px; color: var(--club-accent-text, var(--ink)); }
+.cs-preview-copy small { color: var(--muted); font-size: 12px; }
+.cs-preview-rail { height: 3px; border-radius: var(--r-pill); background: var(--club-grad-rail); }
+.cs-preview-btn {
+  padding: 7px 13px;
+  border-radius: var(--r-pill);
+  background-color: var(--club-accent);
+  background-image: var(--club-grad-btn);
+  color: var(--club-accent-ink, #fff);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+}
+.cs-palette-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0; }
+.cs-palette-foot small { color: var(--muted); font-size: 12px; }
+.cs-palette-note { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+.cs-palette-link a { color: var(--club-accent-text, var(--brand-mid)); font-weight: 600; }
