@@ -162,5 +162,33 @@ check("css: nav grid tracks are shrinkable (minmax(0,1fr)) with min-width:0 rows
 check("css: h-screen / sticky / scrollbar-thin utilities back the class contract",
   /\.h-screen \{[^}]*100dvh/.test(css) && /\.sticky \{[^}]*position:\s*sticky/.test(css) && /\.scrollbar-thin \{[^}]*scrollbar-width:\s*thin/.test(css));
 
+/* ---- Image field overflow contract ------------------------------------- */
+/* The /admin/settings bugfix: a long upload error (Cloudinary quotes the provider
+   verbatim, often one unbroken ASCII token) overflowed the card and squashed the
+   adjacent uploader. Every box in the chain must shrink and every copy block must
+   be able to break mid-word; the error row wraps instead of pushing. */
+const imageField = rule(".image-field");
+const imageBody = rule(".image-field-body");
+const imageDrop = rule(".image-drop");
+const imageFoot = rule(".image-field-foot");
+
+check("css: image field + body are shrinkable grid/flex containers",
+  /min-width:\s*0/.test(imageField) && /minmax\(0,\s*1fr\)/.test(imageField) && /min-width:\s*0/.test(imageBody) && /flex-wrap:\s*wrap/.test(imageBody));
+check("css: drop zone wraps long tokens and can shrink below its content",
+  /min-width:\s*0/.test(imageDrop) && /overflow-wrap:\s*anywhere/.test(imageDrop) && /word-break:\s*break-word/.test(imageDrop) && /minmax\(0,\s*1fr\)/.test(imageDrop));
+check("css: error text is a wrapping flex row with a non-shrinking icon",
+  /\.image-msg \{[^}]*display:\s*flex[^}]*\}/.test(css) && /\.image-msg \{[^}]*flex:\s*1 1[^}]*\}/.test(css) &&
+  /\.image-msg \{[^}]*min-width:\s*0[^}]*\}/.test(css) && /\.image-msg \{[^}]*overflow-wrap:\s*anywhere[^}]*\}/.test(css) &&
+  /\.image-msg svg \{[^}]*flex:\s*0 0 auto[^}]*\}/.test(css));
+check("css: message + foot items shrink instead of overflowing the card",
+  /min-width:\s*0/.test(imageFoot) && /min-width:\s*0/.test(rule(".image-field-foot > *")));
+check("css: progress fill targets the <i> the component renders (was a bare span)",
+  /\.upload-progress \{[^}]*display:\s*block[^}]*max-width:\s*320px[^}]*\}/.test(css) &&
+  /\.upload-progress i[^}]*\{[^}]*height:\s*100%[^}]*background/.test(css));
+check("css: field blocks + settings grid keep minmax(0,1fr) tracks",
+  /minmax\(0,\s*1fr\)/.test(rule(".field-block")) && /repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(rule(".settings-grid")));
+check("css: the uploader stacks on narrow screens instead of squashing",
+  /@media \(max-width: 560px\)/.test(css) && /\.image-thumb \{[^}]*width:\s*100%/.test(css));
+
 console.log(failures ? `\n${failures} check(s) failed` : "\nAll render checks passed.");
 process.exit(failures ? 1 : 0);
