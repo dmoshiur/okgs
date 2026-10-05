@@ -4,6 +4,7 @@ import { clubPath } from "@/lib/club-data";
 import { bn, formatMonthDay, relativeDay } from "@/lib/format";
 import { IconByName } from "@/lib/icons";
 import { SmartBackdrop } from "@/components/public/Media";
+import { normalizeHexColor, readableTextColor } from "@/lib/club-colors";
 
 /**
  * Club card used on the homepage strip and in the directory.
@@ -17,11 +18,20 @@ import { SmartBackdrop } from "@/components/public/Media";
 export function ClubCard({ summary, variant = "grid" }: { summary: ClubSummary; variant?: "grid" | "row" }) {
   const { club, counts, nextEvent, objectives } = summary;
   const href = clubPath(club.slug);
-  const accent = club.accent || "#c8963e";
+  const accent = normalizeHexColor(club.accent, "#2563eb");
   const blurb = club.tagline || club.description || objectives[0] || "";
 
   return (
-    <article className={`club-card club-card-${variant}`} style={{ "--club-accent": accent } as React.CSSProperties}>
+    <article
+      className={`club-card club-card-${variant}`}
+      style={{
+        "--club-accent": accent,
+        "--club-accent-text": `color-mix(in srgb, ${accent} 56%, var(--ink))`,
+        "--club-accent-ink": readableTextColor(accent),
+        "--club-accent-wash": `color-mix(in srgb, ${accent} 10%, var(--surface))`,
+        "--club-accent-line": `color-mix(in srgb, ${accent} 26%, var(--line))`,
+      } as React.CSSProperties}
+    >
       <SmartBackdrop
         className="club-photo"
         src={club.cover_image_url || club.image_url || summary.coverPhoto}

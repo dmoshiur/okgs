@@ -748,6 +748,7 @@ function EditorModal({
                       <div key={field.name} className={`field-cell ${field.full || field.type === "image" || field.type === "textarea" ? "is-wide" : ""}`}>
                         <FieldControl
                           def={field}
+                          resource={resource}
                           value={form[field.name]}
                           update={update}
                           clubs={clubs}

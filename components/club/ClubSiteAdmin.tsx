@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { Panel, postJson, useApi } from "@/components/sf/console/ui";
 import { uploadToCloudinary } from "@/lib/upload-client";
+import { NumberField } from "@/components/club/NumberField";
+import { extractDominantLogoColor } from "@/lib/club-colors";
 import type { ClubGalleryItem, ClubLeader, ClubOverride } from "@/lib/club-sites";
 
 type EventRow = { title: string; date?: string; description?: string; image_url?: string };
@@ -36,6 +38,8 @@ interface SitePayload {
     tagline: string;
     motto: string;
     about: string;
+    founded_year: number;
+    member_count: number;
     notice: string;
     logo_url: string;
     cover_image_url: string;
@@ -89,19 +93,29 @@ function ImagePicker({
   label,
   value,
   onChange,
+  accept = "image/*",
+  onFileSelected,
 }: {
   slug: string;
   label: string;
   value: string;
   onChange: (url: string) => void;
+  accept?: string;
+  onFileSelected?: (file: File) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [percent, setPercent] = useState(0);
   const [error, setError] = useState("");
+  const [localPreview, setLocalPreview] = useState("");
   const input = useRef<HTMLInputElement>(null);
+
+  useEffect(() => () => {
+    if (localPreview) URL.revokeObjectURL(localPreview);
+  }, [localPreview]);
 
   const pick = async (file: File | undefined) => {
     if (!file) return;
+    setLocalPreview(URL.createObjectURL(file));
     setBusy(true);
     setError("");
     try {
@@ -111,12 +125,14 @@ function ImagePicker({
         label: `${slug}-${label}`,
         onProgress: setPercent,
       });
+      onFileSelected?.(file);
       onChange(result.url);
     } catch (issue) {
       setError(issue instanceof Error ? issue.message : "আপলোড করা যায়নি।");
     } finally {
       setBusy(false);
       setPercent(0);
+      setLocalPreview("");
     }
   };
 
@@ -125,9 +141,9 @@ function ImagePicker({
       <span className="cs-picker-label">{label}</span>
       <div className="cs-picker-row">
         <span className="cs-picker-preview">
-          {value ? (
+          {localPreview || value ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={value} alt={label} />
+            <img src={localPreview || value} alt={label} />
           ) : (
             <ImageIcon size={20} />
           )}
@@ -145,7 +161,7 @@ function ImagePicker({
             ref={input}
             hidden
             type="file"
-            accept="image/*"
+            accept={accept}
             onChange={(event) => {
               void pick(event.target.files?.[0]);
               event.target.value = "";
@@ -191,6 +207,8 @@ export function ClubSiteAdmin({ slug }: { slug: string }) {
       tagline: site.tagline,
       motto: site.motto,
       about: site.about,
+      founded_year: site.founded_year,
+      member_count: site.member_count,
       notice: site.notice,
       logo_url: site.logo_url,
       cover_image_url: site.cover_image_url,
@@ -365,6 +383,8 @@ export function ClubSiteAdmin({ slug }: { slug: string }) {
             <Field label="নাম (ইংরেজি)" value={draft.name_en || ""} onChange={(value) => set("name_en", value)} />
             <Field label="ট্যাগলাইন" value={draft.tagline || ""} onChange={(value) => set("tagline", value)} />
             <Field label="মটো" value={draft.motto || ""} onChange={(value) => set("motto", value)} />
+            <NumberField label="প্রতিষ্ঠার বছর" value={Number(draft.founded_year || 0)} max={new Date().getFullYear()} onChange={(value) => set("founded_year", value)} />
+            <NumberField label="মোট সদস্য" value={Number(draft.member_count || 0)} onChange={(value) => set("member_count", value)} />
           </div>
           <Field label="ক্লাব সম্পর্কে" textarea rows={4} value={draft.about || ""} onChange={(value) => set("about", value)} />
           <Field label="নোটিশ (সাইটের উপরে দেখাবে)" value={draft.notice || ""} onChange={(value) => set("notice", value)} />
@@ -379,7 +399,18 @@ export function ClubSiteAdmin({ slug }: { slug: string }) {
       {tab === "brand" ? (
         <Panel title="লোগো, কভার ও রঙ">
           <div className="cs-form-grid cs-grid-two">
-            <ImagePicker slug={slug} label="ক্লাব লোগো" value={draft.logo_url || ""} onChange={(value) => set("logo_url", value)} />
+            <ImagePicker
+              slug={slug}
+              label="ক্লাব লোগো"
+              value={draft.logo_url || ""}
+              accept="image/png,image/svg+xml,.png,.svg"
+              onFileSelected={(file) => {
+                void extractDominantLogoColor(file).then((color) => {
+                  if (color) set("accent", color);
+                });
+              }}
+              onChange={(value) => set("logo_url", value)}
+            />
             <ImagePicker slug={slug} label="কভার ছবি" value={draft.cover_image_url || ""} onChange={(value) => set("cover_image_url", value)} />
           </div>
           <div className="cs-form-grid">
@@ -399,7 +430,7 @@ export function ClubSiteAdmin({ slug }: { slug: string }) {
             </label>
           </div>
           <p className="panel-copy">
-            ছবি Cloudinary-তে যায়, লিংক Turso-তে ক্লাব-ভিত্তিক সেটিংস হিসেবে জমা থাকে — সাবডোমেইন সাইটেও একই ছবি দেখা যাবে।
+            PNG/SVG লোগো আপলোড করলে রঙের প্রাধান্য স্বয়ংক্রিয়ভাবে প্রধান অ্যাকসেন্টে বসবে। ছবি Cloudinary-তে এবং তথ্য ক্লাব-ভিত্তিক Turso সেটিংসে সংরক্ষিত হয়।
           </p>
         </Panel>
       ) : null}

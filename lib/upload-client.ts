@@ -79,7 +79,8 @@ export async function requestUploadTicket(options: { prefix?: string; label?: st
 }
 
 export function isUploadable(file: File) {
-  return file.type.startsWith("image/") || allowedTypes.includes(file.type);
+  const extensionIsImage = /\.(jpe?g|png|webp|gif|avif|svg)$/i.test(file.name);
+  return file.type.startsWith("image/") || allowedTypes.includes(file.type) || extensionIsImage;
 }
 
 export function formatBytes(value: number) {
@@ -117,7 +118,7 @@ export interface UploadOptions {
 
 export function uploadToCloudinary({ file, prefix, label, tags = [], onProgress, signal }: UploadOptions): Promise<UploadResult> {
   return (async () => {
-    if (!isUploadable(file)) throw new Error("শুধু ছবির ফাইল আপলোড করা যাবে (JPG, PNG, WebP, GIF, AVIF)।");
+    if (!isUploadable(file)) throw new Error("শুধু ছবির ফাইল আপলোড করা যাবে (JPG, PNG, SVG, WebP, GIF, AVIF)।");
     const ticket = await requestUploadTicket({ prefix, label: label || file.name.replace(/\.[a-z0-9]+$/i, "") });
 
     const maxBytes = ticket?.maxBytes || 12 * 1024 * 1024;

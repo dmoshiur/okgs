@@ -19,12 +19,22 @@ import { clubHighlights, clubPath, type ClubSectionSlug } from "@/lib/club-data"
 import { bn, formatDate, formatDayNumber, formatMonthName, initialsOf, isUpcoming, relativeDay, yearLabel } from "@/lib/format";
 import { SmartBackdrop, SmartImage } from "@/components/public/Media";
 import { Breadcrumb, EmptyState } from "@/components/public/InternalPage";
+import { normalizeHexColor, readableTextColor } from "@/lib/club-colors";
 
 export function ClubPageHero({ club, fallbackImage }: { club: Club; fallbackImage?: string }) {
-  const accent = club.accent || "#e7c27e";
+  const accent = normalizeHexColor(club.accent, "#2563eb");
 
   return (
-    <section className="club-hero" style={{ "--club-accent": accent } as React.CSSProperties}>
+    <section
+      className="club-hero"
+      style={{
+        "--club-accent": accent,
+        "--club-accent-text": `color-mix(in srgb, ${accent} 56%, var(--ink))`,
+        "--club-accent-ink": readableTextColor(accent),
+        "--club-accent-wash": `color-mix(in srgb, ${accent} 10%, var(--surface))`,
+        "--club-accent-line": `color-mix(in srgb, ${accent} 26%, var(--line))`,
+      } as React.CSSProperties}
+    >
       <SmartBackdrop
         className="club-hero-bg"
         src={club.cover_image_url || club.image_url || fallbackImage}

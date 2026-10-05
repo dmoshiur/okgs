@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { primaryNav } from "@/components/public/NavigationData";
 import { VisualModeToggle } from "@/components/public/VisualModeToggle";
+import { ThemeModeToggle } from "@/components/public/ThemeModeToggle";
 
 interface SiteSummary {
   name: string;
@@ -58,7 +59,7 @@ const quickLinks = [primaryNav[0], primaryNav[1], primaryNav[2], primaryNav[3]];
  * persistent bottom dock and a complete, accessible "আরও" sheet; tablets keep
  * the familiar full-screen menu button.
  */
-export function MobileNav({ site, active = "" }: { site: SiteSummary; active?: string }) {
+export function MobileNav({ site, active = "", showMenuButton = true }: { site: SiteSummary; active?: string; showMenuButton?: boolean }) {
   const [mounted, setMounted] = useState(false);
   const [panel, setPanel] = useState<Panel>(null);
   const [closing, setClosing] = useState(false);
@@ -154,17 +155,19 @@ export function MobileNav({ site, active = "" }: { site: SiteSummary; active?: s
 
   return (
     <>
-      <button
-        ref={menuButtonRef}
-        className="mobile-menu"
-        type="button"
-        onClick={() => openPanel("drawer")}
-        aria-label="মেনু খুলুন"
-        aria-expanded={panel === "drawer"}
-        aria-controls="mobile-navigation-panel"
-      >
-        <Menu size={21} aria-hidden />
-      </button>
+      {showMenuButton ? (
+        <button
+          ref={menuButtonRef}
+          className="mobile-menu"
+          type="button"
+          onClick={() => openPanel("drawer")}
+          aria-label="মেনু খুলুন"
+          aria-expanded={panel === "drawer"}
+          aria-controls="mobile-navigation-panel"
+        >
+          <Menu size={21} aria-hidden />
+        </button>
+      ) : null}
 
       {/* Keep fixed overlays and the dock outside the sticky, blurred header containing block. */}
       {mounted
@@ -266,7 +269,10 @@ export function MobileNav({ site, active = "" }: { site: SiteSummary; active?: s
                           </a>
                         </div>
 
-                        <div className="mobile-panel-mode"><VisualModeToggle /></div>
+                        <div className="mobile-panel-mode mobile-panel-themes">
+                          <ThemeModeToggle />
+                          <VisualModeToggle />
+                        </div>
                         <div className="mobile-panel-contact">
                           {phoneHref ? <a href={phoneHref}><Phone size={14} aria-hidden /> {site.phone}</a> : null}
                           {site.email ? <a href={`mailto:${site.email}`}><Mail size={14} aria-hidden /> {site.email}</a> : null}
@@ -296,6 +302,7 @@ export function MobileNav({ site, active = "" }: { site: SiteSummary; active?: s
                           })}
                         </nav>
                         <div className="mobile-drawer-actions">
+                          <ThemeModeToggle />
                           <VisualModeToggle />
                           <a className="button button-primary button-block" href="/clubs" onClick={closeImmediately}>
                             <BookOpen size={16} aria-hidden /> ক্লাব তথ্যকেন্দ্র <ArrowUpRight size={14} aria-hidden />

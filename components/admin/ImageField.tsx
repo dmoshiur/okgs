@@ -15,11 +15,14 @@ interface ImageFieldProps {
   /** Used for the generated public id. */
   title?: string;
   onError?: (message: string) => void;
+  accept?: string;
+  previewFit?: "cover" | "contain";
+  onFileSelected?: (file: File) => void;
 }
 
 type Status = { kind: "idle" | "uploading" | "done" | "error"; percent?: number; message?: string };
 
-export function ImageField({ value, onChange, label, help, prefix, title, onError }: ImageFieldProps) {
+export function ImageField({ value, onChange, label, help, prefix, title, onError, accept = "image/*", previewFit = "cover", onFileSelected }: ImageFieldProps) {
   const [config, setConfig] = useState<MediaConfig | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [localPreview, setLocalPreview] = useState<string>("");
@@ -67,6 +70,7 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
         onProgress: (percent) => setStatus({ kind: "uploading", percent }),
         signal: controllerRef.current.signal,
       });
+      onFileSelected?.(file);
       onChange(result.url);
       setLocalPreview("");
       setStatus({
@@ -134,7 +138,7 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
         >
           {preview ? (
             <span className="image-thumb">
-              <img src={preview} alt="" />
+              <img src={preview} alt="" style={{ objectFit: previewFit }} />
               {status.kind === "uploading" ? (
                 <span className="image-busy">
                   <Loader2 size={14} className="spin" /> {status.percent ?? 0}%
@@ -190,7 +194,7 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
             ) : (
               <>
                 <b><CloudUpload size={14} /> ছবি ছেড়ে দিন বা ক্লিক করুন</b>
-                <small>জ্যাগ করে আনুন, অথবা ফোকাস করে <kbd>Ctrl</kbd>+<kbd>V</kbd> দিয়ে পেস্ট করুন। JPG, PNG, WebP, AVIF — সর্বোচ্চ {config ? formatBytes(config.maxBytes) : "…"}</small>
+                <small>ড্র্যাগ করে আনুন, অথবা ফোকাস করে <kbd>Ctrl</kbd>+<kbd>V</kbd> দিয়ে পেস্ট করুন। JPG, PNG, SVG, WebP, AVIF — সর্বোচ্চ {config ? formatBytes(config.maxBytes) : "…"}</small>
               </>
             )}
           </div>
@@ -198,7 +202,7 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
           <input
             ref={inputRef}
             type="file"
-            accept="image/*"
+            accept={accept}
             hidden
             onChange={(event) => {
               void handleFiles(event.target.files?.[0]);

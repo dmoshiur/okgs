@@ -2,12 +2,14 @@
 
 import type { FieldDef } from "@/lib/content-config";
 import { slugify } from "@/lib/content-config";
-import type { Club, Fair } from "@/lib/types";
+import type { Club, Fair, ResourceName } from "@/lib/types";
 import { ImageField } from "@/components/admin/ImageField";
 import { bn } from "@/lib/format";
+import { extractDominantLogoColor } from "@/lib/club-colors";
 
 interface FieldControlProps {
   def: FieldDef;
+  resource?: ResourceName;
   value: any;
   update: (field: string, value: any) => void;
   clubs: Club[];
@@ -36,7 +38,7 @@ function toInputValue(value: unknown, type: "date" | "datetime") {
   return `${day}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export function FieldControl({ def, value, update, clubs, fairs, form, invalid, prefix, title }: FieldControlProps) {
+export function FieldControl({ def, resource, value, update, clubs, fairs, form, invalid, prefix, title }: FieldControlProps) {
   // Settings rows decide themselves whether their `value` holds text, a link or an image.
   if (def.name === "value" && form.field_kind === "image") {
     return (
@@ -51,6 +53,8 @@ export function FieldControl({ def, value, update, clubs, fairs, form, invalid, 
   if (def.name === "value" && form.field_kind === "text") {
     return <TextField def={{ ...def, type: "text" }} value={value} update={update} invalid={invalid} />;
   }
+
+  const isClubLogo = resource === "clubs" && def.name === "logo_url";
 
   switch (def.type) {
     case "boolean":
@@ -67,7 +71,21 @@ export function FieldControl({ def, value, update, clubs, fairs, form, invalid, 
     case "image":
       return (
         <div className={`field-block ${invalid ? "is-invalid" : ""}`}>
-          <ImageField value={String(value ?? "")} onChange={(next) => update(def.name, next)} label={def.label} help={def.help} prefix={prefix} title={title} />
+          <ImageField
+            value={String(value ?? "")}
+            onChange={(next) => update(def.name, next)}
+            label={def.label}
+            help={def.help}
+            prefix={prefix}
+            title={title}
+            accept={isClubLogo ? "image/png,image/svg+xml,.png,.svg" : "image/*"}
+            previewFit={isClubLogo ? "contain" : "cover"}
+            onFileSelected={isClubLogo ? (file) => {
+              void extractDominantLogoColor(file).then((color) => {
+                if (color) update("accent", color);
+              });
+            } : undefined}
+          />
         </div>
       );
     case "select":
