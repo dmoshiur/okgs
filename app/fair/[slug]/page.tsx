@@ -31,8 +31,6 @@ export default async function FairPage({ params }: FairPageProps) {
   if (!fair) notFound();
 
   return (
-    <PublicChrome content={content} active="fair" internal>
-
     <PublicChrome content={content} active="fair" internal contextLabel={fair.name}>
 
       <FairSite content={content} fair={fair} />
