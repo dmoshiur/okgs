@@ -37,7 +37,9 @@ export default async function ClubsPage() {
   const clubNotices = content.notices.filter((notice) => notice.club_slug || notice.type === "কার্যক্রম").slice(0, 3);
 
   return (
+    <PublicChrome content={content} active="clubs" internal>
     <PublicChrome content={content} active="clubs" internal contextLabel="ক্লাব তথ্যকেন্দ্র">
+
       <InternalPageShell className="club-directory-page">
         <InternalPageHeader
           className="club-index-hero"

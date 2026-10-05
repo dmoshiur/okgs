@@ -22,7 +22,10 @@ export default async function NewsIndexPage() {
   const upcoming = content.club_events.filter((event) => event.event_date >= new Date().toISOString().slice(0, 10)).slice(0, 4);
 
   return (
+    <PublicChrome content={content} active="news" internal>
+
     <PublicChrome content={content} active="news" internal contextLabel="সংবাদ ও নোটিশ">
+
       <InternalPageShell className="story-page">
         <InternalPageHeader
           className="journal-index-hero"

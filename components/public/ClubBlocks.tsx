@@ -19,6 +19,11 @@ import { clubHighlights, clubPath, type ClubSectionSlug } from "@/lib/club-data"
 import { bn, formatDate, formatDayNumber, formatMonthName, initialsOf, isUpcoming, relativeDay, yearLabel } from "@/lib/format";
 import { SmartBackdrop, SmartImage } from "@/components/public/Media";
 import { Breadcrumb, EmptyState } from "@/components/public/InternalPage";
+
+
+export function ClubPageHero({ club, fallbackImage }: { club: Club; fallbackImage?: string }) {
+  const accent = club.accent || "#e7c27e";
+=======
 import { normalizeHexColor, readableTextColor } from "@/lib/club-colors";
 
 export function ClubPageHero({ club, fallbackImage }: { club: Club; fallbackImage?: string }) {

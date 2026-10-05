@@ -44,14 +44,17 @@ export function PublicChrome({
   content,
   active = "",
   internal = false,
+
   contextLabel,
   children,
 }: {
   content: PublicContent;
   active?: string;
   internal?: boolean;
+
   /** Replaces the generic institution name with the current club/section in the header. */
   contextLabel?: string;
+
   children: React.ReactNode;
 }) {
   const site = siteInfo(content.settings);
