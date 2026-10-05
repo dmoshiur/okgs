@@ -94,6 +94,39 @@ export function isUpcoming(dateString: unknown) {
   return Boolean(value) && value >= isoDate();
 }
 
+/* ---------------------------------------------------------------------------
+   English (admin) variants.
+   The public site stays Bangla — these are used by the English admin studio, so
+   the same component tree can format numbers and dates for either audience.
+   --------------------------------------------------------------------------- */
+
+const enNumber = new Intl.NumberFormat("en-GB");
+const enLongDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric" });
+const enShortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const enDateTime = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+/** 12 → "12" (Latin digits, thousands separated). */
+export function en(value: number | string) {
+  const numeric = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numeric) ? enNumber.format(numeric) : String(value ?? "");
+}
+
+export function formatDateEn(value: unknown, style: "long" | "short" = "long") {
+  const date = safeDate(value);
+  if (!date) return "";
+  return (style === "long" ? enLongDate : enShortDate).format(date);
+}
+
+export function formatDateTimeEn(value: unknown) {
+  const date = safeDate(value);
+  return date ? enDateTime.format(date) : "";
+}
+
+/** "3 items" / "1 item" — avoids the “1 items” tell in English tables. */
+export function plural(count: number, singular: string, pluralForm = `${singular}s`) {
+  return `${en(count)} ${count === 1 ? singular : pluralForm}`;
+}
+
 export function initialsOf(value: unknown) {
   const text = String(value ?? "").trim();
   if (!text) return "●";

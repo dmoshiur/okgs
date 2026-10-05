@@ -28,7 +28,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if ("role" in body) {
     const role = str(body.role) as PortalRole;
     if (!allRoles.includes(role)) return fail("ভূমিকাটি ঠিক নয়।", 422);
-    if (role === "admin" && session.role !== "admin") return fail("কেবল অ্যাডমিন নতুন অ্যাডমিন বানাতে পারেন।", 403);
+    if ((role === "admin" || role === "superadmin") && session.role !== "superadmin") {
+      return fail("কেবল সুপার অ্যাডমিন এই ভূমিকা দিতে পারেন।", 403);
+    }
     patch.role = role;
   }
   if ("is_active" in body) patch.is_active = Number(body.is_active) ? 1 : 0;

@@ -16,20 +16,20 @@ export async function POST(request: Request) {
     const body = (await request.json()) as { resource?: string; ids?: unknown };
     const resource = String(body.resource ?? "") as ResourceName;
 
-    if (!known.has(resource)) return NextResponse.json({ error: "অজানা কনটেন্ট টাইপ।" }, { status: 404 });
+    if (!known.has(resource)) return NextResponse.json({ error: "Unknown content type." }, { status: 404 });
     if (!fieldsFor(resource).some((field) => field.name === "sort_order")) {
-      return NextResponse.json({ error: "এই তালিকাটি ক্রম অনুযায়ী সাজানো যায় না।" }, { status: 422 });
+      return NextResponse.json({ error: "This list cannot be reordered." }, { status: 422 });
     }
     const ids = Array.isArray(body.ids) ? body.ids.map(String).filter(Boolean) : [];
-    if (!ids.length) return NextResponse.json({ error: "ক্রমের তালিকা খালি।" }, { status: 422 });
+    if (!ids.length) return NextResponse.json({ error: "The order list is empty." }, { status: 422 });
 
     await reorderRows(resource, ids);
     return NextResponse.json({ ok: true, count: ids.length });
   } catch (error) {
     if (error instanceof Error && error.message === "UNAUTHORIZED") {
-      return NextResponse.json({ error: "লগইন প্রয়োজন।" }, { status: 401 });
+      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     }
     console.error("[admin:reorder]", error);
-    return NextResponse.json({ error: "ক্রম সংরক্ষণ করা যায়নি।" }, { status: 500 });
+    return NextResponse.json({ error: "The order could not be saved." }, { status: 500 });
   }
 }

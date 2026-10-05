@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import { fail, str } from "@/lib/api";
 import { ensurePortal } from "@/lib/portal-db";
-import { clearPortalCookieHeader, loginWithPassword, PORTAL_COOKIE } from "@/lib/portal-auth";
+import { clearPortalCookieHeader, loginWithPassword, PORTAL_COOKIE, SESSION_MAX_AGE, setPortalCookieHeader } from "@/lib/portal-auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-/** POST /api/portal/login — email *or* school ID + password, for every role. */
+/**
+ * POST /api/portal/login — email *or* school ID + password, for every role.
+ *
+ * No role is accepted from the client: the database decides, and the response
+ * carries the dashboard that role owns (`redirect`).
+ */
 export async function POST(request: Request) {
   try {
     await ensurePortal();
@@ -15,6 +21,9 @@ export async function POST(request: Request) {
 
     if (!identifier || !password) return fail("আইডি/ইমেইল আর পাসওয়ার্ড দুটোই দিন।", 422);
 
+    const limit = rateLimit(`portal-login:${identifier.toLowerCase()}`, { max: 8, windowMs: 10 * 60_000 });
+    if (!limit.ok) return fail("অনেকবার ভুল চেষ্টা হয়েছে — কিছুক্ষণ পর আবার চেষ্টা করুন।", 429);
+
     const result = await loginWithPassword(identifier, password);
     if (!result.ok || !result.cookie || !result.user) return fail(result.error ?? "লগইন করা যায়নি।", 401);
 
@@ -22,9 +31,10 @@ export async function POST(request: Request) {
       ok: true,
       user: result.user,
       role: result.role,
-      redirect: result.role === "student" || result.role === "alumni" ? "/me" : "/sf",
+      redirect: result.redirect ?? "/sf",
+      warning: result.warning ?? "",
     });
-    response.headers.append("Set-Cookie", `${PORTAL_COOKIE}=${result.cookie}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 14}`);
+    response.headers.append("Set-Cookie", setPortalCookieHeader(result.cookie, SESSION_MAX_AGE));
     return response;
   } catch (error) {
     console.error("[portal:login]", error);
@@ -38,3 +48,5 @@ export async function DELETE() {
   response.headers.append("Set-Cookie", clearPortalCookieHeader());
   return response;
 }
+
+export { PORTAL_COOKIE };

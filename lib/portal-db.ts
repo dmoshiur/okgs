@@ -12,7 +12,19 @@ import { randomUUID } from "node:crypto";
 import { db, ensureDatabase } from "@/lib/db";
 import type { PortalRole } from "@/lib/roles";
 
-export { roleLabels, allRoles, staffRoles, isStaffRole, isAdminRole } from "@/lib/roles";
+export {
+  roleLabels,
+  roleLabelsEn,
+  allRoles,
+  adminRoles,
+  assignableRoles,
+  staffRoles,
+  isStaffRole,
+  isAdminRole,
+  isSuperAdminRole,
+  isPortalRole,
+  dashboardPathForRole,
+} from "@/lib/roles";
 export type { PortalRole } from "@/lib/roles";
 
 export interface PortalUser {
@@ -319,6 +331,21 @@ const schema = [
     detail TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT ''
   )`,
+  /* Email verification tokens for the "Forgot password" flow. Only the SHA-256
+     hash of the token is stored, so a leaked database cannot be used to reset
+     anybody's password. Each token is single-use and expires after 60 minutes. */
+  `CREATE TABLE IF NOT EXISTS password_resets (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
+    token_hash TEXT NOT NULL DEFAULT '',
+    purpose TEXT NOT NULL DEFAULT 'reset',
+    expires_at TEXT NOT NULL DEFAULT '',
+    used_at TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT ''
+  )`,
+  `CREATE INDEX IF NOT EXISTS password_resets_hash_idx ON password_resets(token_hash)`,
+  `CREATE INDEX IF NOT EXISTS password_resets_user_idx ON password_resets(user_id, purpose)`,
 ];
 
 const globalForPortal = globalThis as unknown as { okgsPortalReady?: Promise<void> };
@@ -503,7 +530,7 @@ export async function createUser(values: Partial<PortalUser> & { name: string; r
     role: values.role ?? "student",
     name: values.name ?? "",
     name_en: values.name_en ?? "",
-    email: (values.email ?? "").trim(),
+    email: (values.email ?? "").trim().toLowerCase(),
     student_id: (values.student_id ?? "").trim(),
     class_level: values.class_level ?? "",
     section: values.section ?? "",
@@ -548,6 +575,133 @@ export async function deleteUser(id: string) {
 
 export async function touchLogin(id: string) {
   await run(`UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?`, [nowIso(), nowIso(), id]);
+}
+
+/* ------------------------------------------------------------------ *
+ * Email-based accounts
+ *
+ * Every account that carries an email address is written to the users
+ * table with the address normalised (trimmed + lower-cased) and the
+ * UNIQUE index on `email` guarantees one account per address. These
+ * helpers are the single writer for that column, so the admin studio,
+ * the fair console and the SuperAdmin user manager all stay in sync.
+ * ------------------------------------------------------------------ */
+
+/** Normalise an address before it ever reaches the database. */
+export function normalizeEmail(value: unknown) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+/** A pragmatic address check — enough to stop typos, never a full RFC parser. */
+export function isEmailAddress(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
+}
+
+/**
+ * Creates an account keyed by email address and returns it. The address is
+ * stored in the primary database (users.email) — that row is what the login
+ * page, the password-reset flow and the mailer all read.
+ */
+export async function createEmailAccount(values: {
+  email: string;
+  name?: string;
+  role?: PortalRole;
+  password_hash?: string;
+  password_salt?: string;
+  [key: string]: unknown;
+}) {
+  const email = normalizeEmail(values.email);
+  if (!email) throw new Error("EMAIL_REQUIRED");
+  const existing = await findUserByEmail(email);
+  if (existing) throw new Error("EMAIL_TAKEN");
+  return createUser({
+    ...(values as Partial<PortalUser>),
+    name: values.name || email.split("@")[0],
+    email,
+    role: values.role ?? "student",
+  });
+}
+
+/** Re-points an account to a new address (and keeps the row in sync). */
+export async function syncUserEmail(userId: string, email: string) {
+  const next = normalizeEmail(email);
+  if (!next) throw new Error("EMAIL_REQUIRED");
+  const owner = await findUserByEmail(next);
+  if (owner && owner.id !== userId) throw new Error("EMAIL_TAKEN");
+  return updateUser(userId, { email: next });
+}
+
+/** Writes a brand-new password (used by the reset flow and the user manager). */
+export async function setUserPassword(userId: string, passwordHash: string, passwordSalt: string, options: { mustChange?: boolean } = {}) {
+  return updateUser(userId, {
+    password_hash: passwordHash,
+    password_salt: passwordSalt,
+    must_change_password: options.mustChange ? 1 : 0,
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Password-reset tokens
+ * ------------------------------------------------------------------ */
+
+export interface PasswordResetRow {
+  id: string;
+  user_id: string;
+  email: string;
+  token_hash: string;
+  purpose: string;
+  expires_at: string;
+  used_at: string;
+  created_at: string;
+}
+
+export async function createPasswordReset(values: {
+  userId: string;
+  email: string;
+  tokenHash: string;
+  purpose?: string;
+  ttlMinutes?: number;
+}) {
+  const ttl = Math.max(5, Math.min(24 * 60, values.ttlMinutes ?? 60));
+  // One live token per account and purpose — older links stop working.
+  await run(`DELETE FROM password_resets WHERE user_id = ? AND purpose = ? AND used_at = ''`, [
+    values.userId,
+    values.purpose ?? "reset",
+  ]);
+  const record = {
+    id: randomUUID(),
+    user_id: values.userId,
+    email: normalizeEmail(values.email),
+    token_hash: values.tokenHash,
+    purpose: values.purpose ?? "reset",
+    expires_at: new Date(Date.now() + ttl * 60_000).toISOString(),
+    used_at: "",
+    created_at: nowIso(),
+  };
+  const statement = insertStatement("password_resets", record);
+  await run(statement.sql, statement.args as (string | number)[]);
+  return record;
+}
+
+export async function findPasswordReset(tokenHash: string) {
+  const rows = await query<PasswordResetRow>(
+    `SELECT * FROM password_resets WHERE token_hash = ? ORDER BY created_at DESC LIMIT 1`,
+    [tokenHash],
+  );
+  return rows[0] ?? null;
+}
+
+export async function consumePasswordReset(id: string) {
+  await run(`UPDATE password_resets SET used_at = ? WHERE id = ?`, [nowIso(), id]);
+}
+
+export async function recentResetRequests(email: string, sinceMinutes = 15) {
+  const since = new Date(Date.now() - sinceMinutes * 60_000).toISOString();
+  const rows = await query<{ total: number }>(
+    `SELECT COUNT(*) as total FROM password_resets WHERE email = ? AND created_at >= ?`,
+    [normalizeEmail(email), since],
+  );
+  return Number(rows[0]?.total ?? 0);
 }
 
 export async function userCountsByRole() {
@@ -1223,21 +1377,34 @@ async function seedPortal() {
   }
 
   // One administrator, so /sf/login works the moment the site is deployed.
-  // The same credentials as the studio (ADMIN_EMAIL / ADMIN_PASSWORD).
-  const admins = await query<{ total: number }>(`SELECT COUNT(*) as total FROM users WHERE role = 'admin'`);
-  if (Number(admins[0]?.total ?? 0) === 0) {
-    const email = (process.env.ADMIN_EMAIL || "admin@okgs.info").toLowerCase();
-    const password = process.env.ADMIN_PASSWORD || "change-this-password";
+  // The same credentials as the studio (ADMIN_EMAIL / ADMIN_PASSWORD) — and the
+  // primary administrator is a *SuperAdmin*: only that role may edit site
+  // settings or flip the emergency maintenance switch.
+  const superadmins = await query<{ total: number }>(`SELECT COUNT(*) as total FROM users WHERE role = 'superadmin'`);
+  if (Number(superadmins[0]?.total ?? 0) === 0) {
     const { hashPassword } = await import("@/lib/portal-auth");
-    const { hash, salt } = hashPassword(password);
-    await createUser({
-      role: "admin",
-      name: "প্রধান অ্যাডমিন",
-      email,
-      designation: "সিস্টেম অ্যাডমিন",
-      password_hash: hash,
-      password_salt: salt,
-      is_active: 1,
-    });
+    const email = normalizeEmail(process.env.ADMIN_EMAIL || "admin@okgs.info");
+    const password = process.env.ADMIN_PASSWORD || "change-this-password";
+
+    // Upgrade the oldest admin in place (so an existing installation keeps its
+    // history and password) instead of creating a second account.
+    const existingAdmins = await query<PortalUser>(`SELECT * FROM users WHERE role = 'admin' ORDER BY created_at ASC LIMIT 5`);
+    const byEnvEmail = existingAdmins.find((user) => normalizeEmail(user.email) === email);
+    const target = byEnvEmail ?? existingAdmins[0];
+    if (target) {
+      await updateUser(target.id, { role: "superadmin" });
+    } else {
+      const { hash, salt } = hashPassword(password);
+      await createUser({
+        role: "superadmin",
+        name: "Super Admin",
+        name_en: "Super Admin",
+        email,
+        designation: "System Administrator",
+        password_hash: hash,
+        password_salt: salt,
+        is_active: 1,
+      });
+    }
   }
 }

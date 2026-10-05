@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+import { isSuperAdminRole } from "@/lib/roles";
 import { deleteRow, deleteWhere, findUniqueConflict, getRow, resolveSlug, updateRow } from "@/lib/db";
 import type { ResourceName } from "@/lib/types";
 import { resourceSchema } from "@/lib/content-config";
@@ -35,15 +36,15 @@ export async function GET(
   try {
     await requireAdmin();
     const parsed = await parseParams(context);
-    if (!parsed) return NextResponse.json({ error: "অজানা কনটেন্ট টাইপ।" }, { status: 404 });
+    if (!parsed) return NextResponse.json({ error: "Unknown content type." }, { status: 404 });
 
     const item = await getRow(parsed.resource, parsed.id);
-    if (!item) return NextResponse.json({ error: "আইটেমটি খুঁজে পাওয়া যায়নি।" }, { status: 404 });
+    if (!item) return NextResponse.json({ error: "That entry could not be found." }, { status: 404 });
     return NextResponse.json({ item });
   } catch (error) {
-    if (unauthorized(error)) return NextResponse.json({ error: "লগইন প্রয়োজন।" }, { status: 401 });
+    if (unauthorized(error)) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     console.error("[admin:read-one]", error);
-    return NextResponse.json({ error: "তথ্য লোড করা যায়নি।" }, { status: 500 });
+    return NextResponse.json({ error: "The data could not be loaded." }, { status: 500 });
   }
 }
 
@@ -52,17 +53,20 @@ export async function PATCH(
   context: { params: Promise<{ resource: string; id: string }> },
 ) {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
     const parsed = await parseParams(context);
-    if (!parsed) return NextResponse.json({ error: "অজানা কনটেন্ট টাইপ।" }, { status: 404 });
+    if (!parsed) return NextResponse.json({ error: "Unknown content type." }, { status: 404 });
     const { resource, id } = parsed;
+    if (resource === "settings" && !isSuperAdminRole(session.role)) {
+      return NextResponse.json({ error: "Only a SuperAdmin can change site settings." }, { status: 403 });
+    }
 
     const existing = await getRow(resource, id);
-    if (!existing) return NextResponse.json({ error: "আইটেমটি খুঁজে পাওয়া যায়নি।" }, { status: 404 });
+    if (!existing) return NextResponse.json({ error: "That entry could not be found." }, { status: 404 });
 
     const raw = (await request.json()) as Record<string, unknown>;
     const payload = buildPayload(resource, raw, false);
-    if (!Object.keys(payload).length) return NextResponse.json({ error: "পরিবর্তনের মতো কিছু নেই।" }, { status: 422 });
+    if (!Object.keys(payload).length) return NextResponse.json({ error: "There is nothing to update." }, { status: 422 });
 
     // Guards duplicate slugs (409) and generates one when it was cleared.
     const slugProblem = await resolveSlug(resource, payload, id);
@@ -78,19 +82,19 @@ export async function PATCH(
     if (clash) return NextResponse.json(clash, { status: clash.status });
 
     const result = await updateRow(resource, id, payload);
-    if (!result.updated || !result.row) return NextResponse.json({ error: "আইটেমটি খুঁজে পাওয়া যায়নি।" }, { status: 404 });
+    if (!result.updated || !result.row) return NextResponse.json({ error: "That entry could not be found." }, { status: 404 });
 
     if (resource === "clubs" && payload.slug && String(payload.slug) !== String(existing.slug)) {
       await renameClubSlug(String(existing.slug), String(payload.slug));
     }
     return NextResponse.json({ item: result.row });
   } catch (error) {
-    if (unauthorized(error)) return NextResponse.json({ error: "লগইন প্রয়োজন।" }, { status: 401 });
+    if (unauthorized(error)) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     console.error("[admin:update]", error);
     const message =
       error instanceof Error && /UNIQUE/i.test(error.message)
-        ? "এই মানটি আগেই ব্যবহৃত হয়েছে।"
-        : "আপডেট করা যায়নি। আবার চেষ্টা করুন।";
+        ? "That value is already in use."
+        : "Could not update. Please try again.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -100,14 +104,17 @@ export async function DELETE(
   context: { params: Promise<{ resource: string; id: string }> },
 ) {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
     const parsed = await parseParams(context);
-    if (!parsed) return NextResponse.json({ error: "অজানা কনটেন্ট টাইপ।" }, { status: 404 });
+    if (!parsed) return NextResponse.json({ error: "Unknown content type." }, { status: 404 });
     const { resource, id } = parsed;
+    if (resource === "settings" && !isSuperAdminRole(session.role)) {
+      return NextResponse.json({ error: "Only a SuperAdmin can change site settings." }, { status: 403 });
+    }
 
     const club = resource === "clubs" ? await getRow(resource, id) : null;
     const removed = await deleteRow(resource, id);
-    if (!removed) return NextResponse.json({ error: "আইটেমটি খুঁজে পাওয়া যায়নি।" }, { status: 404 });
+    if (!removed) return NextResponse.json({ error: "That entry could not be found." }, { status: 404 });
 
     let cascade = 0;
     if (club?.slug) {
@@ -117,8 +124,8 @@ export async function DELETE(
     }
     return NextResponse.json({ ok: true, cascade });
   } catch (error) {
-    if (unauthorized(error)) return NextResponse.json({ error: "লগইন প্রয়োজন।" }, { status: 401 });
+    if (unauthorized(error)) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     console.error("[admin:delete]", error);
-    return NextResponse.json({ error: "মুছে ফেলা যায়নি।" }, { status: 500 });
+    return NextResponse.json({ error: "Could not delete the entry." }, { status: 500 });
   }
 }

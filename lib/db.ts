@@ -439,7 +439,7 @@ export async function findUniqueConflict(
     if (!value) continue;
     if (await rowExists(resource, column, value, id)) {
       const label = fieldDef(resource, column)?.label ?? column;
-      return { error: `“${label}” মানটি আগেই ব্যবহৃত হয়েছে (${value})। অন্যটি দিন।`, status: 409 };
+      return { error: `“${label}” is already used by another entry (“${value}”). Choose a different one.`, status: 409 };
     }
   }
   return null;
@@ -476,7 +476,7 @@ export async function resolveSlug(
   if (provided) {
     values.slug = provided;
     if (await rowExists(resource, "slug", provided, id)) {
-      return { error: `“${provided}” স্লাগটি আগেই ব্যবহৃত হয়েছে, অন্যটি ব্যবহার করুন।`, status: 409 };
+      return { error: `The slug “${provided}” is already taken — use another one.`, status: 409 };
     }
     return null;
   }

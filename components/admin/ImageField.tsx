@@ -78,7 +78,7 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
         message: `${formatBytes(result.bytes)} · ${result.width}×${result.height} · ${result.publicId}`,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "আপলোড ব্যর্থ।";
+      const message = error instanceof Error ? error.message : "The upload failed.";
       setStatus({ kind: "error", message });
       onError?.(message);
     } finally {
@@ -94,7 +94,7 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
         <span className="image-field-title">{label}</span>
         <div className="image-field-actions">
           <button type="button" className="ghost-button" onClick={() => setUrlMode((mode) => !mode)}>
-            <Link2 size={13} /> {urlMode ? "আপলোড দেখান" : "লিংক দিন"}
+            <Link2 size={13} /> {urlMode ? "Show uploader" : "Paste a link"}
           </button>
           {value ? (
             <button
@@ -106,7 +106,7 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
                 setStatus({ kind: "idle" });
               }}
             >
-              <Trash2 size={13} /> সরান
+              <Trash2 size={13} /> Remove
             </button>
           ) : null}
         </div>
@@ -148,7 +148,7 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
           ) : (
             <span className="image-empty">
               <ImageIcon size={18} />
-              ছবি নেই
+              No image
             </span>
           )}
 
@@ -156,7 +156,7 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
             {urlMode ? (
               <>
                 <label className="inline-url-field">
-                  <span>ছবির লিংক</span>
+                  <span>Image URL</span>
                   <input
                     type="url"
                     value={value}
@@ -165,18 +165,18 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
                     onChange={(event) => onChange(event.target.value)}
                   />
                 </label>
-                <small>সরাসরি Cloudinary, Google Drive বা অন্য যেকোনো পাবলিক ছবির লিংক বসাতে পারেন।</small>
+                <small>Paste a Cloudinary, Google Drive or any other public image URL.</small>
               </>
             ) : notConfigured ? (
               <>
-                <b>Cloudinary সেটআপ করা নেই</b>
+                <b>Cloudinary is not configured</b>
                 <small>
-                  <Settings2 size={12} /> <code>CLOUDINARY_CLOUD_NAME</code> ও <code>CLOUDINARY_UPLOAD_PRESET</code> বসালেই এখান থেকে সরাসরি আপলোড চলবে। এখন লিংক দিয়েও কাজ চলবে।
+                  <Settings2 size={12} /> <code>CLOUDINARY_CLOUD_NAME</code> and <code>CLOUDINARY_UPLOAD_PRESET</code> and uploads work straight from this field. A pasted link works too.
                 </small>
               </>
             ) : status.kind === "uploading" ? (
               <>
-                <b><CloudUpload size={14} /> আপলোড হচ্ছে… {status.percent ?? 0}%</b>
+                <b><CloudUpload size={14} /> Uploading… {status.percent ?? 0}%</b>
                 <span className="upload-progress"><i style={{ width: `${status.percent ?? 0}%` }} /></span>
                 <button
                   type="button"
@@ -188,13 +188,13 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
                     setLocalPreview("");
                   }}
                 >
-                  <X size={12} /> বাতিল
+                  <X size={12} /> Cancel
                 </button>
               </>
             ) : (
               <>
-                <b><CloudUpload size={14} /> ছবি ছেড়ে দিন বা ক্লিক করুন</b>
-                <small>ড্র্যাগ করে আনুন, অথবা ফোকাস করে <kbd>Ctrl</kbd>+<kbd>V</kbd> দিয়ে পেস্ট করুন। JPG, PNG, SVG, WebP, AVIF — সর্বোচ্চ {config ? formatBytes(config.maxBytes) : "…"}</small>
+                <b><CloudUpload size={14} /> Drop an image here, or click to choose</b>
+                <small>Drag it in, or focus this box and paste with <kbd>Ctrl</kbd>+<kbd>V</kbd>. JPG, PNG, SVG, WebP, AVIF — up to {config ? formatBytes(config.maxBytes) : "…"}</small>
               </>
             )}
           </div>
@@ -215,16 +215,16 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
           {status.kind === "error" ? (
             <p className="image-msg is-error"><X size={13} /> {status.message}</p>
           ) : status.kind === "done" ? (
-            <p className="image-msg is-done"><CheckCircle2 size={13} /> Cloudinary-তে আপলোড হয়েছে — {status.message}</p>
+            <p className="image-msg is-done"><CheckCircle2 size={13} /> Uploaded to Cloudinary — {status.message}</p>
           ) : value ? (
             <p className="image-msg">
-              {isCloudinaryUrl(value) ? "Cloudinary অ্যাসেট — স্বয়ংক্রিয়ভাবে সাইজ ও ফরম্যাট অপ্টিমাইজ হবে।" : "বাইরের লিংক সংরক্ষিত।"}
+              {isCloudinaryUrl(value) ? "Cloudinary asset — size and format are optimised automatically." : "External link saved."}
             </p>
           ) : help ? (
             <p className="image-msg image-help">{help}</p>
           ) : null}
           {value ? (
-            <a className="image-open" href={value} target="_blank" rel="noreferrer">খুলে দেখুন ↗</a>
+            <a className="image-open" href={value} target="_blank" rel="noreferrer">Open ↗</a>
           ) : null}
         </div>
 
@@ -234,7 +234,7 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
             value={value}
             rows={1}
             spellCheck={false}
-            aria-label={`${label} — লিংক`}
+            aria-label={`${label} — image URL`}
             onChange={(event) => onChange(event.target.value)}
           />
         ) : null}
