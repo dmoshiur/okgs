@@ -1,8 +1,9 @@
 import { fail, ok, str } from "@/lib/api";
-import { clubAccess, loadClubSite, saveClubSite, type ClubOverride } from "@/lib/club-sites";
+import { clubAccess, hexList, loadClubSite, saveClubSite, type ClubOverride } from "@/lib/club-sites";
 import { logActivity } from "@/lib/portal-db";
 import { updateRow } from "@/lib/db";
 import { normalizeHexColor } from "@/lib/club-colors";
+import { logoSwatches } from "@/lib/logo-swatches";
 
 export const dynamic = "force-dynamic";
 
@@ -111,6 +112,11 @@ export async function POST(request: Request, { params }: Params) {
   if (body.founded_year !== undefined) patch.founded_year = nonNegativeInteger(body.founded_year, new Date().getFullYear());
   if (body.member_count !== undefined) patch.member_count = nonNegativeInteger(body.member_count);
 
+  // The club panel sends the palette it sampled from the uploaded logo.
+  if (body.logo_colors !== undefined) {
+    patch.logo_colors = Array.isArray(body.logo_colors) ? hexList(body.logo_colors) : [];
+  }
+
   const mission = stringList(body.mission);
   if (mission) patch.mission = mission;
   const objectives = stringList(body.objectives);
@@ -133,6 +139,13 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   if (!Object.keys(patch).length) return fail("সংরক্ষণ করার মতো কিছু পাওয়া যায়নি।", 422);
+
+  // A new logo but no sampled palette (CORS blocked the browser canvas, or the
+  // URL was pasted by hand)? Sample it here so the site still re-skins itself.
+  if (patch.logo_url !== undefined && patch.logo_colors === undefined && !patch.accent) {
+    const sampled = await logoSwatches(patch.logo_url);
+    if (sampled.length) patch.logo_colors = sampled;
+  }
 
   const before = await loadClubSite(slug);
   const saved = await saveClubSite(slug, patch, { name: access.name, id: access.userId });
