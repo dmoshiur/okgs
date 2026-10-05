@@ -48,8 +48,6 @@ export default async function NewsStoryPage({ params }: NewsPageProps) {
   const email = content.settings.find((setting) => setting.key === "email")?.value || "";
 
   return (
-    <PublicChrome content={content} active="news" internal>
-
     <PublicChrome content={content} active="news" internal contextLabel={story.title}>
 
       <JsonLd schema={[newsArticleSchema(story, club), breadcrumbSchema([{ name: "সংবাদ", url: "/news" }, { name: story.title, url: `/news/${story.slug}` }])]} />

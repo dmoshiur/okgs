@@ -49,9 +49,6 @@ export default async function ClubPostPage({ params }: ClubPostPageProps) {
   const accent = normalizeHexColor(club.accent, "#2563eb");
 
   return (
-    <PublicChrome content={content} active="clubs" internal>
-      <div>
-        <article className="internal-page-shell club-post-page" style={{ "--club-accent": accent } as React.CSSProperties}>
     <PublicChrome content={content} active="clubs" internal contextLabel={`${club.name} · ${post.title}`}>
       <div>
         <article
@@ -63,7 +60,7 @@ export default async function ClubPostPage({ params }: ClubPostPageProps) {
             "--club-accent-wash": `color-mix(in srgb, ${accent} 10%, var(--surface))`,
             "--club-accent-line": `color-mix(in srgb, ${accent} 26%, var(--line))`,
           } as React.CSSProperties}
-   
+        >
           <header className="club-post-head">
             <div className="page-width">
               <Breadcrumb items={[{ label: "ক্লাবসমূহ", href: "/clubs" }, { label: club.name, href: clubPath(club.slug) }, { label: post.title }]} className="internal-breadcrumb-light" />

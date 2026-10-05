@@ -20,10 +20,6 @@ import { bn, formatDate, formatDayNumber, formatMonthName, initialsOf, isUpcomin
 import { SmartBackdrop, SmartImage } from "@/components/public/Media";
 import { Breadcrumb, EmptyState } from "@/components/public/InternalPage";
 
-
-export function ClubPageHero({ club, fallbackImage }: { club: Club; fallbackImage?: string }) {
-  const accent = club.accent || "#e7c27e";
-=======
 import { normalizeHexColor, readableTextColor } from "@/lib/club-colors";
 
 export function ClubPageHero({ club, fallbackImage }: { club: Club; fallbackImage?: string }) {
