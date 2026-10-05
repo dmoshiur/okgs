@@ -52,14 +52,14 @@ export function PublicChrome({
   active?: string;
   internal?: boolean;
 
-  /** Replaces the generic institution name with the current club/section in the header. */
+  /** Shows the current club/section beneath the full institution name in the header. */
   contextLabel?: string;
 
   children: React.ReactNode;
 }) {
   const site = siteInfo(content.settings);
   const activeNav = primaryNav.find((item) => item.key === active);
-  const headerContext = contextLabel || (activeNav ? `${site.name} · ${activeNav.label}` : site.name);
+  const headerContext = contextLabel || activeNav?.label || site.tagline;
   const topNotice = content.notices[0];
   const year = bn(new Date().getFullYear());
   const tel = (value: string) => `tel:${value.replace(/[\s-]/g, "")}`;
@@ -101,9 +101,8 @@ export function PublicChrome({
           <a href="/" className="brand" aria-label={`${site.name} — হোম`}>
             <SchoolLogo src={optimizedImage(site.logo, { width: 160 })} name={site.name} />
             <span className="brand-copy">
-              {/* Dynamic branding title: the site's short name from Site
-                  Settings (DB) — never a hardcoded fallback. */}
-              <strong>{site.shortName || "OKGS"}</strong>
+              {/* site_name is the full, editable institution name. */}
+              <strong>{site.name}</strong>
               <small title={headerContext}>{headerContext}</small>
             </span>
           </a>

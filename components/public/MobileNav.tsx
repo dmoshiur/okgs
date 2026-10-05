@@ -27,7 +27,6 @@ import { ThemeModeToggle } from "@/components/public/ThemeModeToggle";
 
 interface SiteSummary {
   name: string;
-  shortName: string;
   tagline: string;
   email: string;
   phone: string;
@@ -342,7 +341,7 @@ export function MobileNav({
                     <div className="mobile-panel-head">
                       <div>
                         <p className="mobile-panel-kicker">
-                          {site.shortName}{" "}
+                          {site.name}{" "}
                           <span aria-hidden>
                             ·
                           </span>{" "}
