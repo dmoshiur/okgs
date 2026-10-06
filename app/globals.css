@@ -6589,19 +6589,53 @@ html[data-color-scheme="dark"] .cst-note.is-ok { color: #7ddba8; }
   font-family: var(--font-ui); font-size: 11px;
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
+.cst-frame-tag {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font-ui); font-size: 10.5px; font-weight: 700;
+}
 .cst-frame-stage { height: min(560px, 62vh); overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; background: var(--surface); }
-.cst-frame-stage .club-site { font-size: 15px; }
-.cst-frame-stage .clx-bar { position: static; }
-.cst-frame-stage .clx-wrap { width: calc(100% - 28px); }
-.cst-frame-stage .clx-hero-inner { grid-template-columns: minmax(0, 1fr); }
-.cst-frame-stage .clx-hero h1 { font-size: clamp(1.6rem, 7vw, 2.1rem); }
-.cst-frame-stage .clx-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.cst-frame-stage .clx-about { grid-template-columns: minmax(0, 1fr); }
-.cst-frame-stage .clx-wall { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.cst-frame-stage .clx-shot:nth-child(7n + 1) { grid-column: span 2; grid-row: auto; aspect-ratio: 16 / 9; }
-.cst-frame-stage .clx-event { grid-template-columns: minmax(0, 1fr); }
-.cst-frame-stage .clx-join { grid-template-columns: minmax(0, 1fr); }
-.cst-frame-stage .clx-hero-photo { opacity: .26; }
+.cst-frame.is-phone .cst-frame-stage .club-site { font-size: 15px; }
+.cst-frame.is-phone .cst-frame-stage .clx-bar { position: static; }
+.cst-frame.is-phone .cst-frame-stage .clx-wrap { width: calc(100% - 28px); }
+.cst-frame.is-phone .cst-frame-stage .clx-hero-inner { grid-template-columns: minmax(0, 1fr); }
+.cst-frame.is-phone .cst-frame-stage .clx-hero h1 { font-size: clamp(1.6rem, 7vw, 2.1rem); }
+.cst-frame.is-phone .cst-frame-stage .clx-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cst-frame.is-phone .cst-frame-stage .clx-about { grid-template-columns: minmax(0, 1fr); }
+.cst-frame.is-phone .cst-frame-stage .clx-wall { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cst-frame.is-phone .cst-frame-stage .clx-shot:nth-child(7n + 1) { grid-column: span 2; grid-row: auto; aspect-ratio: 16 / 9; }
+.cst-frame.is-phone .cst-frame-stage .clx-event { grid-template-columns: minmax(0, 1fr); }
+.cst-frame.is-phone .cst-frame-stage .clx-join { grid-template-columns: minmax(0, 1fr); }
+.cst-frame.is-phone .cst-frame-stage .clx-hero-photo { opacity: .26; }
+
+/* The studio can preview the site at desktop width too: same component, same
+   stylesheet, no device overrides — so what the admin approves is what ships. */
+.cst-frame.is-desktop { max-width: 100%; border-radius: 16px; }
+.cst-frame.is-desktop .cst-frame-stage { height: min(880px, 76vh); }
+.cst-frame.is-desktop .cst-frame-stage .club-site { font-size: 16px; }
+.cst-preview-wide { grid-column: 1 / -1; }
+.cst-preview-wide .cst-card-head { flex-wrap: wrap; gap: 12px; }
+.cst-card-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cst-seg {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line); border-radius: var(--r-pill);
+  background: var(--surface-alt);
+}
+.cst-seg button {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px;
+  border: 0; border-radius: var(--r-pill);
+  background: transparent; color: var(--muted);
+  font-family: var(--font-ui); font-size: 12.5px; font-weight: 700;
+  cursor: pointer;
+  transition: background-color .2s ease, color .2s ease, box-shadow .2s ease;
+}
+.cst-seg button:hover { color: var(--ink); }
+.cst-seg button.is-on { background: var(--surface); color: var(--brand); box-shadow: var(--shadow-xs); }
 
 .cst-checklist { display: grid; gap: 4px; margin: 0; padding: 12px; list-style: none; }
 .cst-checklist button {
@@ -6730,6 +6764,7 @@ html[data-color-scheme="dark"] .cst-check.is-done { color: #6ee7a8; }
   .cst-card-body { padding: 16px; }
   .cst-frame { max-width: 100%; }
   .cst-frame-stage { height: min(460px, 56vh); }
+  .cst-frame.is-desktop .cst-frame-stage { height: min(620px, 68vh); }
 }
 @media (max-width: 560px) {
   .hub-stats { grid-template-columns: minmax(0, 1fr); }

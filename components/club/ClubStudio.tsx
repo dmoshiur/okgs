@@ -17,12 +17,14 @@ import {
   LayoutDashboard,
   LogIn,
   LogOut,
+  Monitor,
   Palette,
   Phone,
   Plus,
   RefreshCw,
   Save,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   Target,
   Upload,
@@ -280,6 +282,9 @@ export function ClubStudio({
   const [paletteNote, setPaletteNote] = useState("");
   const [busyPalette, setBusyPalette] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
+  // Phone first (that is how most parents will read the site), but a club admin
+  // can widen the same live preview to desktop width before publishing.
+  const [frame, setFrame] = useState<"phone" | "desktop">("phone");
   const [uploading, setUploading] = useState(false);
   const galleryInput = useRef<HTMLInputElement>(null);
 
@@ -478,6 +483,30 @@ export function ClubStudio({
   }
 
   const siteUrl = site.url || `https://${site.host}`;
+
+  const frameToggle = (
+    <div className="cst-seg" role="group" aria-label="প্রিভিউর প্রস্থ">
+      <button type="button" className={frame === "phone" ? "is-on" : ""} aria-pressed={frame === "phone"} onClick={() => setFrame("phone")}>
+        <Smartphone size={13} aria-hidden /> ফোন
+      </button>
+      <button type="button" className={frame === "desktop" ? "is-on" : ""} aria-pressed={frame === "desktop"} onClick={() => setFrame("desktop")}>
+        <Monitor size={13} aria-hidden /> ডেস্কটপ
+      </button>
+    </div>
+  );
+
+  const previewFrame = (width: "phone" | "desktop") => (
+    <div className={`cst-frame is-${width}`}>
+      <div className="cst-frame-bar">
+        <span className="cst-frame-dots" aria-hidden><i /><i /><i /></span>
+        <span className="cst-frame-url"><Globe size={11} aria-hidden /> {site.host}</span>
+        {width === "desktop" ? <span className="cst-frame-tag">ডেস্কটপ</span> : null}
+      </div>
+      <div className="cst-frame-stage">
+        {previewSite ? <ClubSiteView site={previewSite} palette={palette} preview /> : null}
+      </div>
+    </div>
+  );
 
   const moveRow = <T,>(rows: T[], index: number, delta: number) => {
     const next = [...rows];
@@ -937,28 +966,42 @@ export function ClubStudio({
         </main>
 
         {showPreview ? (
+          <>
+          {frame === "desktop" ? (
+            <section className="cst-card cst-preview-card cst-preview-wide">
+              <header className="cst-card-head">
+                <div>
+                  <h2><Sparkles size={15} aria-hidden /> লাইভ প্রিভিউ</h2>
+                  <p>ডেস্কটপ প্রস্থে ঠিক যে সাইটটি প্রকাশ হবে।</p>
+                </div>
+                <div className="cst-card-tools">
+                  {frameToggle}
+                  <a className="cst-btn cst-btn-quiet" href={siteUrl} target="_blank" rel="noreferrer noopener">
+                    <ArrowUpRight size={13} aria-hidden /> খুলুন
+                  </a>
+                </div>
+              </header>
+              {previewFrame("desktop")}
+            </section>
+          ) : null}
           <aside className="cst-aside">
+            {frame === "phone" ? (
             <section className="cst-card cst-preview-card">
               <header className="cst-card-head">
                 <div>
                   <h2><Sparkles size={15} aria-hidden /> লাইভ প্রিভিউ</h2>
                   <p>আপনি যা লিখছেন, ঠিক সেটাই।</p>
                 </div>
-                <a className="cst-btn cst-btn-quiet" href={siteUrl} target="_blank" rel="noreferrer noopener">
-                  <ArrowUpRight size={13} aria-hidden /> খুলুন
-                </a>
+                <div className="cst-card-tools">
+                  {frameToggle}
+                  <a className="cst-btn cst-btn-quiet" href={siteUrl} target="_blank" rel="noreferrer noopener">
+                    <ArrowUpRight size={13} aria-hidden /> খুলুন
+                  </a>
+                </div>
               </header>
-
-              <div className="cst-frame">
-                <div className="cst-frame-bar">
-                  <span className="cst-frame-dots" aria-hidden><i /><i /><i /></span>
-                  <span className="cst-frame-url"><Globe size={11} aria-hidden /> {site.host}</span>
-                </div>
-                <div className="cst-frame-stage">
-                  {previewSite ? <ClubSiteView site={previewSite} palette={palette} preview /> : null}
-                </div>
-              </div>
+              {previewFrame("phone")}
             </section>
+            ) : null}
 
             <section className="cst-card">
               <header className="cst-card-head">
@@ -997,6 +1040,7 @@ export function ClubStudio({
               </div>
             </section>
           </aside>
+          </>
         ) : null}
       </div>
     </div>
