@@ -22,27 +22,20 @@ import { normalizeHexColor } from "@/lib/club-colors";
 import { buildClubPalette, type ClubPalette } from "@/lib/club-palette";
 import { logoSwatches } from "@/lib/logo-swatches";
 import { DEFAULT_CLUB_SLUGS } from "@/lib/club-slugs";
+import { clubSiteHost, clubSiteUrl as buildClubSiteUrl } from "@/lib/club-urls";
+import { leadershipCards as buildLeadershipCards, type ClubLeaderCard } from "@/lib/club-leadership";
 import type { Club, ClubEvent, ClubMember, ClubPost } from "@/lib/types";
 
 /** Clubs that always exist, even if the folder cannot be read (serverless fs). */
 export { DEFAULT_CLUB_SLUGS, isClubSlug } from "@/lib/club-slugs";
+export { leadershipCards, leadershipOrder, type ClubLeaderCard } from "@/lib/club-leadership";
 
 export interface ClubGalleryItem {
   url: string;
   caption?: string;
 }
 
-export interface ClubLeader {
-  name: string;
-  role: string;
-  class_level?: string;
-  section?: string;
-  phone?: string;
-  email?: string;
-  facebook?: string;
-  photo_url?: string;
-  bio?: string;
-}
+export type ClubLeader = ClubLeaderCard;
 
 export interface ClubEventItem {
   title: string;
@@ -128,27 +121,21 @@ export interface ClubOverride {
 }
 
 export interface ClubSite extends ClubFile {
+  /** Absolute address of this club's own site, e.g. `https://alssm.okgs.info`. */
+  url: string;
+  /** Host shown on buttons and in the site bar, e.g. `alssm.okgs.info`. */
+  host: string;
   /** Live DB row, when the club also exists in the main site's content tables. */
   record: Club | null;
   members: ClubMember[];
+  /** Photo cards for the leadership strip (admin entries first, then members). */
+  leaders: ClubLeader[];
   clubEvents: ClubEvent[];
   posts: ClubPost[];
   galleryItems: ClubGalleryItem[];
   /** True once an admin has saved anything from the club panel. */
   customized: boolean;
 }
-
-/** Leadership roles shown as photo cards, in order. */
-export const leadershipOrder = [
-  "সভাপতি",
-  "সহ-সভাপতি",
-  "সাধারণ সম্পাদক",
-  "যুগ্ম সম্পাদক",
-  "সাংগঠনিক সম্পাদক",
-  "কোষাধ্যক্ষ",
-  "প্রচার সম্পাদক",
-  "শিক্ষক-পরামর্শক",
-];
 
 const fileCache = new Map<string, ClubFile | null>();
 
@@ -183,8 +170,8 @@ export async function readClubFile(slug: string): Promise<ClubFile | null> {
       name: parsed.name || slug.toUpperCase(),
       name_en: parsed.name_en || "",
       short_code: parsed.short_code || slug.toUpperCase(),
-      subdomain: parsed.subdomain || `${slug}.okgs.info`,
-      website: parsed.website || `https://${parsed.subdomain || `${slug}.okgs.info`}`,
+      subdomain: clubSiteHost(slug, parsed.subdomain),
+      website: buildClubSiteUrl({ slug, subdomain: parsed.subdomain, website: parsed.website }),
       main_site: parsed.main_site || "",
       facebook: parsed.facebook || "",
       youtube: parsed.youtube || "",
@@ -260,8 +247,8 @@ export async function loadClubSite(slug: string): Promise<ClubSite | null> {
       name: record?.name || slug.toUpperCase(),
       name_en: record?.name_en || "",
       short_code: record?.short_code || slug.toUpperCase(),
-      subdomain: record?.subdomain || `${slug}.okgs.info`,
-      website: record?.domain || record?.subdomain || `https://${slug}.okgs.info`,
+      subdomain: clubSiteHost(slug, record?.subdomain),
+      website: buildClubSiteUrl({ slug, subdomain: record?.subdomain, website: record?.domain }),
       main_site: "",
       facebook: record?.facebook_url || "",
       youtube: record?.youtube_url || "",
@@ -321,6 +308,11 @@ export async function loadClubSite(slug: string): Promise<ClubSite | null> {
   };
 
   const members = content.club_members.filter((member) => member.club_slug === slug);
+  // Built once here, so the page, the API and the studio preview all show the
+  // same leadership strip.
+  const customized = Boolean(override.updated_at || Object.keys(override).length);
+  const leaders = buildLeadershipCards({ customized, leaders: merged.leaders, members });
+
   const clubEvents = content.club_events.filter((event) => event.club_slug === slug);
   const posts = content.club_posts.filter((post) => post.club_slug === slug);
 
@@ -332,45 +324,16 @@ export async function loadClubSite(slug: string): Promise<ClubSite | null> {
 
   return {
     ...merged,
+    url: buildClubSiteUrl({ slug, subdomain: merged.subdomain, website: merged.website }),
+    host: clubSiteHost(merged.slug, merged.subdomain),
     record,
     members,
+    leaders,
     clubEvents,
     posts,
     galleryItems,
-    customized: Boolean(override.updated_at || Object.keys(override).length),
+    customized,
   };
-}
-
-/** Photo cards for the leadership strip: admin-added leaders first, then DB members. */
-export function leadershipCards(site: ClubSite): ClubLeader[] {
-  const fromOverride = (site.customized ? site.leaders : []) || [];
-  const fromDb: ClubLeader[] = site.members
-    .filter((member) => member.role && member.role !== "সদস্য")
-    .map((member) => ({
-      name: member.name,
-      role: member.role,
-      class_level: member.class_room,
-      section: member.section,
-      phone: member.phone,
-      email: member.email,
-      facebook: member.facebook_url,
-      photo_url: member.photo_url,
-      bio: member.bio || member.achievement,
-    }));
-
-  const seen = new Set<string>();
-  const merged = [...fromOverride, ...fromDb].filter((card) => {
-    const key = `${card.name}|${card.role}`;
-    if (!card.name || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  return merged.sort((a, b) => {
-    const ai = leadershipOrder.indexOf(a.role);
-    const bi = leadershipOrder.indexOf(b.role);
-    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-  });
 }
 
 /**
@@ -402,7 +365,8 @@ export interface ClubGridCard {
   website: string;
   facebook: string;
   subdomain: string;
-  site_path: string;
+  /** Absolute address of the club's own site (`https://alssm.okgs.info`). */
+  site_url: string;
 }
 
 /** Lightweight cards for the directory and the subdomain landing grid. */
@@ -427,7 +391,7 @@ export async function clubCards(): Promise<ClubGridCard[]> {
         website: site.website,
         facebook: site.facebook,
         subdomain: site.subdomain,
-        site_path: `/clubs/${slug}/site`,
+        site_url: buildClubSiteUrl({ slug, subdomain: site.subdomain, website: site.website }),
       } satisfies ClubGridCard;
     }),
   );

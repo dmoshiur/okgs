@@ -47,10 +47,14 @@ for (const name of [context, "Association Of Little Scientists And Math Maniacs"
   const club: Club = { ...seedClub, name };
   const summary: ClubSummary = {
     club, objectives: [], counts: { events: 0, posts: 0, gallery: 0, members: 0, achievements: 0 },
+    // Club sites are hosted on their own subdomain — the card links there.
+    siteUrl: `https://${club.slug}.okgs.info`,
+    siteLabel: `${club.slug}.okgs.info`,
   };
   for (const variant of ["grid", "row"] as const) {
     const card = renderToStaticMarkup(<ClubCard summary={summary} variant={variant} />);
-    assert.ok(card.includes(`class="club-card-stretch">${name}</a>`), "card must keep the entire club name");
+    assert.ok(card.includes(`>${name}</a>`), "card must keep the entire club name");
+    assert.ok(card.includes(`https://${club.slug}.okgs.info`), "card must link to the club's own site");
   }
   const showcase = renderToStaticMarkup(<ClubShowcase clubs={[club]} slides={[]} />);
   assert.ok(showcase.includes(`<h3>${name}</h3>`), "showcase must keep the entire club name");

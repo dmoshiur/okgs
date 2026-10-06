@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarClock, Images, Search, SlidersHorizontal, Trophy, Users, X } from "lucide-react";
+import { CalendarClock, Globe, Images, Search, SlidersHorizontal, Trophy, Users, X } from "lucide-react";
 import type { ClubSummary } from "@/lib/club-data";
 import { ClubCard } from "@/components/public/ClubCard";
 import { bn } from "@/lib/format";
@@ -17,12 +17,16 @@ const sortLabels: Record<SortKey, string> = {
 };
 
 const filterLabels: Record<FilterKey, string> = {
-  all: "সব ধরন",
+  all: "সব ক্লাব",
   upcoming: "আসন্ন আয়োজন আছে",
   photos: "ছবি আছে",
   newcomers: "নতুন সদস্য চায়",
 };
 
+/**
+ * The club directory: search, filter, sort — then a card per club with two
+ * clear destinations, one of which is always the club's own subdomain site.
+ */
 export function ClubDirectory({ summaries }: { summaries: ClubSummary[] }) {
   const [query, setQuery] = useState("");
   const [clubSlug, setClubSlug] = useState("all");
@@ -58,6 +62,7 @@ export function ClubDirectory({ summaries }: { summaries: ClubSummary[] }) {
         item.club.meeting_day,
         item.club.meeting_place,
         item.club.coordinator,
+        item.siteLabel,
         item.nextEvent?.title ?? "",
       ]
         .join(" ")
@@ -83,24 +88,38 @@ export function ClubDirectory({ summaries }: { summaries: ClubSummary[] }) {
     setFilter("all");
   };
 
-  return (
-    <div className="directory-block">
-      <div className="directory-stats">
-        <div><strong>{bn(summaries.length)}</strong><span><Trophy size={13} aria-hidden /> টি ক্লাব</span></div>
-        <div><strong>{bn(totals.events)}</strong><span><CalendarClock size={13} aria-hidden /> প্রকাশিত আয়োজন</span></div>
-        <div><strong>{bn(totals.photos)}</strong><span><Images size={13} aria-hidden /> ছবি</span></div>
-        <div><strong>{bn(totals.members)}</strong><span><Users size={13} aria-hidden /> নিবন্ধিত সদস্য</span></div>
-      </div>
+  const filtered = clubSlug !== "all" || filter !== "all" || Boolean(query);
 
-      <div className="directory-toolbar">
-        <div className="directory-toolbar-row">
-          <label className="directory-search">
+  return (
+    <div className="hub">
+      <dl className="hub-stats">
+        <div>
+          <dt><Trophy size={14} aria-hidden /> ক্লাব</dt>
+          <dd>{bn(summaries.length)}</dd>
+        </div>
+        <div>
+          <dt><CalendarClock size={14} aria-hidden /> প্রকাশিত আয়োজন</dt>
+          <dd>{bn(totals.events)}</dd>
+        </div>
+        <div>
+          <dt><Images size={14} aria-hidden /> ছবি</dt>
+          <dd>{bn(totals.photos)}</dd>
+        </div>
+        <div>
+          <dt><Users size={14} aria-hidden /> নিবন্ধিত সদস্য</dt>
+          <dd>{bn(totals.members)}</dd>
+        </div>
+      </dl>
+
+      <div className="hub-toolbar">
+        <div className="hub-toolbar-row">
+          <label className="hub-search">
             <Search size={16} aria-hidden />
             <span className="sr-only">ক্লাব খুঁজুন</span>
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="ক্লাব, আয়োজন বা শিক্ষকের নাম লিখুন…"
+              placeholder="ক্লাব, আয়োজন, শিক্ষক বা সাবডোমেইন লিখুন…"
               type="search"
             />
             {query ? (
@@ -108,7 +127,7 @@ export function ClubDirectory({ summaries }: { summaries: ClubSummary[] }) {
             ) : null}
           </label>
 
-          <label className="directory-sort">
+          <label className="hub-sort">
             <SlidersHorizontal size={14} aria-hidden />
             <span className="sr-only">সাজান</span>
             <select value={sort} onChange={(event) => setSort(event.target.value as SortKey)}>
@@ -119,10 +138,10 @@ export function ClubDirectory({ summaries }: { summaries: ClubSummary[] }) {
           </label>
         </div>
 
-        <div className="filter-row" role="group" aria-label="ক্লাব নির্বাচন">
+        <div className="hub-pills" role="group" aria-label="ক্লাব নির্বাচন">
           <button
             type="button"
-            className={`filter-pill ${clubSlug === "all" ? "is-on" : ""}`}
+            className={`hub-pill${clubSlug === "all" ? " is-on" : ""}`}
             aria-pressed={clubSlug === "all"}
             onClick={() => setClubSlug("all")}
           >
@@ -132,47 +151,54 @@ export function ClubDirectory({ summaries }: { summaries: ClubSummary[] }) {
             <button
               key={summary.club.id}
               type="button"
-              className={`filter-pill ${clubSlug === summary.club.slug ? "is-on" : ""}`}
+              className={`hub-pill${clubSlug === summary.club.slug ? " is-on" : ""}`}
               aria-pressed={clubSlug === summary.club.slug}
               onClick={() => setClubSlug(summary.club.slug)}
             >
-              <span className="filter-code">{summary.club.short_code || summary.club.slug}</span>
-              <span className="filter-note" aria-hidden>·</span>
+              {summary.club.logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={summary.club.logo_url} alt="" loading="lazy" />
+              ) : (
+                <span className="hub-pill-code">{summary.club.short_code || summary.club.slug}</span>
+              )}
               {summary.club.name}
             </button>
           ))}
         </div>
 
-        <div className="filter-row" role="group" aria-label="অতিরিক্ত ছাঁকনি">
+        <div className="hub-pills is-soft" role="group" aria-label="অতিরিক্ত ছাঁকনি">
           {(Object.keys(filterLabels) as FilterKey[]).map((key) => (
             <button
               key={key}
               type="button"
-              className={`filter-pill ${filter === key ? "is-on" : ""}`}
+              className={`hub-pill${filter === key ? " is-on" : ""}`}
               aria-pressed={filter === key}
               onClick={() => setFilter(key)}
             >
               {filterLabels[key]}
             </button>
           ))}
-          {clubSlug !== "all" || filter !== "all" || query ? (
-            <button type="button" className="filter-pill" onClick={reset}>
+          {filtered ? (
+            <button type="button" className="hub-pill is-reset" onClick={reset}>
               <X size={13} aria-hidden /> ছাঁকনি মুছুন
             </button>
           ) : null}
         </div>
       </div>
 
-      <p className="directory-count" aria-live="polite">
+      <p className="hub-count" aria-live="polite">
         {results.length ? `${bn(results.length)} টি ক্লাব দেখানো হচ্ছে` : "কিছু পাওয়া যায়নি"}
+        <span className="hub-count-hint">
+          <Globe size={13} aria-hidden /> প্রতিটি কার্ডের বাটন থেকে ক্লাবের নিজের সাইটে যাওয়া যায়
+        </span>
       </p>
 
       {results.length ? (
-        <div className="directory-grid">
+        <div className="hub-grid">
           {results.map((summary) => <ClubCard key={summary.club.id} summary={summary} />)}
         </div>
       ) : (
-        <div className="directory-empty">
+        <div className="hub-empty">
           <Search size={22} aria-hidden />
           <p>‘{query}’ খোঁজা কিছু মেলে না। অন্য শব্দ চেষ্টা করুন বা ছাঁকনি সরান।</p>
           <button type="button" className="button button-primary button-small" onClick={reset}>

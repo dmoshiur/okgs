@@ -4,6 +4,7 @@ import { ArrowRight, ArrowUpRight, BookOpen, CalendarDays, Quote, ShieldCheck, S
 import { notFound } from "next/navigation";
 import { loadClub } from "@/lib/club-loader";
 import { clubPath } from "@/lib/club-data";
+import { clubSiteLabel, clubSiteUrl } from "@/lib/club-urls";
 import { paragraphs, toLines } from "@/lib/content-config";
 import { bn, formatDate } from "@/lib/format";
 import { ClubShell, ClubSectionTitle } from "@/components/public/ClubShell";
@@ -53,6 +54,8 @@ export default async function ClubOverviewPage({ params }: ClubPageProps) {
   const loaded = await loadClub(slug);
   if (!loaded) notFound();
   const { club, data } = loaded;
+  const clubSiteHref = clubSiteUrl({ slug: club.slug, subdomain: club.subdomain, website: club.domain });
+  const clubSiteHost = clubSiteLabel({ slug: club.slug, subdomain: club.subdomain, website: club.domain });
   const historyBlocks = paragraphs(club.history);
   const missionBlocks = paragraphs(club.mission);
   const cover = club.cover_image_url || club.image_url || data.gallery[0]?.image_url || data.posts[0]?.image_url || "";
@@ -76,14 +79,14 @@ export default async function ClubOverviewPage({ params }: ClubPageProps) {
           {club.description ? <p className="club-overview-lead">{club.description}</p> : null}
 
           <CTAGroup className="club-overview-actions">
-            <Link className="button button-primary button-small" href={`/clubs/${club.slug}/site`}>
-              <Sparkles size={15} aria-hidden /> ক্লাব সাইট
-            </Link>
-            {club.domain || club.subdomain ? (
-              <a className="button button-outline button-small" href={club.domain || club.subdomain} target="_blank" rel="noreferrer noopener">
-                নিজস্ব সাইট <ArrowUpRight size={14} aria-hidden />
-              </a>
-            ) : null}
+            <a className="button button-primary button-small club-site-cta" href={clubSiteHref} target="_blank" rel="noreferrer noopener">
+              <Sparkles size={15} aria-hidden />
+              <span className="club-site-cta-copy">
+                <strong>সাইট দেখুন</strong>
+                <small>{clubSiteHost}</small>
+              </span>
+              <ArrowUpRight size={14} aria-hidden />
+            </a>
             {club.facebook_url ? (
               <a className="button button-outline button-small" href={club.facebook_url} target="_blank" rel="noreferrer noopener">
                 ফেসবুক পেজ

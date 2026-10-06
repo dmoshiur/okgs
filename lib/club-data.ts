@@ -13,6 +13,7 @@ import type {
   SiteSetting,
 } from "@/lib/types";
 import { isUpcoming } from "@/lib/format";
+import { clubSiteLabel, clubSiteUrl } from "@/lib/club-urls";
 
 /** The tab model for a club page — sections are real URLs so they can be shared/indexed. */
 export const clubSections = [
@@ -99,6 +100,10 @@ export interface ClubSummary {
   nextEvent?: ClubEvent;
   coverPhoto?: string;
   objectives: string[];
+  /** The club's own site — `https://alssm.okgs.info` — never a path on this one. */
+  siteUrl: string;
+  /** The address printed on buttons, e.g. `alssm.okgs.info`. */
+  siteLabel: string;
 }
 
 /** Everything a card needs, without rendering a full club page. */
@@ -112,6 +117,8 @@ export function summarizeClub(content: PublicContent, club: Club): ClubSummary {
     nextEvent: data.upcomingEvents[0],
     coverPhoto,
     objectives: toLines(club.objectives),
+    siteUrl: clubSiteUrl({ slug: club.slug, subdomain: club.subdomain, website: club.domain }),
+    siteLabel: clubSiteLabel({ slug: club.slug, subdomain: club.subdomain, website: club.domain }),
   };
 }
 
