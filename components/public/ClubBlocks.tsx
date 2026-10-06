@@ -1,3 +1,4 @@
+import { clubSiteLabel, clubSiteUrl } from "@/lib/club-urls";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -20,21 +21,15 @@ import { bn, formatDate, formatDayNumber, formatMonthName, initialsOf, isUpcomin
 import { SmartBackdrop, SmartImage } from "@/components/public/Media";
 import { Breadcrumb, EmptyState } from "@/components/public/InternalPage";
 
-import { normalizeHexColor, readableTextColor } from "@/lib/club-colors";
+import { buildClubPalette } from "@/lib/club-colors";
 
 export function ClubPageHero({ club, fallbackImage }: { club: Club; fallbackImage?: string }) {
-  const accent = normalizeHexColor(club.accent, "#2563eb");
+  const clubVars = buildClubPalette({ accent: club.accent }).vars;
 
   return (
     <section
       className="club-hero"
-      style={{
-        "--club-accent": accent,
-        "--club-accent-text": `color-mix(in srgb, ${accent} 56%, var(--ink))`,
-        "--club-accent-ink": readableTextColor(accent),
-        "--club-accent-wash": `color-mix(in srgb, ${accent} 10%, var(--surface))`,
-        "--club-accent-line": `color-mix(in srgb, ${accent} 26%, var(--line))`,
-      } as React.CSSProperties}
+      style={clubVars as React.CSSProperties}
     >
       <SmartBackdrop
         className="club-hero-bg"
@@ -242,7 +237,9 @@ export function ClubNewsList({ items, club }: { items: NewsItem[]; club: Club })
 }
 
 export function JoinPanel({ club }: { club: Club }) {
-  const hasContact = Boolean(club.coordinator_phone || club.email || club.facebook_url || club.domain);
+  const clubSiteHref = clubSiteUrl({ slug: club.slug, subdomain: club.subdomain, website: club.domain });
+  const clubSiteHost = clubSiteLabel({ slug: club.slug, subdomain: club.subdomain, website: club.domain });
+  const hasContact = Boolean(club.coordinator_phone || club.email || club.facebook_url || clubSiteHref);
   return (
     <aside className="club-join">
       <p className="club-join-eyebrow"><Sparkles size={14} /> যোগ দেবেন যেভাবে</p>
@@ -258,7 +255,7 @@ export function JoinPanel({ club }: { club: Club }) {
         {club.coordinator_phone ? <a className="button button-green button-small" href={`tel:${club.coordinator_phone.replace(/\s/g, "")}`}><Phone size={14} /> {club.coordinator_phone}</a> : null}
         {club.email ? <a className="button button-gold button-small" href={`mailto:${club.email}`}><Mail size={14} /> ইমেইল</a> : null}
         {club.facebook_url ? <a className="club-social-link" href={club.facebook_url} target="_blank" rel="noreferrer"><Facebook size={14} /> ফেসবুক</a> : null}
-        {club.domain ? <a className="club-social-link" href={club.domain} target="_blank" rel="noreferrer"><ExternalLink size={14} /> ক্লাবের সাইট</a> : null}
+        <a className="club-social-link" href={clubSiteHref} target="_blank" rel="noreferrer noopener"><ExternalLink size={14} /> {clubSiteHost}</a>
       </div>
       {!hasContact && club.coordinator ? <p className="club-join-note">উপদেষ্টা: {club.coordinator}</p> : null}
     </aside>

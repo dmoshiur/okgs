@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { DEFAULT_CLUB_SLUGS } from "@/lib/club-slugs";
+import { clubSiteHost } from "@/lib/club-urls";
 import { isExemptPath, readMaintenanceFlag } from "@/lib/maintenance";
 import { canBypassMaintenance } from "@/lib/session";
 import { LEGACY_ADMIN_COOKIE, PORTAL_COOKIE } from "@/lib/session";
@@ -8,10 +9,19 @@ import { LEGACY_ADMIN_COOKIE, PORTAL_COOKIE } from "@/lib/session";
  * Middleware — club subdomains and the emergency maintenance lock.
  *
  * Club subdomains → club micro-sites.
- * `alssm.okgs.info/anything` is rewritten to `/clubs/alssm/site/anything`, so a
- * single deployment hosts the main school site *and* all five club sites. Add a
- * wildcard domain (`*.okgs.info`) at the host and every club is live — no extra
- * deploys, no duplicated code. `alssm.localhost` works the same way in dev.
+ * `alssm.okgs.info/anything` is rewritten to `/club-site/alssm`, so a single
+ * deployment hosts the main school site *and* all five club sites. Add a
+ * wildcard domain (`*.okgs.info`) at the host and every club is live
+ * immediately — no extra deploys, no duplicated code. `alssm.localhost` works
+ * the same way in dev.
+ *
+ * The club site has exactly one public address: its subdomain. `/club-site/*`
+ * is an internal render target — asking for it on the main domain simply
+ * forwards to that club's page in the information centre. `/clubs/<slug>/site`
+ * (the old path-based address) is a permanent redirect handled by the route.
+ *
+ * On a club subdomain, `/admin` opens that club's studio directly:
+ * `alssm.okgs.info/admin` → `/clubs/alssm/admin`.
  *
  * Maintenance lock.
  * When the SuperAdmin flips the emergency switch, every public request is
@@ -24,6 +34,8 @@ import { LEGACY_ADMIN_COOKIE, PORTAL_COOKIE } from "@/lib/session";
  */
 const clubSlugs = new Set<string>(DEFAULT_CLUB_SLUGS);
 
+const slugPattern = /^[a-z0-9-]{2,24}$/;
+
 function subdomainOf(host: string) {
   const clean = host.split(":")[0].toLowerCase();
   const parts = clean.split(".");
@@ -32,9 +44,48 @@ function subdomainOf(host: string) {
   return "";
 }
 
+function withPathHeader(pathname: string, response: NextResponse) {
+  // Server components (the layout fallback gate) read this instead of guessing.
+  response.headers.set("x-okgs-pathname", pathname);
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const sub = subdomainOf(request.headers.get("host") || "");
+  const club = sub && clubSlugs.has(sub) ? sub : "";
+
+  /* ------------------- internal club-site path, never public ----------------- */
+  // `/club-site/<slug>` only exists so middleware can render a club on its own
+  // subdomain. On the main domain it forwards to that club's page, so the club
+  // site is reachable at one address and one address only.
+  if (/^\/club-site(\/|$)/.test(pathname) && !club) {
+    const slug = pathname.split("/")[2] || "";
+    const target = request.nextUrl.clone();
+    target.pathname = slugPattern.test(slug) ? `/clubs/${slug}` : "/clubs";
+    target.search = "";
+    return NextResponse.redirect(target, 308);
+  }
+
+  /* ---------------------- the old path-based club site --------------------- */
+  // `/clubs/<slug>/site` was the public club address before every club moved to
+  // its own subdomain. The route still forwards, but a route-level redirect
+  // cannot set a status once the streamed shell has gone out, so the answer is
+  // given here — a real 308, no JavaScript required, for a bookmark, a search
+  // result or a printed QR code that still points at the old shape.
+  const legacy = /^\/clubs\/([a-z0-9-]{2,24})\/site(\/|$)/.exec(pathname);
+  if (legacy) {
+    const target = request.nextUrl.clone();
+    target.pathname = "/";
+    target.search = "";
+    const host = request.headers.get("host") || "";
+    const local = /^(?:[a-z0-9-]+\.)?(localhost|127\.0\.0\.1|\[[^\]]+\])(:\d+)?$/i.test(host);
+    target.protocol = local ? "http:" : "https:";
+    // On a club's own address the redirect stays on that host; from the school
+    // site it hands over to the club's subdomain.
+    target.host = club ? host : local ? `${legacy[1]}.${host}` : clubSiteHost(legacy[1]);
+    return NextResponse.redirect(target, 308);
+  }
 
   /* ------------------------- emergency maintenance ------------------------- */
   if (!isExemptPath(pathname)) {
@@ -57,26 +108,41 @@ export async function middleware(request: NextRequest) {
   }
 
   /* ----------------------------- club subdomains ---------------------------- */
-  if (!sub || !clubSlugs.has(sub)) {
-    const response = NextResponse.next();
-    // Server components (the layout fallback gate) read this instead of guessing.
-    response.headers.set("x-okgs-pathname", pathname);
-    return response;
+  if (!club) {
+    return withPathHeader(pathname, NextResponse.next());
   }
 
-  // The admin panel, API calls and asset paths stay exactly where they are.
-  if (pathname.startsWith(`/clubs/${sub}`) || pathname.startsWith("/api/") || pathname.startsWith("/_next/")) {
-    const response = NextResponse.next();
-    response.headers.set("x-okgs-pathname", pathname);
-    return response;
+  // API calls and asset paths stay exactly where they are, so the studio and the
+  // admin panel keep working when they are opened from the club's own address.
+  if (
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/media/") ||
+    pathname.startsWith("/clubs/")
+  ) {
+    return withPathHeader(pathname, NextResponse.next());
   }
 
   const target = request.nextUrl.clone();
-  target.pathname = `/clubs/${sub}/site${pathname === "/" ? "" : pathname}`;
   target.search = search;
-  const response = NextResponse.rewrite(target);
-  response.headers.set("x-okgs-pathname", pathname);
-  return response;
+
+  // The club's own sitemap/robots live on the club's host so search engines
+  // treat it as its own property (see app/club-site/[slug]/sitemap.xml).
+  if (pathname === "/sitemap.xml" || pathname === "/robots.txt") {
+    target.pathname = `/club-site/${club}${pathname}`;
+    return withPathHeader(pathname, NextResponse.rewrite(target));
+  }
+
+  // `alssm.okgs.info/admin` — the club's own studio, one keystroke away.
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    target.pathname = `/clubs/${club}/admin${pathname.slice("/admin".length)}`;
+    return withPathHeader(pathname, NextResponse.rewrite(target));
+  }
+
+  // Everything else is the micro-site itself: a one-page site, so the path only
+  // decides which anchor the browser jumps to (`alssm.okgs.info/#events`).
+  target.pathname = `/club-site/${club}`;
+  return withPathHeader(pathname, NextResponse.rewrite(target));
 }
 
 export const config = {

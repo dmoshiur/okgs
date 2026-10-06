@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight, CalendarDays, Images, MapPin, Users } from "lucide-react";
+import { ArrowRight, CalendarDays, Globe, Images, MapPin, Sparkles, Users } from "lucide-react";
 import type { ClubSummary } from "@/lib/club-data";
 import { clubPath } from "@/lib/club-data";
 import { bn, formatMonthDay, relativeDay } from "@/lib/format";
@@ -7,16 +7,15 @@ import { SmartBackdrop } from "@/components/public/Media";
 import { normalizeHexColor, readableTextColor } from "@/lib/club-colors";
 
 /**
- * Club card used on the homepage strip and in the directory.
+ * Club card — used on the homepage strip and in the club directory.
  *
- * Structure is intentionally rigid so every card in a row lines up:
- *   .visual → code badge + icon
- *   .content → title, description, meta, next event, spacer, CTA
- * The whole card links to the internal club page through a stretched link, so
- * the optional "own website" link can sit above it as a real second anchor.
+ * Two destinations, both explicit: the club's own site on its subdomain
+ * (`alssm.okgs.info`) through the accent button, and the club's page inside the
+ * school information centre through the quieter link. The card itself is no
+ * longer one giant link, so neither button can ever be swallowed by the other.
  */
 export function ClubCard({ summary, variant = "grid" }: { summary: ClubSummary; variant?: "grid" | "row" }) {
-  const { club, counts, nextEvent, objectives } = summary;
+  const { club, counts, nextEvent, objectives, siteUrl, siteLabel } = summary;
   const href = clubPath(club.slug);
   const accent = normalizeHexColor(club.accent, "#2563eb");
   const blurb = club.tagline || club.description || objectives[0] || "";
@@ -39,8 +38,17 @@ export function ClubCard({ summary, variant = "grid" }: { summary: ClubSummary; 
         label={club.name}
         transform={{ width: 720, height: 460, fit: "cover" }}
       >
-        <span className="club-icon" aria-hidden><IconByName name={club.icon} size={19} /></span>
-        <span className="club-open">ক্লাব পেজ <ArrowUpRight size={13} aria-hidden /></span>
+        <span className="club-badge">
+          {club.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={club.logo_url} alt="" loading="lazy" />
+          ) : (
+            <span className="club-icon" aria-hidden><IconByName name={club.icon} size={19} /></span>
+          )}
+        </span>
+        <span className="club-open">
+          <Globe size={13} aria-hidden /> {siteLabel}
+        </span>
       </SmartBackdrop>
 
       <div className="club-card-copy">
@@ -50,9 +58,10 @@ export function ClubCard({ summary, variant = "grid" }: { summary: ClubSummary; 
         </div>
 
         <h3>
-          <a href={href} className="club-card-stretch">{club.name}</a>
+          <a href={href}>{club.name}</a>
         </h3>
 
+        {club.name_en ? <p className="club-name-en">{club.name_en}</p> : null}
         {blurb ? <p className="club-tagline">{blurb}</p> : null}
 
         <div className="club-meta">
@@ -64,7 +73,7 @@ export function ClubCard({ summary, variant = "grid" }: { summary: ClubSummary; 
 
         {nextEvent ? (
           <div className="club-next">
-            <span className="club-next-date">{formatMonthDay(nextEvent.event_date)}</span>
+            <span className="club-next-date">{formatMonthDay(nextEvent.event_date) || "আসছে"}</span>
             <span className="club-next-title">{nextEvent.title}</span>
             {relativeDay(nextEvent.event_date) ? <span className="club-next-in">{relativeDay(nextEvent.event_date)}</span> : null}
           </div>
@@ -73,12 +82,17 @@ export function ClubCard({ summary, variant = "grid" }: { summary: ClubSummary; 
         <span className="club-card-spacer" aria-hidden />
 
         <div className="club-card-foot">
-          <span className="club-link">বিস্তারিত দেখুন <ArrowRight size={14} aria-hidden /></span>
-          {club.domain ? (
-            <a className="club-site-link" href={club.domain} target="_blank" rel="noreferrer">
-              নিজস্ব সাইট <ArrowUpRight size={12} aria-hidden />
-            </a>
-          ) : null}
+          <a className="club-site-btn" href={siteUrl} target="_blank" rel="noreferrer noopener">
+            <Sparkles size={15} aria-hidden />
+            <span>
+              <strong>সাইট দেখুন</strong>
+              <small>{siteLabel}</small>
+            </span>
+            <ArrowRight size={14} aria-hidden />
+          </a>
+          <a className="club-page-link" href={href}>
+            ক্লাব পাতা
+          </a>
         </div>
       </div>
     </article>

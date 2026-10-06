@@ -30,33 +30,57 @@ export function organizationSchema(settings: SiteSetting[]) {
   };
 }
 
-export function clubSchema(club: Club, events: ClubEvent[]) {
+/** What a club's own micro-site knows about itself — see `lib/club-sites.ts`. */
+export interface ClubSiteSchemaInput {
+  name: string;
+  url: string;
+  tagline?: string;
+  about?: string;
+  logo_url?: string;
+  cover_image_url?: string;
+  email?: string;
+  phone?: string;
+  founded_year?: number;
+  facebook?: string;
+  youtube?: string;
+  events?: { title: string; date?: string; description?: string; image_url?: string }[];
+}
+
+/**
+ * Structured data for a club's own site (`alssm.okgs.info`).
+ *
+ * `url` is the club's canonical address, so search engines file the club under
+ * its own host and attribute every event to that organization.
+ */
+export function clubSiteSchema(club: ClubSiteSchemaInput) {
+  const image = club.cover_image_url || club.logo_url;
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: club.name,
-    description: club.description || club.tagline,
-    url: `${site()}/clubs/${club.slug}`,
+    description: club.tagline || club.about || undefined,
+    url: club.url,
     foundingDate: club.founded_year ? String(club.founded_year) : undefined,
-    logo: club.image_url || undefined,
-    image: club.cover_image_url || undefined,
+    logo: club.logo_url || undefined,
+    image: image || undefined,
     email: club.email || undefined,
-    telephone: club.coordinator_phone || undefined,
-    memberOf: { "@type": "Organization", name: "ওমর কিন্ডারগার্টেন স্কুল" },
-    event: events.slice(0, 8).map((event) => ({
+    telephone: club.phone || undefined,
+    sameAs: [club.facebook, club.youtube].filter(Boolean),
+    memberOf: { "@type": "Organization", name: "ওমর কিন্ডারগার্টেন স্কুল", url: site() },
+    event: (club.events || []).slice(0, 8).map((event) => ({
       "@type": "Event",
       name: event.title,
-      startDate: event.event_date,
-      endDate: event.event_date,
+      startDate: event.date || undefined,
       eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
       eventStatus: "https://schema.org/EventScheduled",
-      location: { "@type": "Place", name: event.venue || "ওমর কিন্ডারগার্টেন স্কুল" },
+      location: { "@type": "Place", name: "ওমর কিন্ডারগার্টেন স্কুল" },
       image: event.image_url || undefined,
       description: event.description || undefined,
-      organizer: { "@type": "Organization", name: club.name },
+      organizer: { "@type": "Organization", name: club.name, url: club.url },
     })),
   };
 }
+
 
 export function newsArticleSchema(item: NewsItem, club?: Club) {
   return {

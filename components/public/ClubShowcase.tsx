@@ -5,6 +5,7 @@ import { ArrowUpRight, Images, Users } from "lucide-react";
 import type { Club, Slide } from "@/lib/types";
 import { SmartImage } from "@/components/public/Media";
 import { bn } from "@/lib/format";
+import { clubSiteLabel, clubSiteUrl } from "@/lib/club-urls";
 
 interface ShowcaseProps {
   clubs: Club[];
@@ -86,13 +87,14 @@ export function ClubShowcase({ clubs, slides, counts = {} }: ShowcaseProps) {
         }),
       );
 
+      const siteHref = clubSiteUrl({ slug: club.slug, subdomain: club.subdomain, website: club.domain });
       list.push({
         key: `site-${club.id}`,
         image: club.logo_url || club.image_url || "",
-        title: club.domain || club.subdomain || `${club.short_code ?? club.slug}.okgs.info`,
-        text: club.name_en || "ক্লাবের নিজস্ব সাইটে সব আয়োজন, কমিটি ও গ্যালারি।",
-        href: club.domain || club.subdomain || `/clubs/${club.slug}`,
-        external: Boolean(club.domain || club.subdomain),
+        title: clubSiteLabel({ slug: club.slug, subdomain: club.subdomain, website: club.domain }),
+        text: club.tagline || club.name_en || "ক্লাবের নিজের সাইটে সব আয়োজন, কমিটি ও গ্যালারি।",
+        href: siteHref,
+        external: true,
         chip: "নিজস্ব সাইট",
         logo: club.logo_url || undefined,
       });
