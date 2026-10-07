@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BadgeCheck, Banknote, Receipt, Trash2, Wallet, X } from "lucide-react";
+import { BadgeCheck, Banknote, Pencil, Printer, Receipt, Trash2, Wallet, X } from "lucide-react";
 import type { DueRow, ExpenseRow, FundRow } from "@/lib/portal-db";
 import { bn, formatDate } from "@/lib/format";
 import { Bars, Empty, money, Notice, Panel, useApi, postJson } from "@/components/sf/console/ui";
@@ -20,9 +20,12 @@ const purposes = ["বিজ্ঞান মেলা ফান্ড", "ক্�
 export function FundsPanel({ fairSlug }: { fairSlug: string }) {
   const [status, setStatus] = useState("");
   const [classFilter, setClassFilter] = useState("");
+  const { data: classOptions } = useApi<{ classes: ClassOption[] }>("/api/staff/classes");
   const query = `/api/staff/funds?fair=${encodeURIComponent(fairSlug)}${status ? `&status=${status}` : ""}${classFilter ? `&class=${encodeURIComponent(classFilter)}` : ""}`;
   const { data, loading, error, reload } = useApi<{ funds: FundRow[] }>(query, [fairSlug, status, classFilter]);
-  const [form, setForm] = useState({ payer_name: "", class_level: "", section: "", student_id: "", phone: "", amount: "", method: "নগদ", trx_id: "", purpose: purposes[0], note: "" });
+  const { data: dueData } = useApi<{ dues: DueRow[] }>(`/api/staff/dues?fair=${encodeURIComponent(fairSlug)}&limit=1000`, [fairSlug]);
+  const [form, setForm] = useState({ payer_name: "", class_level: "", section: "", student_id: "", phone: "", user_id: "", due_id: "", amount: "", method: "নগদ", trx_id: "", purpose: purposes[0], note: "" });
+  const [editing, setEditing] = useState("");
   const [message, setMessage] = useState("");
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
@@ -40,15 +43,28 @@ export function FundsPanel({ fairSlug }: { fairSlug: string }) {
     setMessage("");
     setProblem("");
     try {
-      await postJson("/api/staff/funds", { ...form, fair_slug: fairSlug, amount: Number(form.amount) || 0, status: "verified" });
-      setMessage(`${form.payer_name || "এন্ট্রি"} — ${form.amount} টাকা জমা হয়েছে।`);
-      setForm({ ...form, payer_name: "", amount: "", trx_id: "", note: "", student_id: "" });
+      if (editing) {
+        await postJson("/api/staff/funds", { ...form, id: editing, fair_slug: fairSlug, amount: Number(form.amount) || 0 }, "PATCH");
+        setMessage(`${form.payer_name || "এন্ট্রি"} সম্পাদনা করা হয়েছে।`);
+      } else {
+        await postJson("/api/staff/funds", { ...form, fair_slug: fairSlug, amount: Number(form.amount) || 0, status: "verified" });
+        setMessage(`${form.payer_name || "এন্ট্রি"} — ${form.amount} টাকা জমা হয়েছে।`);
+      }
+      setEditing("");
+      setForm({ ...form, payer_name: "", amount: "", trx_id: "", note: "", student_id: "", due_id: "", user_id: "" });
       await reload();
     } catch (issue) {
       setProblem(issue instanceof Error ? issue.message : "সংরক্ষণ করা যায়নি।");
     } finally {
       setBusy(false);
     }
+  }
+
+  function startEdit(fund: FundRow) {
+    setEditing(fund.id);
+    setForm({ payer_name: fund.payer_name, class_level: fund.class_level, section: fund.section, student_id: fund.student_id, phone: fund.phone, user_id: fund.user_id, due_id: fund.due_id, amount: String(fund.amount), method: fund.method, trx_id: fund.trx_id, purpose: fund.purpose, note: fund.note });
+    setProblem("");
+    setMessage("");
   }
 
   async function setFundStatus(id: string, next: "verified" | "rejected") {
@@ -86,6 +102,8 @@ export function FundsPanel({ fairSlug }: { fairSlug: string }) {
                 {option.label}
               </button>
             ))}
+            <select className="v2-select" value={classFilter} onChange={(event) => setClassFilter(event.target.value)} aria-label="Filter by class"><option value="">সব শ্রেণি</option>{(classOptions?.classes ?? []).map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}</select>
+            <a className="v2-btn v2-btn-sm v2-btn-ghost" href={`/sf/print/collections?fair=${encodeURIComponent(fairSlug)}${status ? `&status=${status}` : ""}${classFilter ? `&class=${encodeURIComponent(classFilter)}` : ""}`} target="_blank" rel="noreferrer"><Printer size={14} /> Collection report</a>
           </div>
         }
       >
@@ -117,11 +135,13 @@ export function FundsPanel({ fairSlug }: { fairSlug: string }) {
                     <div className="v2-muted" style={{ fontSize: 12 }}>{fund.student_id || fund.phone || "—"}</div>
                   </td>
                   <td>{fund.class_level || "—"}{fund.section ? ` · ${fund.section}` : ""}</td>
-                  <td>{fund.purpose}<div className="v2-muted" style={{ fontSize: 12 }}>{formatDate(fund.created_at)}</div></td>
+                  <td>{fund.purpose}<div className="v2-muted" style={{ fontSize: 12 }}>রসিদ {fund.receipt_no} · {formatDate(fund.created_at)}</div></td>
                   <td>{fund.method}{fund.trx_id ? <div className="v2-muted" style={{ fontSize: 12 }}>{fund.trx_id}</div> : null}</td>
                   <td><strong>{money(fund.amount)}</strong></td>
                   <td className={fund.status === "verified" ? "status-ok" : fund.status === "pending" ? "status-pending" : "status-bad"}>{fund.status === "verified" ? "যাচাই" : fund.status === "pending" ? "অপেক্ষা" : "বাতিল"}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
+                    <a className="v2-btn v2-btn-sm v2-btn-ghost" href={`/sf/print/receipt/${fund.id}`} target="_blank" rel="noreferrer" title="রসিদ ছাপুন"><Printer size={14} /></a>{" "}
+                    <button className="v2-btn v2-btn-sm v2-btn-ghost" type="button" onClick={() => startEdit(fund)} title="সম্পাদনা"><Pencil size={14} /></button>{" "}
                     {fund.status !== "verified" ? (
                       <button className="v2-btn v2-btn-sm" type="button" onClick={() => setFundStatus(fund.id, "verified")} title="যাচাই করুন">
                         <BadgeCheck size={14} />
@@ -170,6 +190,16 @@ export function FundsPanel({ fairSlug }: { fairSlug: string }) {
             <label className="v2-label">আইডি নম্বর</label>
             <input className="v2-input" value={form.student_id} onChange={(e) => setForm({ ...form, student_id: e.target.value })} />
           </div>
+          <div>
+            <label className="v2-label">পাওনার সাথে যুক্ত করুন (ঐচ্ছিক)</label>
+            <select className="v2-select" value={form.due_id} onChange={(event) => {
+              const due = (dueData?.dues ?? []).find((item) => item.id === event.target.value);
+              setForm({ ...form, due_id: event.target.value, user_id: due?.user_id || form.user_id, payer_name: due?.student_name || form.payer_name, class_level: due?.class_level || form.class_level, section: due?.section || form.section, student_id: due?.student_id || form.student_id, purpose: due?.title || form.purpose });
+            }}>
+              <option value="">পাওনা নয় — সাধারণ রসিদ</option>
+              {(dueData?.dues ?? []).filter((due) => Math.max(0, Number(due.amount) - Number(due.paid_amount) - Number(due.pending_amount ?? 0)) > 0).map((due) => <option key={due.id} value={due.id}>{due.student_name} · {due.title} · বাকি {money(Math.max(0, Number(due.amount) - Number(due.paid_amount) - Number(due.pending_amount ?? 0)))}</option>)}
+            </select>
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <div>
               <label className="v2-label">টাকা</label>
@@ -194,8 +224,9 @@ export function FundsPanel({ fairSlug }: { fairSlug: string }) {
           </div>
           <input type="hidden" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
           <button className="v2-btn" type="submit" disabled={busy}>
-            <Banknote size={16} /> {busy ? "সেভ হচ্ছে…" : "জমা যোগ করুন"}
+            <Banknote size={16} /> {busy ? "সেভ হচ্ছে…" : editing ? "পরিবর্তন সংরক্ষণ" : "জমা যোগ করুন"}
           </button>
+          {editing ? <button className="v2-btn v2-btn-ghost" type="button" onClick={() => { setEditing(""); setForm({ payer_name: "", class_level: "", section: "", student_id: "", phone: "", user_id: "", due_id: "", amount: "", method: "নগদ", trx_id: "", purpose: purposes[0], note: "" }); }}>সম্পাদনা বাতিল</button> : null}
         </form>
       </Panel>
     </div>
@@ -208,7 +239,8 @@ export function DuesPanel({ fairSlug }: { fairSlug: string }) {
   const { data: classes } = useApi<{ classes: ClassOption[] }>("/api/staff/classes");
   const { data, loading, error, reload } = useApi<{ dues: DueRow[] }>(`/api/staff/dues?fair=${encodeURIComponent(fairSlug)}`, [fairSlug]);
   const [bulk, setBulk] = useState({ class_level: "", section: "", title: "বিজ্ঞান মেলা ফি", amount: "", due_date: "" });
-  const [single, setSingle] = useState({ student_name: "", student_id: "", class_level: "", section: "", title: "বিজ্ঞান মেলা ফি", amount: "" });
+  const [single, setSingle] = useState({ student_name: "", student_id: "", class_level: "", section: "", title: "বিজ্ঞান মেলা ফি", amount: "", due_date: "" });
+  const [editingDue, setEditingDue] = useState("");
   const [message, setMessage] = useState("");
   const [problem, setProblem] = useState("");
   const [tab, setTab] = useState<"bulk" | "single">("bulk");
@@ -248,9 +280,15 @@ export function DuesPanel({ fairSlug }: { fairSlug: string }) {
     setProblem("");
     setMessage("");
     try {
-      await postJson("/api/staff/dues", { ...single, fair_slug: fairSlug, amount: Number(single.amount) || 0 });
-      setMessage("পাওনা যোগ হয়েছে।");
-      setSingle({ ...single, student_name: "", student_id: "", amount: "" });
+      if (editingDue) {
+        await postJson("/api/staff/dues", { id: editingDue, ...single, amount: Number(single.amount) || 0 }, "PATCH");
+        setMessage("পাওনা সম্পাদনা করা হয়েছে।");
+      } else {
+        await postJson("/api/staff/dues", { ...single, fair_slug: fairSlug, amount: Number(single.amount) || 0 });
+        setMessage("পাওনা যোগ হয়েছে।");
+      }
+      setEditingDue("");
+      setSingle({ student_name: "", student_id: "", class_level: "", section: "", title: "বিজ্ঞান মেলা ফি", amount: "", due_date: "" });
       await reload();
     } catch (issue) {
       setProblem(issue instanceof Error ? issue.message : "তৈরি করা যায়নি।");
@@ -260,12 +298,40 @@ export function DuesPanel({ fairSlug }: { fairSlug: string }) {
   }
 
   async function markPaid(due: DueRow) {
+    const remaining = Math.max(0, Number(due.amount) - Number(due.paid_amount) - Number(due.pending_amount ?? 0));
+    const amountText = prompt(`${due.student_name} · ${due.title} — বাকি ${remaining} টাকা। কত টাকা জমা নিলেন?`, String(remaining));
+    if (amountText === null) return;
+    const amount = Number(amountText);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > remaining) { setProblem(`টাকার পরিমাণ ১ থেকে ${remaining} এর মধ্যে দিন।`); return; }
     try {
-      await postJson("/api/staff/dues", { id: due.id, paid_amount: due.amount, status: "paid" }, "PATCH");
+      await postJson("/api/staff/funds", {
+        fair_slug: fairSlug,
+        due_id: due.id,
+        user_id: due.user_id,
+        payer_name: due.student_name,
+        payer_role: "student",
+        class_level: due.class_level,
+        section: due.section,
+        student_id: due.student_id,
+        amount,
+        method: "নগদ",
+        purpose: due.title,
+        status: "verified",
+        note: "পাওনার বিপরীতে রসিদ",
+      });
+      setMessage(`${money(amount)}-এর রসিদ তৈরি হয়েছে এবং পাওনার সঙ্গে যুক্ত হয়েছে।`);
       await reload();
     } catch (issue) {
-      setProblem(issue instanceof Error ? issue.message : "পরিবর্তন করা যায়নি।");
+      setProblem(issue instanceof Error ? issue.message : "রসিদ তৈরি করা যায়নি।");
     }
+  }
+
+  function startEdit(due: DueRow) {
+    setEditingDue(due.id);
+    setTab("single");
+    setSingle({ student_name: due.student_name, student_id: due.student_id, class_level: due.class_level, section: due.section, title: due.title, amount: String(due.amount), due_date: due.due_date });
+    setProblem("");
+    setMessage("");
   }
 
   async function remove(id: string) {
@@ -313,8 +379,9 @@ export function DuesPanel({ fairSlug }: { fairSlug: string }) {
                     {due.status === "paid" ? "পরিশোধিত" : due.status === "partial" ? "আংশিক" : due.status === "waived" ? "মাফ" : "বাকি"}
                   </td>
                   <td style={{ whiteSpace: "nowrap" }}>
+                    <button className="v2-btn v2-btn-sm v2-btn-ghost" type="button" onClick={() => startEdit(due)} title="পাওনা সম্পাদনা"><Pencil size={14} /></button>{" "}
                     {due.status !== "paid" ? (
-                      <button className="v2-btn v2-btn-sm" type="button" onClick={() => markPaid(due)}><Wallet size={14} /></button>
+                      <button className="v2-btn v2-btn-sm" type="button" onClick={() => markPaid(due)} title="রসিদ যোগ করুন"><Wallet size={14} /></button>
                     ) : null}{" "}
                     <button className="v2-btn v2-btn-sm v2-btn-danger" type="button" onClick={() => remove(due.id)}><Trash2 size={14} /></button>
                   </td>
@@ -329,11 +396,11 @@ export function DuesPanel({ fairSlug }: { fairSlug: string }) {
 
       <div className="v2-grid">
         <Panel
-          title="নতুন পাওনা"
+          title={editingDue ? "পাওনা সম্পাদনা" : "নতুন পাওনা"}
           action={
             <div className="pill-row">
-              <button type="button" className={`pill ${tab === "bulk" ? "is-on" : ""}`} onClick={() => setTab("bulk")}>পুরো ক্লাস</button>
-              <button type="button" className={`pill ${tab === "single" ? "is-on" : ""}`} onClick={() => setTab("single")}>একজন</button>
+              <button type="button" className={`pill ${tab === "bulk" ? "is-on" : ""}`} onClick={() => { setEditingDue(""); setTab("bulk"); }}>পুরো ক্লাস</button>
+              <button type="button" className={`pill ${tab === "single" ? "is-on" : ""}`} onClick={() => { if (tab !== "single") setEditingDue(""); setTab("single"); }}>একজন</button>
             </div>
           }
         >
@@ -399,7 +466,12 @@ export function DuesPanel({ fairSlug }: { fairSlug: string }) {
                 <label className="v2-label">খাত</label>
                 <input className="v2-input" value={single.title} onChange={(e) => setSingle({ ...single, title: e.target.value })} required />
               </div>
-              <button className="v2-btn" type="submit" disabled={busy}><Receipt size={16} /> যোগ করুন</button>
+              <div>
+                <label className="v2-label">শেষ তারিখ</label>
+                <input className="v2-input" type="date" value={single.due_date} onChange={(e) => setSingle({ ...single, due_date: e.target.value })} />
+              </div>
+              <button className="v2-btn" type="submit" disabled={busy}><Receipt size={16} /> {busy ? "সেভ হচ্ছে…" : editingDue ? "পাওনা সংরক্ষণ" : "যোগ করুন"}</button>
+              {editingDue ? <button className="v2-btn v2-btn-ghost" type="button" onClick={() => { setEditingDue(""); setSingle({ student_name: "", student_id: "", class_level: "", section: "", title: "বিজ্ঞান মেলা ফি", amount: "", due_date: "" }); }}>সম্পাদনা বাতিল</button> : null}
             </form>
           )}
         </Panel>
@@ -413,6 +485,7 @@ export function DuesPanel({ fairSlug }: { fairSlug: string }) {
 export function ExpensesPanel({ fairSlug }: { fairSlug: string }) {
   const { data, loading, error, reload } = useApi<{ expenses: ExpenseRow[] }>(`/api/staff/expenses?fair=${encodeURIComponent(fairSlug)}`, [fairSlug]);
   const [form, setForm] = useState({ title: "", category: "সাধারণ", amount: "", paid_to: "", paid_at: "", method: "নগদ", voucher_no: "", note: "" });
+  const [editing, setEditing] = useState("");
   const [message, setMessage] = useState("");
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
@@ -426,8 +499,14 @@ export function ExpensesPanel({ fairSlug }: { fairSlug: string }) {
     setProblem("");
     setMessage("");
     try {
-      await postJson("/api/staff/expenses", { ...form, fair_slug: fairSlug, amount: Number(form.amount) || 0 });
-      setMessage("খরচ যোগ হয়েছে।");
+      if (editing) {
+        await postJson("/api/staff/expenses", { ...form, id: editing, fair_slug: fairSlug, amount: Number(form.amount) || 0 }, "PATCH");
+        setMessage("খরচের মেমো সম্পাদনা করা হয়েছে।");
+      } else {
+        await postJson("/api/staff/expenses", { ...form, fair_slug: fairSlug, amount: Number(form.amount) || 0 });
+        setMessage("খরচ যোগ হয়েছে।");
+      }
+      setEditing("");
       setForm({ ...form, title: "", amount: "", paid_to: "", voucher_no: "", note: "" });
       await reload();
     } catch (issue) {
@@ -435,6 +514,13 @@ export function ExpensesPanel({ fairSlug }: { fairSlug: string }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  function startEdit(item: ExpenseRow) {
+    setEditing(item.id);
+    setForm({ title: item.title, category: item.category, amount: String(item.amount), paid_to: item.paid_to, paid_at: item.paid_at, method: item.method, voucher_no: item.voucher_no, note: item.note });
+    setProblem("");
+    setMessage("");
   }
 
   async function remove(id: string) {
@@ -465,8 +551,8 @@ export function ExpensesPanel({ fairSlug }: { fairSlug: string }) {
                   <td>{item.paid_to || "—"}</td>
                   <td>{item.paid_at ? formatDate(item.paid_at) : "—"}</td>
                   <td><strong>{money(item.amount)}</strong></td>
-                  <td>{item.voucher_no || "—"}</td>
-                  <td><button className="v2-btn v2-btn-sm v2-btn-danger" type="button" onClick={() => remove(item.id)}><Trash2 size={14} /></button></td>
+                  <td>{item.memo_no || item.voucher_no || "—"}</td>
+                  <td style={{ whiteSpace: "nowrap" }}><a className="v2-btn v2-btn-sm v2-btn-ghost" href={`/sf/print/memo/${item.id}`} target="_blank" rel="noreferrer" title="মেমো ছাপুন"><Printer size={14} /></a>{" "}<button className="v2-btn v2-btn-sm v2-btn-ghost" type="button" onClick={() => startEdit(item)} title="সম্পাদনা"><Pencil size={14} /></button>{" "}<button className="v2-btn v2-btn-sm v2-btn-danger" type="button" onClick={() => remove(item.id)}><Trash2 size={14} /></button></td>
                 </tr>
               ))}
               {!expenses.length && !loading ? <tr><td colSpan={7}><Empty>কোনো খরচ যোগ করা হয়নি।</Empty></td></tr> : null}
@@ -520,7 +606,8 @@ export function ExpensesPanel({ fairSlug }: { fairSlug: string }) {
             <label className="v2-label">নোট</label>
             <input className="v2-input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
           </div>
-          <button className="v2-btn" type="submit" disabled={busy}><Receipt size={16} /> খরচ যোগ করুন</button>
+          <button className="v2-btn" type="submit" disabled={busy}><Receipt size={16} /> {busy ? "সেভ হচ্ছে…" : editing ? "মেমো সংরক্ষণ" : "খরচ যোগ করুন"}</button>
+          {editing ? <button className="v2-btn v2-btn-ghost" type="button" onClick={() => { setEditing(""); setForm({ title: "", category: "সাধারণ", amount: "", paid_to: "", paid_at: "", method: "নগদ", voucher_no: "", note: "" }); }}>সম্পাদনা বাতিল</button> : null}
         </form>
       </Panel>
     </div>

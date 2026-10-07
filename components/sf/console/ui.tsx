@@ -48,9 +48,9 @@ export async function postJson<T = Record<string, unknown>>(url: string, body: R
   return payload;
 }
 
-export function Panel({ title, action, children, className = "" }: { title?: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
+export function Panel({ title, action, children, className = "", id }: { title?: string; action?: React.ReactNode; children: React.ReactNode; className?: string; id?: string }) {
   return (
-    <section className={`panel ${className}`}>
+    <section id={id} className={`panel ${className}`}>
       {title || action ? (
         <header className="panel-head">
           {title ? <h2 style={{ margin: 0, fontSize: 19 }}>{title}</h2> : <span />}

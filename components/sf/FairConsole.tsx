@@ -13,6 +13,7 @@ import {
   LayoutGrid,
   LogOut,
   Megaphone,
+  MoreHorizontal,
   QrCode,
   Receipt,
   ScanLine,
@@ -23,13 +24,14 @@ import {
 import type { Fair, SiteTheme } from "@/lib/types";
 import type { DueRow, FundRow, PublicUser, ScanRow } from "@/lib/portal-db";
 import { bn, formatDate } from "@/lib/format";
-import { roleLabels, type PortalRole } from "@/lib/roles";
+import { isAdminRole, roleLabels, type PortalRole } from "@/lib/roles";
 import { Bars, Empty, Metric, Notice, Panel, money, postJson, useApi } from "@/components/sf/console/ui";
 import { DuesPanel, ExpensesPanel, FundsPanel } from "@/components/sf/console/MoneyPanels";
 import { ClassesPanel, PassesPanel, UsersPanel } from "@/components/sf/console/PeoplePanels";
 import { CollectionsPanel } from "@/components/sf/console/CollectionsPanel";
 import { SettingsPanel } from "@/components/sf/console/SettingsPanel";
 import { TickerPanel } from "@/components/sf/console/TickerPanel";
+import { PortalAnnouncements } from "@/components/portal/PortalAnnouncements";
 
 interface Stats {
   money: {
@@ -70,6 +72,7 @@ const tabs = [
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
+const mobilePrimaryTabIds = new Set<TabId>(["dashboard", "funds", "dues", "users"]);
 
 export function FairConsole({
   user,
@@ -99,8 +102,9 @@ export function FairConsole({
   logo: string;
 }) {
   const [tab, setTab] = useState<TabId>("dashboard");
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [fairSlug, setFairSlug] = useState(activeFairSlug);
-  const isAdmin = role === "admin";
+  const isAdmin = isAdminRole(role);
   const { data, loading, error, reload } = useApi<Stats>(tab === "dashboard" ? `/api/staff/stats?fair=${encodeURIComponent(fairSlug)}` : null, [fairSlug, tab]);
   const [message, setMessage] = useState("");
   const [problem, setProblem] = useState("");
@@ -145,7 +149,7 @@ export function FairConsole({
               </small>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="app-top-actions">
             <select className="v2-select" style={{ width: "auto" }} value={fairSlug} onChange={(e) => setFairSlug(e.target.value)}>
               {fairs.map((item) => (
                 <option key={item.slug} value={item.slug}>{item.name}</option>
@@ -198,6 +202,8 @@ export function FairConsole({
               <Metric label="পাওনা বাকি" value={money(money_?.duesOutstanding ?? 0)} note={`${bn(data?.dues?.dueCount ?? 0)} জন বাকি`} icon={<ClipboardList size={14} />} />
               <Metric label="QR পাস" value={bn(data?.passes?.total ?? 0)} note={`স্ক্যান ${bn(data?.scans?.ok ?? 0)} সফল`} icon={<QrCode size={14} />} />
             </div>
+
+            <PortalAnnouncements />
 
             <div className="v2-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
               <Panel title="শ্রেণি অনুযায়ী জমা হওয়া ফান্ড">
@@ -284,8 +290,8 @@ export function FairConsole({
         {tab === "expenses" ? <ExpensesPanel fairSlug={fairSlug} /> : null}
         {tab === "collections" ? <CollectionsPanel fairSlug={fairSlug} categories={categories} clubs={clubs} /> : null}
         {tab === "passes" ? <PassesPanel fairSlug={fairSlug} fairName={fair?.name ?? ""} /> : null}
-        {tab === "users" ? <UsersPanel canManageAdmins={isAdmin} /> : null}
-        {tab === "classes" ? <ClassesPanel /> : null}
+        {tab === "users" ? <UsersPanel canManageAdmins={isAdmin} canManageSuperAdmins={role === "superadmin"} fairSlug={fairSlug} /> : null}
+        {tab === "classes" ? <ClassesPanel fairSlug={fairSlug} /> : null}
         {tab === "ticker" ? <TickerPanel fairSlug={fairSlug} /> : null}
 
         {tab === "settings" ? (
@@ -304,17 +310,25 @@ export function FairConsole({
         {error ? <Notice kind="bad">{error}</Notice> : null}
       </main>
 
-      <nav className="app-mobile-bar">
-        {tabs.slice(0, 4).map((item) => (
-          <button key={item.id} type="button" className={tab === item.id ? "is-on" : ""} onClick={() => setTab(item.id)}>
+      <nav className="app-mobile-bar" aria-label="Staff navigation">
+        {tabs.filter((item) => mobilePrimaryTabIds.has(item.id)).map((item) => (
+          <button key={item.id} type="button" className={tab === item.id ? "is-active" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { setTab(item.id); setMobileMoreOpen(false); }}>
             <item.icon size={18} />
-            {item.label}
+            <span>{item.label}</span>
           </button>
         ))}
-        <Link href="/sf/scan" className="is-on" style={{ background: "transparent" }}>
-          <ScanLine size={18} />
-          স্ক্যান
-        </Link>
+        <div className="app-mobile-more-wrap">
+          {mobileMoreOpen ? <div className="app-mobile-more-menu">
+            {tabs.filter((item) => !mobilePrimaryTabIds.has(item.id)).map((item) => (
+              <button key={item.id} type="button" onClick={() => { setTab(item.id); setMobileMoreOpen(false); }}><item.icon size={17} />{item.label}</button>
+            ))}
+            <Link href="/sf/scan"><ScanLine size={17} /> QR স্ক্যানার</Link>
+            <a href="/admin" target="_blank" rel="noreferrer"><LayoutGrid size={17} /> কনটেন্ট স্টুডিও</a>
+          </div> : null}
+          <button type="button" className={!mobilePrimaryTabIds.has(tab) || mobileMoreOpen ? "is-active" : ""} aria-expanded={mobileMoreOpen} onClick={() => setMobileMoreOpen((open) => !open)}>
+            <MoreHorizontal size={18} /><span>আরও</span>
+          </button>
+        </div>
       </nav>
     </div>
   );

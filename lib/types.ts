@@ -51,6 +51,8 @@ export interface Notice extends BaseRow {
   body: string;
   type: string;
   published_at: string;
+  audience?: string;
+  email_notify?: boolean;
   is_active: boolean;
 }
 
@@ -76,6 +78,8 @@ export interface NewsItem extends BaseRow {
   author: string;
   club_slug: string;
   published_at: string;
+  audience?: string;
+  email_notify?: boolean;
   is_featured: boolean;
   is_active: boolean;
 }
@@ -85,6 +89,8 @@ export interface UpdateItem extends BaseRow {
   description: string;
   date: string;
   kind: string;
+  audience?: string;
+  email_notify?: boolean;
   is_active: boolean;
 }
 

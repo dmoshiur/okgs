@@ -581,7 +581,15 @@ export async function countsByResource() {
 
 export async function getPublicContent(): Promise<PublicContent> {
   const entries = await Promise.all(resourceOrder.map((resource) => listRows(resource, { activeOnly: true })));
-  return Object.fromEntries(resourceOrder.map((resource, index) => [resource, entries[index]])) as unknown as PublicContent;
+  const publicResources = new Set(["notices", "news", "updates"]);
+  const content = Object.fromEntries(resourceOrder.map((resource, index) => {
+    const rows = entries[index] as unknown as Record<string, unknown>[];
+    const visible = publicResources.has(resource)
+      ? rows.filter((row) => ["public", ""].includes(String(row.audience ?? "public").toLowerCase()))
+      : rows;
+    return [resource, visible];
+  }));
+  return content as unknown as PublicContent;
 }
 
 export function clubResources(resource: ResourceName) {

@@ -1,5 +1,5 @@
-import { fail, num, ok, staff, str } from "@/lib/api";
-import { createUser, listUsers, logActivity, publicUser, type PortalRole } from "@/lib/portal-db";
+import { defaultFairSlug, fail, num, ok, staff, str } from "@/lib/api";
+import { createUser, listClasses, listUsers, logActivity, publicUser, syncClassFeeDues, type PortalRole } from "@/lib/portal-db";
 import { defaultPortalPassword, ensurePassword, hashPassword } from "@/lib/portal-auth";
 import { getUser } from "@/lib/portal-db";
 import { allRoles } from "@/lib/portal-db";
@@ -16,6 +16,8 @@ export async function GET(request: Request) {
     class_level: params.get("class") || undefined,
     section: params.get("section") || undefined,
     search: params.get("q") || undefined,
+    payment_status: ["paid", "unpaid"].includes(params.get("payment_status") || "") ? params.get("payment_status") as "paid" | "unpaid" : undefined,
+    payment_fair_slug: params.get("fair") || undefined,
     limit: num(params.get("limit"), 800),
   });
   return ok({ users: users.map(publicUser) });
@@ -67,6 +69,10 @@ export async function POST(request: Request) {
       must_change_password: body.password ? 0 : 1,
       is_active: 1,
     });
+    if (role === "student" && created.class_level) {
+      const classInfo = (await listClasses(true)).find((item) => item.name === created.class_level);
+      if (classInfo && Number(classInfo.fee_amount) > 0) await syncClassFeeDues(classInfo, str(body.fair_slug) || await defaultFairSlug(), session.user.name);
+    }
     await logActivity({
       actor_id: session.user.id,
       actor_name: session.user.name,
@@ -100,7 +106,8 @@ export async function PATCH(request: Request) {
   if (!id) return fail("কোন অ্যাকাউন্ট, সেটি ঠিক নেই।", 422);
   const target = await getUser(id);
   if (!target) return fail("অ্যাকাউন্ট পাওয়া যায়নি।", 404);
-  if (target.role === "admin" && session.role !== "admin") return fail("অ্যাডমিন অ্যাকাউন্ট কেবল অ্যাডমিন বদলাতে পারেন।", 403);
+  if (target.role === "admin" && session.role !== "admin" && session.role !== "superadmin") return fail("অ্যাডমিন অ্যাকাউন্ট কেবল অ্যাডমিন বদলাতে পারেন।", 403);
+  if (target.role === "superadmin" && session.role !== "superadmin") return fail("SuperAdmin অ্যাকাউন্ট কেবল SuperAdmin বদলাতে পারেন।", 403);
 
   const newPassword = str(body.password);
   if (newPassword) {

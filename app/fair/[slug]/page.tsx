@@ -29,11 +29,16 @@ export default async function FairPage({ params }: FairPageProps) {
   const content = await getPublicContent();
   const fair = content.fairs.find((item) => item.slug === slug);
   if (!fair) notFound();
+  const tickers = await listTickers({ fair_slug: fair.slug, activeOnly: true, publicOnly: true, limit: 12 }).catch(() => []);
 
   return (
     <PublicChrome content={content} active="fair" internal contextLabel={fair.name}>
 
-      <FairSite content={content} fair={fair} />
+      <FairSite
+        content={content}
+        fair={fair}
+        tickers={tickers.map((item) => ({ id: item.id, message: item.message, kind: item.kind, category: item.category, name: item.name, class_level: item.class_level, section: item.section }))}
+      />
     </PublicChrome>
   );
 }

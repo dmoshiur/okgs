@@ -11,6 +11,7 @@ import {
   updatePass,
 } from "@/lib/portal-db";
 import { makePassToken } from "@/lib/qr";
+import { allocateGuestPasses, GuestPassLimitError, GuestPassStateError } from "@/lib/pass-guests";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,10 @@ export async function POST(request: Request) {
   const { session } = guard;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const fairSlug = str(body.fair_slug) || (await defaultFairSlug());
+  const manageGuestPasses = "guest_limit" in body;
+  const rawGuestLimit = Number(body.guest_limit ?? 0);
+  if (!Number.isInteger(rawGuestLimit) || rawGuestLimit < 0 || rawGuestLimit > 4) return fail("একজন শিক্ষার্থীর জন্য ০–৪টি অতিথি পাস বরাদ্দ করা যায়।", 422);
+  const guestLimit = rawGuestLimit;
 
   const targets: { id?: string; name: string; role: string; student_id: string; class_level: string; section: string; email: string; phone: string }[] = [];
 
@@ -52,7 +57,7 @@ export async function POST(request: Request) {
       limit: 3000,
     });
     for (const user of users) {
-      if (user.role === "guest") continue;
+      if (user.role !== "student" || Number(user.is_active) !== 1) continue;
       targets.push({
         id: user.id,
         name: user.name,
@@ -77,33 +82,41 @@ export async function POST(request: Request) {
     });
   }
 
-  const created: { id: string; token: string; holder_name: string }[] = [];
+  const created: { id: string; token: string; holder_name: string; parent_pass_id?: string; guest_index?: number }[] = [];
   for (const target of targets) {
     if (!target.name) continue;
-    if (target.id) {
-      const existing = await listPasses({ fair_slug: fairSlug, user_id: target.id, limit: 1 });
-      if (existing.length) {
-        created.push({ id: existing[0].id, token: existing[0].token, holder_name: existing[0].holder_name });
-        continue;
+    let parent = target.id ? (await listPasses({ fair_slug: fairSlug, user_id: target.id, limit: 1 }))[0] : undefined;
+    if (!parent) {
+      const pass = await createPass({
+        fair_slug: fairSlug,
+        user_id: target.id ?? "",
+        holder_name: target.name,
+        holder_role: target.role,
+        student_id: target.student_id,
+        class_level: target.class_level,
+        section: target.section,
+        email: target.email,
+        phone: target.phone,
+        token: "",
+        guest_limit: manageGuestPasses ? guestLimit : 0,
+        expires_at: str(body.expires_at),
+        note: str(body.note),
+      });
+      const token = makePassToken(pass.id);
+      await db.execute({ sql: `UPDATE passes SET token = ?, updated_at = ? WHERE id = ?`, args: [token, new Date().toISOString(), pass.id] });
+      parent = { ...pass, token };
+    }
+    created.push({ id: parent.id, token: parent.token, holder_name: parent.holder_name });
+    if (manageGuestPasses) {
+      try {
+        const allocated = await allocateGuestPasses(parent, guestLimit);
+        for (const guest of allocated.guests) created.push({ id: guest.id, token: guest.token, holder_name: guest.holder_name, parent_pass_id: parent.id, guest_index: guest.guest_index });
+      } catch (error) {
+        if (error instanceof GuestPassLimitError) return fail(`অতিথি পাসের সংখ্যা কমানো যাবে না; ${error.message.split(":").at(-1)}টি পাস ইতোমধ্যে ইস্যু হয়েছে।`, 422);
+        if (error instanceof GuestPassStateError) return fail(error.message, 409);
+        throw error;
       }
     }
-    const pass = await createPass({
-      fair_slug: fairSlug,
-      user_id: target.id ?? "",
-      holder_name: target.name,
-      holder_role: target.role,
-      student_id: target.student_id,
-      class_level: target.class_level,
-      section: target.section,
-      email: target.email,
-      phone: target.phone,
-      token: "",
-      expires_at: str(body.expires_at),
-      note: str(body.note),
-    });
-    const token = makePassToken(pass.id);
-    await db.execute({ sql: `UPDATE passes SET token = ? WHERE id = ?`, args: [token, pass.id] });
-    created.push({ id: pass.id, token, holder_name: pass.holder_name });
   }
 
   if (!created.length) return fail("কার জন্য পাস তৈরি হবে, সেটি ঠিক নেই।", 422);
@@ -138,7 +151,7 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const guard = await staff();
   if ("status" in guard) return guard;
-  if (guard.session.role !== "admin") return fail("পাস মুছে ফেলতে অ্যাডমিন দরকার — চাইলে বাতিল (revoke) করুন।", 403);
+  if (guard.session.role !== "admin" && guard.session.role !== "superadmin") return fail("পাস মুছে ফেলতে অ্যাডমিন দরকার — চাইলে বাতিল (revoke) করুন।", 403);
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const id = safeId(str(body.id));
   if (!id) return fail("আইডি ঠিক নেই।", 422);

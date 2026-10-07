@@ -17,7 +17,7 @@ export default async function HomePage() {
   const fair = activeFair(content, mode.slug);
 
   if (mode.enabled && fair) {
-    const tickers = await listTickers({ fair_slug: fair.slug, activeOnly: true, limit: 12 }).catch(() => []);
+    const tickers = await listTickers({ fair_slug: fair.slug, activeOnly: true, publicOnly: true, limit: 12 }).catch(() => []);
     return (
       <PublicChrome content={content} active="fair" contextLabel={fair.name}>
         <div className="v2-wrap" style={{ paddingTop: 14 }}>

@@ -5,14 +5,15 @@ import {
   createFund,
   createPass,
   dueTotals,
+  dueReceiptTotals,
   findPassForUser,
   listDues,
   listFunds,
   listPasses,
   logActivity,
-  updateDue,
 } from "@/lib/portal-db";
 import { makePassToken } from "@/lib/qr";
+import { allocateGuestPasses, GuestPassLimitError, GuestPassStateError } from "@/lib/pass-guests";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,8 @@ export async function GET() {
   ]);
   const byStudentId = user.student_id ? await listDues({ student_id: user.student_id, limit: 100 }) : [];
   const mergedDues = [...dues, ...byStudentId.filter((row) => !dues.some((due) => due.id === row.id))];
+  const parentPass = passes.find((pass) => !pass.parent_pass_id);
+  const guestPasses = parentPass ? await listPasses({ parent_pass_id: parentPass.id, limit: 4 }) : [];
   const totals = await dueTotals();
 
   return ok({
@@ -37,6 +40,7 @@ export async function GET() {
     dues: mergedDues,
     funds,
     passes,
+    guest_passes: guestPasses,
     outstanding: mergedDues
       .filter((due) => due.status === "due" || due.status === "partial")
       .reduce((sum, due) => sum + Math.max(0, Number(due.amount) - Number(due.paid_amount)), 0),
@@ -114,14 +118,19 @@ export async function POST(request: Request) {
     const id = str(body.due_id);
     if (!id) return fail("কোন পাওনাটি পরিশোধ করছেন তা বাছুন।", 422);
     const amount = Number(body.amount ?? 0);
-    const dues = await listDues({ user_id: user.id, limit: 100 });
+    const [ownedDues, studentDues] = await Promise.all([
+      listDues({ user_id: user.id, limit: 100 }),
+      user.student_id ? listDues({ student_id: user.student_id, limit: 100 }) : Promise.resolve([]),
+    ]);
+    const dues = [...ownedDues, ...studentDues.filter((row) => !ownedDues.some((owned) => owned.id === row.id) && (!row.user_id || row.user_id === user.id))];
     const due = dues.find((row) => row.id === id);
     if (!due) return fail("এই পাওনাটি খুঁজে পাওয়া যায়নি।", 404);
-    const paid = Math.max(0, Number(due.paid_amount) + (Number.isFinite(amount) && amount > 0 ? amount : 0));
-    const status = paid <= 0 ? "due" : paid >= Number(due.amount) ? "paid" : "partial";
-    await updateDue(id, { paid_amount: paid, status });
-    await createFund({
+    const receipts = await dueReceiptTotals(due.id);
+    const outstanding = Math.max(0, Number(due.amount) - receipts.verified - receipts.pending);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > outstanding) return fail(`বকেয়া সর্বোচ্চ ${outstanding} টাকা।`, 422);
+    const fundId = await createFund({
       fair_slug: due.fair_slug,
+      due_id: due.id,
       user_id: user.id,
       payer_name: user.name,
       payer_role: role,
@@ -136,7 +145,25 @@ export async function POST(request: Request) {
       status: "pending",
       note: `due:${id}`,
     });
-    return ok({ due: { ...due, paid_amount: paid, status } });
+    return ok({ due, fund_id: fundId, status: "pending" });
+  }
+
+  if (action === "guest-passes") {
+    const fairSlug = str(body.fair_slug);
+    const parent = await findPassForUser(user.id, fairSlug);
+    if (!parent) return fail("অতিথি পাস তৈরির আগে নিজের QR পাস তৈরি করুন।", 409);
+    if (parent.status !== "active") return fail("বাতিল বা ব্যবহৃত মূল পাসে নতুন অতিথি পাস দেওয়া যাবে না।", 409);
+    const guestLimit = Number(body.guest_limit);
+    if (!Number.isInteger(guestLimit) || guestLimit < 0 || guestLimit > 4) return fail("অতিথি পাসের সীমা ০–৪ এর মধ্যে দিন।", 422);
+    try {
+      const allocation = await allocateGuestPasses(parent, guestLimit);
+      await logActivity({ actor_id: user.id, actor_name: user.name, actor_role: role, action: "pass.guests.allocate", entity: "passes", entity_id: parent.id, detail: `${guestLimit} guest passes` });
+      return ok(allocation);
+    } catch (error) {
+      if (error instanceof GuestPassLimitError) return fail(`ইতোমধ্যে ${error.message.split(":").pop()}টি অতিথি পাস ইস্যু হয়েছে — সীমা এর চেয়ে কম হতে পারবে না।`, 422);
+      if (error instanceof GuestPassStateError) return fail(error.message, 409);
+      throw error;
+    }
   }
 
   if (action === "pass") {
