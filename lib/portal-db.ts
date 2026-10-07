@@ -120,6 +120,24 @@ export interface ExpenseRow {
   updated_at: string;
 }
 
+export interface SettlementRow {
+  id: string;
+  fair_slug: string;
+  period: string;
+  kind: string;
+  user_id: string;
+  payee_name: string;
+  payee_role: string;
+  amount: number;
+  expense_id: string;
+  memo_no: string;
+  note: string;
+  status: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DueRow {
   id: string;
   fair_slug: string;
@@ -269,6 +287,27 @@ const schema = [
     created_at TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL DEFAULT ''
   )`,
+  /* Monthly salary / balance-reconciliation ledger. Every settlement posts a
+     matching expense row (category "বেতন"/"সমন্বয়") so the month's collection
+     balance flows into admin/teacher accounts and stays auditable. */
+  `CREATE TABLE IF NOT EXISTS settlements (
+    id TEXT PRIMARY KEY,
+    fair_slug TEXT NOT NULL DEFAULT '',
+    period TEXT NOT NULL DEFAULT '',
+    kind TEXT NOT NULL DEFAULT 'salary',
+    user_id TEXT NOT NULL DEFAULT '',
+    payee_name TEXT NOT NULL DEFAULT '',
+    payee_role TEXT NOT NULL DEFAULT '',
+    amount REAL NOT NULL DEFAULT 0,
+    expense_id TEXT NOT NULL DEFAULT '',
+    memo_no TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'posted',
+    created_by TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT ''
+  )`,
+  `CREATE INDEX IF NOT EXISTS settlements_period_idx ON settlements(period, fair_slug)`,
   `CREATE TABLE IF NOT EXISTS dues (
     id TEXT PRIMARY KEY,
     fair_slug TEXT NOT NULL DEFAULT '',
@@ -1386,6 +1425,155 @@ export async function dueTotals(fairSlug?: string) {
   }
   totals.outstanding = Math.max(0, totals.amount - totals.paid);
   return totals;
+}
+
+/* ------------------------------------------------------------------ *
+ * Monthly settlements — salary / balance reconciliation ledger
+ *
+ * At month end the console can move the month's collection balance into
+ * admin/teacher accounts. Each settlement posts one linked expense row
+ * (auto memo number), so the ledger, the expense book and the printable
+ * memo all stay in sync without double counting.
+ * ------------------------------------------------------------------ */
+
+/** Validate/normalise a `YYYY-MM` accounting period. */
+export function normalizePeriod(value: unknown) {
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(String(value ?? "").trim());
+  return match ? `${match[1]}-${match[2]}` : "";
+}
+
+export function currentPeriod() {
+  return nowIso().slice(0, 7);
+}
+
+export async function listSettlements(filter: { period?: string; fair_slug?: string; limit?: number } = {}) {
+  const clauses: string[] = [];
+  const args: string[] = [];
+  if (filter.period) {
+    clauses.push("period = ?");
+    args.push(filter.period);
+  }
+  if (filter.fair_slug) {
+    clauses.push("fair_slug = ?");
+    args.push(filter.fair_slug);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  const limit = Math.max(1, Math.min(1000, Math.floor(filter.limit ?? 300)));
+  return query<SettlementRow>(`SELECT * FROM settlements ${where} ORDER BY created_at DESC LIMIT ${limit}`, args);
+}
+
+export async function getSettlementById(id: string) {
+  const rows = await query<SettlementRow>(`SELECT * FROM settlements WHERE id = ? LIMIT 1`, [id]);
+  return rows[0] ?? null;
+}
+
+/**
+ * Month-to-date ledger for one period: verified collections, expenses (which
+ * already include any salary memos posted by settlements) and the resulting
+ * balance available for reconciliation.
+ */
+export async function monthlyLedger(period: string, fairSlug?: string) {
+  const fairClause = fairSlug ? " AND fair_slug = ?" : "";
+  const fairArgs = fairSlug ? [period, fairSlug] : [period];
+  const [collectedRows, spentRows, settledRows] = await Promise.all([
+    query<{ total: number; count: number }>(
+      `SELECT COALESCE(SUM(amount),0) as total, COUNT(*) as count FROM funds
+       WHERE status = 'verified' AND substr(COALESCE(NULLIF(verified_at,''), created_at),1,7) = ?${fairClause}`,
+      fairArgs,
+    ),
+    query<{ total: number; count: number }>(
+      `SELECT COALESCE(SUM(amount),0) as total, COUNT(*) as count FROM expenses
+       WHERE substr(COALESCE(NULLIF(paid_at,''), created_at),1,7) = ?${fairClause}`,
+      fairArgs,
+    ),
+    query<{ total: number; count: number }>(
+      `SELECT COALESCE(SUM(amount),0) as total, COUNT(*) as count FROM settlements
+       WHERE period = ?${fairClause}`,
+      fairArgs,
+    ),
+  ]);
+  const collected = Number(collectedRows[0]?.total ?? 0);
+  const spent = Number(spentRows[0]?.total ?? 0);
+  const settled = Number(settledRows[0]?.total ?? 0);
+  return {
+    period,
+    collected,
+    collectedCount: Number(collectedRows[0]?.count ?? 0),
+    spent,
+    spentCount: Number(spentRows[0]?.count ?? 0),
+    settled,
+    settledCount: Number(settledRows[0]?.count ?? 0),
+    balance: collected - spent,
+  };
+}
+
+/**
+ * Post one settlement: an expense row (auto memo) plus the ledger entry that
+ * ties it to a payee account and period. Returns both ids for printing.
+ */
+export async function createSettlement(values: {
+  fair_slug?: string;
+  period: string;
+  kind?: "salary" | "adjustment";
+  user_id?: string;
+  payee_name: string;
+  payee_role?: string;
+  amount: number;
+  note?: string;
+  created_by?: string;
+}) {
+  const period = normalizePeriod(values.period);
+  if (!period) throw new Error("INVALID_PERIOD");
+  const amount = Math.round((Number(values.amount) || 0) * 100) / 100;
+  if (!(amount > 0)) throw new Error("INVALID_AMOUNT");
+  const kind = values.kind === "adjustment" ? "adjustment" : "salary";
+  const category = kind === "salary" ? "বেতন" : "সমন্বয়";
+  const title = kind === "salary"
+    ? `মাসিক বেতন — ${values.payee_name} (${period})`
+    : `মাসিক ব্যালেন্স সমন্বয় — ${values.payee_name} (${period})`;
+  const expenseId = await createExpense({
+    fair_slug: values.fair_slug ?? "",
+    title,
+    category,
+    amount,
+    paid_to: values.payee_name,
+    paid_at: nowIso().slice(0, 10),
+    method: "নগদ",
+    note: values.note ?? "",
+    status: "approved",
+    created_by: values.created_by ?? "",
+  });
+  const expense = await getExpenseById(expenseId);
+  const id = randomUUID();
+  const record: Record<string, string | number> = {
+    id,
+    fair_slug: values.fair_slug ?? "",
+    period,
+    kind,
+    user_id: values.user_id ?? "",
+    payee_name: values.payee_name,
+    payee_role: values.payee_role ?? "",
+    amount,
+    expense_id: expenseId,
+    memo_no: expense?.memo_no ?? "",
+    note: values.note ?? "",
+    status: "posted",
+    created_by: values.created_by ?? "",
+    created_at: nowIso(),
+    updated_at: nowIso(),
+  };
+  const statement = insertStatement("settlements", record);
+  await run(statement.sql, statement.args as (string | number)[]);
+  return { id, expense_id: expenseId, memo_no: record.memo_no as string, amount };
+}
+
+/** Removing a settlement also removes the expense memo it posted. */
+export async function deleteSettlement(id: string) {
+  const settlement = await getSettlementById(id);
+  if (!settlement) return false;
+  if (settlement.expense_id) await deleteExpense(settlement.expense_id);
+  const result = await run(`DELETE FROM settlements WHERE id = ?`, [id]);
+  return Number(result.rowsAffected ?? 0) > 0;
 }
 
 /* ------------------------------------------------------------------ *
