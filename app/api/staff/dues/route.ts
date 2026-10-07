@@ -1,5 +1,5 @@
 import { defaultFairSlug, fail, num, ok, safeId, staff, str } from "@/lib/api";
-import { createDue, deleteDue, listClasses, listDues, logActivity, listUsers, sectionList, updateDue } from "@/lib/portal-db";
+import { createDue, deleteDue, dueReceiptTotals, getDueById, listClasses, listDues, logActivity, listUsers, sectionList, syncDuePayment, updateDue } from "@/lib/portal-db";
 
 export const dynamic = "force-dynamic";
 
@@ -30,12 +30,13 @@ export async function POST(request: Request) {
   const amount = Number(body.amount ?? 0);
   const title = str(body.title, "বিজ্ঞান মেলা ফি") || "বিজ্ঞান মেলা ফি";
   if (!Number.isFinite(amount) || amount <= 0) return fail("টাকার পরিমাণ ঠিকভাবে দিন।", 422);
+  if (num(body.paid_amount) > 0 || ["paid", "partial"].includes(str(body.status))) return fail("পরিশোধিত পাওনা রসিদ যোগ করে নথিভুক্ত করুন।", 422);
 
   if (body.bulk) {
     const classLevel = str(body.class_level);
     const section = str(body.section);
     const users = await listUsers({ role: "student", class_level: classLevel || undefined, limit: 2000 });
-    const targets = users.filter((user) => !section || user.section === section);
+    const targets = users.filter((user) => Number(user.is_active) === 1 && (!section || user.section === section));
     if (!targets.length) return fail("এই শ্রেণি/শাখায় কোনো শিক্ষার্থী পাওয়া যায়নি — আগে ইউজার যোগ করুন।", 422);
     for (const student of targets) {
       await createDue({
@@ -73,10 +74,10 @@ export async function POST(request: Request) {
     section: str(body.section),
     title,
     amount,
-    paid_amount: num(body.paid_amount),
+    paid_amount: 0,
     due_date: str(body.due_date),
     note: str(body.note),
-    status: str(body.status, "due") || "due",
+    status: "due",
     created_by: session.user.name,
   });
   await logActivity({ actor_id: session.user.id, actor_name: session.user.name, actor_role: session.role, action: "due.create", entity: "dues", entity_id: id, detail: `${title} · ${amount}` });
@@ -90,23 +91,26 @@ export async function PATCH(request: Request) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const id = safeId(str(body.id));
   if (!id) return fail("আইডি ঠিক নেই।", 422);
-  const patch: Record<string, string | number> = {};
-  if ("status" in body) patch.status = str(body.status);
-  if ("paid_amount" in body) {
-    const paid = Math.max(0, Number(body.paid_amount) || 0);
-    patch.paid_amount = paid;
-    if (!("status" in body)) {
-      const dues = await listDues({ limit: 1000 });
-      const due = dues.find((item) => item.id === id);
-      if (due) patch.status = paid >= Number(due.amount) ? "paid" : paid > 0 ? "partial" : "due";
-    }
+  const existing = await getDueById(id);
+  if (!existing) return fail("পাওনাটি পাওয়া যায়নি।", 404);
+  if ("paid_amount" in body || ["paid", "partial"].includes(str(body.status))) {
+    return fail("পাওনার পরিশোধ রসিদ যোগ করে নথিভুক্ত করুন; paid_amount সরাসরি সম্পাদনা করা যাবে না।", 422);
   }
-  if ("amount" in body) patch.amount = Number(body.amount) || 0;
+  const patch: Record<string, string | number> = {};
+  if ("amount" in body) {
+    const amount = Number(body.amount);
+    if (!Number.isFinite(amount) || amount <= 0) return fail("পাওনার পরিমাণ শূন্যের বেশি হতে হবে।", 422);
+    patch.amount = amount;
+  }
   if ("title" in body) patch.title = str(body.title);
   if ("due_date" in body) patch.due_date = str(body.due_date);
   if ("note" in body) patch.note = str(body.note);
   if ("student_name" in body) patch.student_name = str(body.student_name);
+  if ("student_id" in body) patch.student_id = str(body.student_id).toUpperCase();
+  if ("class_level" in body) patch.class_level = str(body.class_level);
+  if ("section" in body) patch.section = str(body.section);
   await updateDue(id, patch);
+  if ("amount" in body) await syncDuePayment(id);
   await logActivity({ actor_id: session.user.id, actor_name: session.user.name, actor_role: session.role, action: "due.update", entity: "dues", entity_id: id, detail: Object.keys(patch).join(", ") });
   return ok({ updated: true });
 }
@@ -118,6 +122,10 @@ export async function DELETE(request: Request) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const id = safeId(str(body.id));
   if (!id) return fail("আইডি ঠিক নেই।", 422);
+  const due = await getDueById(id);
+  if (!due) return fail("পাওনাটি পাওয়া যায়নি।", 404);
+  const receiptTotals = await dueReceiptTotals(id);
+  if (receiptTotals.count) return fail("এই পাওনার সঙ্গে রসিদ যুক্ত আছে। আগে রসিদ মুছে/সংশোধন করে তারপর পাওনা মুছুন।", 409);
   const removed = await deleteDue(id);
   await logActivity({ actor_id: session.user.id, actor_name: session.user.name, actor_role: session.role, action: "due.delete", entity: "dues", entity_id: id });
   return ok({ deleted: removed });

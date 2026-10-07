@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, CalendarClock, Download, LogOut, QrCode, Receipt, Wallet } from "lucide-react";
+import { Activity, BadgeCheck, CalendarClock, Download, LogOut, QrCode, Receipt, Wallet } from "lucide-react";
 import type { DueRow, FundRow, PassRow, PublicUser } from "@/lib/portal-db";
 import type { Fair } from "@/lib/types";
 import { bn, formatDate } from "@/lib/format";
 import { roleLabels, type PortalRole } from "@/lib/roles";
 import { Empty, Notice, Panel, money, postJson, useApi } from "@/components/sf/console/ui";
+import { PortalAnnouncements } from "@/components/portal/PortalAnnouncements";
 
 interface MeResponse {
   user: PublicUser;
@@ -15,6 +16,7 @@ interface MeResponse {
   dues: DueRow[];
   funds: FundRow[];
   passes: PassRow[];
+  guest_passes?: PassRow[];
   outstanding: number;
   contributed: number;
 }
@@ -31,9 +33,12 @@ export function StudentHome({ fair }: { fair: Fair | null }) {
   const [message, setMessage] = useState("");
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
+  const [guestLimit, setGuestLimit] = useState("");
 
   const user = data?.user;
-  const pass = data?.passes?.[0];
+  const pass = data?.passes?.find((item) => !item.parent_pass_id);
+  const guestPasses = data?.guest_passes ?? [];
+  const currentGuestLimit = Math.max(Number(pass?.guest_limit ?? 0), guestPasses.length);
 
   async function submitFund(event: React.FormEvent) {
     event.preventDefault();
@@ -61,7 +66,7 @@ export function StudentHome({ fair }: { fair: Fair | null }) {
   }
 
   async function payDue(due: DueRow) {
-    const rest = Math.max(0, Number(due.amount) - Number(due.paid_amount));
+    const rest = Math.max(0, Number(due.amount) - Number(due.paid_amount) - Number(due.pending_amount ?? 0));
     const value = prompt(`${due.title} — বাকি ${rest} টাকা। কত টাকা দিচ্ছেন?`, String(rest));
     if (value === null) return;
     setProblem("");
@@ -82,6 +87,22 @@ export function StudentHome({ fair }: { fair: Fair | null }) {
       await reload();
     } catch (issue) {
       setProblem(issue instanceof Error ? issue.message : "পাস তৈরি করা যায়নি।");
+    }
+  }
+
+  async function allocateGuests() {
+    setBusy(true);
+    setProblem("");
+    setMessage("");
+    try {
+      const result = await postJson<{ guests: PassRow[] }>("/api/portal/me", { action: "guest-passes", fair_slug: fair?.slug ?? "", guest_limit: Number(guestLimit || currentGuestLimit) });
+      setMessage(`${bn(result.guests.length)}টি অতিথি QR পাস বরাদ্দ হয়েছে। প্রতিটি পাস আলাদাভাবে ডাউনলোড/ছাপতে পারবেন।`);
+      setGuestLimit("");
+      await reload();
+    } catch (issue) {
+      setProblem(issue instanceof Error ? issue.message : "অতিথি পাস তৈরি করা যায়নি।");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -107,7 +128,7 @@ export function StudentHome({ fair }: { fair: Fair | null }) {
               </small>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="app-top-actions">
             <Link className="v2-btn v2-btn-sm v2-btn-ghost" href="/">সাইট</Link>
             <button className="v2-btn v2-btn-sm v2-btn-ghost" type="button" onClick={logout}><LogOut size={15} /></button>
           </div>
@@ -117,6 +138,7 @@ export function StudentHome({ fair }: { fair: Fair | null }) {
       <main className="v2-wrap app-body">
         {message ? <Notice>{message}</Notice> : null}
         {problem ? <Notice kind="bad">{problem}</Notice> : null}
+        <PortalAnnouncements />
 
         <div className="metric-grid" style={{ marginBottom: 16 }}>
           <div className="metric metric-accent">
@@ -144,7 +166,7 @@ export function StudentHome({ fair }: { fair: Fair | null }) {
         </div>
 
         <div className="v2-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
-          <Panel title="আমার পাওনা">
+          <Panel id="student-dues" title="আমার পাওনা">
             <div className="table-scroll">
               <table className="data-table">
                 <thead><tr><th>খাত</th><th>পরিমাণ</th><th>জমা</th><th>অবস্থা</th><th /></tr></thead>
@@ -153,12 +175,12 @@ export function StudentHome({ fair }: { fair: Fair | null }) {
                     <tr key={due.id}>
                       <td><strong>{due.title}</strong><div className="v2-muted" style={{ fontSize: 12 }}>{due.due_date ? formatDate(due.due_date) : ""}</div></td>
                       <td>{money(due.amount)}</td>
-                      <td>{money(due.paid_amount)}</td>
-                      <td className={due.status === "paid" ? "status-ok" : due.status === "partial" ? "status-pending" : "status-bad"}>
-                        {due.status === "paid" ? "পরিশোধিত" : due.status === "partial" ? "আংশিক" : "বাকি"}
+                      <td>{money(due.paid_amount)}{Number(due.pending_amount ?? 0) > 0 ? <div className="v2-muted" style={{ fontSize: 11 }}>যাচাই অপেক্ষায় {money(due.pending_amount)}</div> : null}</td>
+                      <td className={due.status === "paid" ? "status-ok" : due.status === "partial" || Number(due.pending_amount ?? 0) > 0 ? "status-pending" : "status-bad"}>
+                        {due.status === "paid" ? "পরিশোধিত" : Number(due.pending_amount ?? 0) > 0 ? "যাচাই অপেক্ষায়" : due.status === "partial" ? "আংশিক" : "বাকি"}
                       </td>
                       <td>
-                        {due.status !== "paid" ? (
+                        {due.status !== "paid" && Math.max(0, Number(due.amount) - Number(due.paid_amount) - Number(due.pending_amount ?? 0)) > 0 ? (
                           <button className="v2-btn v2-btn-sm" type="button" onClick={() => payDue(due)}>জমা দিন</button>
                         ) : null}
                       </td>
@@ -170,7 +192,7 @@ export function StudentHome({ fair }: { fair: Fair | null }) {
             </div>
           </Panel>
 
-          <Panel title="ফান্ড জমা দিন">
+          <Panel id="student-fund" title="ফান্ড জমা দিন">
             <form onSubmit={submitFund} style={{ display: "grid", gap: 10 }}>
               <div>
                 <label className="v2-label">টাকার পরিমাণ</label>
@@ -201,7 +223,7 @@ export function StudentHome({ fair }: { fair: Fair | null }) {
             </form>
           </Panel>
 
-          <Panel title="আমার QR পাস">
+          <Panel id="student-pass" title="আমার QR পাস">
             {pass ? (
               <div style={{ display: "grid", gap: 12 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -217,6 +239,13 @@ export function StudentHome({ fair }: { fair: Fair | null }) {
                 <a className="v2-btn v2-btn-ghost" href={`/pass/${pass.token}`} target="_blank" rel="noreferrer">
                   <Download size={15} /> কার্ড খুলুন / ছাপুন
                 </a>
+                <div className="guest-pass-controls">
+                  <label><span className="v2-label">অভিভাবক/অতিথির QR পাস (সর্বোচ্চ ৪)</span><select className="v2-select" value={guestLimit || String(currentGuestLimit)} onChange={(event) => setGuestLimit(event.target.value)}>
+                    {Array.from({ length: 5 - currentGuestLimit }, (_, index) => currentGuestLimit + index).map((count) => <option key={count} value={count}>{count === 0 ? "অতিথি পাস নেই" : `${bn(count)}টি অতিথি পাস`}</option>)}
+                  </select></label>
+                  <button className="v2-btn v2-btn-sm" type="button" onClick={() => void allocateGuests()} disabled={busy}>{busy ? "তৈরি হচ্ছে…" : "অতিথি পাস বরাদ্দ / তৈরি করুন"}</button>
+                  {guestPasses.map((guest) => <a className="guest-pass-link" key={guest.id} href={`/pass/${guest.token}`} target="_blank" rel="noreferrer"><QrCode size={14} /> {guest.holder_name} · QR কার্ড খুলুন</a>)}
+                </div>
               </div>
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
@@ -226,7 +255,7 @@ export function StudentHome({ fair }: { fair: Fair | null }) {
             )}
           </Panel>
 
-          <Panel title="আমার জমার ইতিহাস">
+          <Panel id="student-history" title="আমার জমার ইতিহাস">
             <div className="table-scroll">
               <table className="data-table">
                 <thead><tr><th>উদ্দেশ্য</th><th>মাধ্যম</th><th>টাকা</th><th>অবস্থা</th></tr></thead>
@@ -248,6 +277,12 @@ export function StudentHome({ fair }: { fair: Fair | null }) {
           </Panel>
         </div>
       </main>
+      <nav className="app-mobile-bar student-mobile-bar" aria-label="Student navigation">
+        <a href="#student-dues"><Receipt size={18} /><span>পাওনা</span></a>
+        <a href="#student-fund"><Wallet size={18} /><span>জমা</span></a>
+        <a href="#student-pass"><QrCode size={18} /><span>QR পাস</span></a>
+        <a href="#student-history"><Activity size={18} /><span>ইতিহাস</span></a>
+      </nav>
     </div>
   );
 }

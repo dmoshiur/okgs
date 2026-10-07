@@ -4,6 +4,7 @@ import { isSuperAdminRole } from "@/lib/roles";
 import { coerceFieldValue, defaultValueFor, fieldsFor, resourceSchema } from "@/lib/content-config";
 import { findUniqueConflict, insertRow, listRows, resolveSlug, rowExists } from "@/lib/db";
 import type { ResourceName } from "@/lib/types";
+import { sendAnnouncementEmail } from "@/lib/announcements";
 
 const resources = new Set(Object.keys(resourceSchema) as ResourceName[]);
 
@@ -123,7 +124,16 @@ export async function POST(request: Request, context: { params: Promise<{ resour
     if (referenceProblem) return NextResponse.json(referenceProblem, { status: referenceProblem.status });
 
     const item = await insertRow(resource, payload);
-    return NextResponse.json({ item }, { status: 201 });
+    let notification = null;
+    if (["notices", "news", "updates"].includes(resource) && Number(item.is_active) === 1 && Number(item.email_notify) === 1) {
+      try {
+        notification = await sendAnnouncementEmail(resource as "notices" | "news" | "updates", item, new URL(request.url).origin);
+      } catch (error) {
+        console.error("[announcement:mail]", error);
+        notification = { attempted: 0, delivered: 0, failed: 0, configured: false, error: "MAIL_SEND_FAILED" };
+      }
+    }
+    return NextResponse.json({ item, notification }, { status: 201 });
   } catch (error) {
     if (unauthorized(error)) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     console.error("[admin:create]", error);

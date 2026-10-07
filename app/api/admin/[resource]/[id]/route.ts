@@ -5,6 +5,7 @@ import { deleteRow, deleteWhere, findUniqueConflict, getRow, resolveSlug, update
 import type { ResourceName } from "@/lib/types";
 import { resourceSchema } from "@/lib/content-config";
 import { buildPayload, validatePayload, validateReferences, clubChildResources } from "../route";
+import { sendAnnouncementEmail } from "@/lib/announcements";
 
 const knownResources = new Set<string>(Object.keys(resourceSchema));
 
@@ -87,7 +88,20 @@ export async function PATCH(
     if (resource === "clubs" && payload.slug && String(payload.slug) !== String(existing.slug)) {
       await renameClubSlug(String(existing.slug), String(payload.slug));
     }
-    return NextResponse.json({ item: result.row });
+    let notification = null;
+    if (
+      ["notices", "news", "updates"].includes(resource) &&
+      Number(existing.is_active) !== 1 && Number(result.row.is_active) === 1 &&
+      Number(result.row.email_notify) === 1
+    ) {
+      try {
+        notification = await sendAnnouncementEmail(resource as "notices" | "news" | "updates", result.row, new URL(request.url).origin);
+      } catch (error) {
+        console.error("[announcement:mail]", error);
+        notification = { attempted: 0, delivered: 0, failed: 0, configured: false, error: "MAIL_SEND_FAILED" };
+      }
+    }
+    return NextResponse.json({ item: result.row, notification });
   } catch (error) {
     if (unauthorized(error)) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     console.error("[admin:update]", error);

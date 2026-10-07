@@ -103,6 +103,33 @@ const activeField: FieldDef = {
 
 export const isActiveField = activeField;
 
+const audienceField: FieldDef = {
+  name: "audience",
+  label: "Audience / email group",
+  type: "select",
+  group: groupBasics,
+  default: "public",
+  help: "Public/all appears on the public site. Other groups are visible after sign-in and receive email when notifications are enabled.",
+  options: [
+    { label: "Public site + all account holders", value: "public" },
+    { label: "All account holders", value: "all" },
+    { label: "Teachers", value: "teachers" },
+    { label: "Students & alumni", value: "students" },
+    { label: "Administrators", value: "admins" },
+    { label: "Paid students", value: "paid_students" },
+    { label: "Unpaid students", value: "unpaid_students" },
+  ],
+};
+
+const emailNotifyField: FieldDef = {
+  name: "email_notify",
+  label: "Send email on publish",
+  type: "boolean",
+  group: groupBasics,
+  help: "Emails are sent using the SuperAdmin SMTP configuration. Disabling this only suppresses mail; the post remains published.",
+  default: true,
+};
+
 const featuredField: FieldDef = {
   name: "is_featured",
   label: "Featured / highlight",
@@ -180,6 +207,8 @@ export const resourceSchema: Record<ResourceName, FieldDef[]> = {
       ],
     },
     publishDateField,
+    audienceField,
+    emailNotifyField,
     activeField,
   ],
   banners: [
@@ -226,6 +255,8 @@ export const resourceSchema: Record<ResourceName, FieldDef[]> = {
     { name: "author", label: "Written by", type: "text", group: groupBasics, default: "ওকেজিএস বার্তা" },
     publishDateField,
     featuredField,
+    audienceField,
+    emailNotifyField,
     activeField,
   ],
   updates: [
@@ -246,6 +277,8 @@ export const resourceSchema: Record<ResourceName, FieldDef[]> = {
         { label: "Result", value: "ফলাফল" },
       ],
     },
+    audienceField,
+    emailNotifyField,
     activeField,
   ],
   clubs: [

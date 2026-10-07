@@ -27,7 +27,7 @@ import {
 import { assignPassword, defaultPortalPassword } from "@/lib/portal-auth";
 import { assignableRoles, isPortalRole, roleLabelsEn } from "@/lib/roles";
 import { hashResetToken } from "@/lib/password-reset";
-import { mailConfigured, sendMail, welcomeMail } from "@/lib/mailer";
+import { mailAvailable, sendMail, welcomeMail } from "@/lib/mailer";
 import { randomBytes } from "node:crypto";
 
 export const dynamic = "force-dynamic";
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
       const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || new URL(request.url).origin;
       const link = `${origin}/admin/reset-password?token=${encodeURIComponent(token)}`;
       const result = await sendMail(welcomeMail(created.name || email, email, link));
-      invite = { sent: result.delivered, link: result.delivered || mailConfigured() ? undefined : link };
+      invite = { sent: result.delivered, link: result.delivered || await mailAvailable() ? undefined : link };
     }
 
     await logActivity({

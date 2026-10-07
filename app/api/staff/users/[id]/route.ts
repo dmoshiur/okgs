@@ -1,5 +1,5 @@
-import { fail, ok, safeId, staff, str } from "@/lib/api";
-import { deleteUser, getUser, logActivity, publicUser, updateUser, type PortalRole } from "@/lib/portal-db";
+import { defaultFairSlug, fail, ok, safeId, staff, str } from "@/lib/api";
+import { deleteUser, getUser, listClasses, logActivity, publicUser, syncClassFeeDues, updateUser, type PortalRole } from "@/lib/portal-db";
 import { allRoles } from "@/lib/portal-db";
 import { hashPassword } from "@/lib/portal-auth";
 
@@ -15,9 +15,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
   const target = await getUser(id);
   if (!target) return fail("অ্যাকাউন্ট পাওয়া যায়নি।", 404);
-  if ((target.role === "admin" || session.role !== "admin") && target.role === "admin" && session.role !== "admin") {
-    return fail("অ্যাডমিন অ্যাকাউন্ট কেবল অ্যাডমিন সম্পাদনা করতে পারেন।", 403);
-  }
+  if (target.role === "admin" && session.role !== "admin" && session.role !== "superadmin") return fail("অ্যাডমিন অ্যাকাউন্ট কেবল অ্যাডমিন সম্পাদনা করতে পারেন।", 403);
+  if (target.role === "superadmin" && session.role !== "superadmin") return fail("SuperAdmin অ্যাকাউন্ট কেবল SuperAdmin সম্পাদনা করতে পারেন।", 403);
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const patch: Record<string, string | number> = {};
@@ -44,6 +43,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
   try {
     const updated = await updateUser(id, patch);
+    if (updated && updated.role === "student" && updated.class_level && ("class_level" in patch || "section" in patch || "is_active" in patch || "role" in patch || "name" in patch || "student_id" in patch)) {
+      const classInfo = (await listClasses(true)).find((item) => item.name === updated.class_level);
+      if (classInfo && Number(classInfo.fee_amount) > 0 && Number(updated.is_active) === 1) {
+        const fairSlug = new URL(request.url).searchParams.get("fair") || await defaultFairSlug();
+        await syncClassFeeDues(classInfo, fairSlug, session.user.name);
+      }
+    }
     await logActivity({
       actor_id: session.user.id,
       actor_name: session.user.name,
@@ -65,10 +71,13 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
   const guard = await staff();
   if ("status" in guard) return guard;
   const { session } = guard;
-  if (session.role !== "admin") return fail("কেবল অ্যাডমিন অ্যাকাউন্ট মুছে ফেলতে পারেন।", 403);
+  if (session.role !== "admin" && session.role !== "superadmin") return fail("কেবল অ্যাডমিন অ্যাকাউন্ট মুছে ফেলতে পারেন।", 403);
   const { id } = await context.params;
   if (!safeId(id)) return fail("আইডি ঠিক নেই।", 422);
   if (id === session.user.id) return fail("নিজের অ্যাকাউন্ট মুছে ফেলা যাবে না।", 400);
+  const target = await getUser(id);
+  if (!target) return fail("অ্যাকাউন্ট পাওয়া যায়নি।", 404);
+  if (target.role === "superadmin" && session.role !== "superadmin") return fail("SuperAdmin অ্যাকাউন্ট শুধু SuperAdmin মুছতে পারেন।", 403);
 
   const removed = await deleteUser(id);
   if (!removed) return fail("অ্যাকাউন্ট পাওয়া যায়নি।", 404);

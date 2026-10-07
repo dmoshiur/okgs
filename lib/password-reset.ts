@@ -26,7 +26,7 @@ import {
   type PublicUser,
 } from "@/lib/portal-db";
 import { assignPassword } from "@/lib/portal-auth";
-import { sendMail, mailConfigured } from "@/lib/mailer";
+import { sendMail, mailAvailable } from "@/lib/mailer";
 
 const TOKEN_TTL_MINUTES = 60;
 const MAX_REQUESTS_PER_WINDOW = 5;
@@ -108,7 +108,7 @@ export async function requestPasswordReset(request: Request, rawEmail: string): 
     ...generic,
     // Dev convenience: without a mail provider the link is surfaced so the flow
     // can be exercised locally. Never included in production responses.
-    devLink: result.delivered || mailConfigured() ? undefined : link,
+    devLink: result.delivered || await mailAvailable() ? undefined : link,
   };
 }
 

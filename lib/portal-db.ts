@@ -68,6 +68,9 @@ export interface PortalClass {
   level: number;
   sections: string;
   note: string;
+  fee_amount: number;
+  fee_title: string;
+  fee_session: string;
   sort_order: number;
   is_active: number;
   created_at: string;
@@ -84,6 +87,8 @@ export interface FundRow {
   section: string;
   student_id: string;
   phone: string;
+  due_id: string;
+  receipt_no: string;
   amount: number;
   method: string;
   trx_id: string;
@@ -107,6 +112,7 @@ export interface ExpenseRow {
   paid_at: string;
   method: string;
   voucher_no: string;
+  memo_no: string;
   note: string;
   status: string;
   created_by: string;
@@ -123,8 +129,10 @@ export interface DueRow {
   class_level: string;
   section: string;
   title: string;
+  class_fee_id: string;
   amount: number;
   paid_amount: number;
+  pending_amount?: number;
   due_date: string;
   status: string;
   note: string;
@@ -148,6 +156,9 @@ export interface PassRow {
   status: string;
   scan_count: number;
   last_scan_at: string;
+  parent_pass_id: string;
+  guest_index: number;
+  guest_limit: number;
   expires_at: string;
   note: string;
   created_at: string;
@@ -207,6 +218,9 @@ const schema = [
     level INTEGER NOT NULL DEFAULT 0,
     sections TEXT NOT NULL DEFAULT '',
     note TEXT NOT NULL DEFAULT '',
+    fee_amount REAL NOT NULL DEFAULT 0,
+    fee_title TEXT NOT NULL DEFAULT 'শ্রেণি ফি',
+    fee_session TEXT NOT NULL DEFAULT '',
     sort_order INTEGER NOT NULL DEFAULT 0,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT '',
@@ -222,6 +236,8 @@ const schema = [
     section TEXT NOT NULL DEFAULT '',
     student_id TEXT NOT NULL DEFAULT '',
     phone TEXT NOT NULL DEFAULT '',
+    due_id TEXT NOT NULL DEFAULT '',
+    receipt_no TEXT NOT NULL DEFAULT '',
     amount REAL NOT NULL DEFAULT 0,
     method TEXT NOT NULL DEFAULT 'নগদ',
     trx_id TEXT NOT NULL DEFAULT '',
@@ -246,6 +262,7 @@ const schema = [
     paid_at TEXT NOT NULL DEFAULT '',
     method TEXT NOT NULL DEFAULT 'নগদ',
     voucher_no TEXT NOT NULL DEFAULT '',
+    memo_no TEXT NOT NULL DEFAULT '',
     note TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'approved',
     created_by TEXT NOT NULL DEFAULT '',
@@ -261,6 +278,7 @@ const schema = [
     class_level TEXT NOT NULL DEFAULT '',
     section TEXT NOT NULL DEFAULT '',
     title TEXT NOT NULL DEFAULT '',
+    class_fee_id TEXT NOT NULL DEFAULT '',
     amount REAL NOT NULL DEFAULT 0,
     paid_amount REAL NOT NULL DEFAULT 0,
     due_date TEXT NOT NULL DEFAULT '',
@@ -286,6 +304,9 @@ const schema = [
     status TEXT NOT NULL DEFAULT 'active',
     scan_count INTEGER NOT NULL DEFAULT 0,
     last_scan_at TEXT NOT NULL DEFAULT '',
+    parent_pass_id TEXT NOT NULL DEFAULT '',
+    guest_index INTEGER NOT NULL DEFAULT 0,
+    guest_limit INTEGER NOT NULL DEFAULT 0,
     expires_at TEXT NOT NULL DEFAULT '',
     note TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT '',
@@ -314,12 +335,30 @@ const schema = [
     phone TEXT NOT NULL DEFAULT '',
     message TEXT NOT NULL DEFAULT '',
     kind TEXT NOT NULL DEFAULT 'notice',
+    audience TEXT NOT NULL DEFAULT 'all',
+    target_role TEXT NOT NULL DEFAULT '',
+    payment_segment TEXT NOT NULL DEFAULT '',
+    starts_at TEXT NOT NULL DEFAULT '',
+    ends_at TEXT NOT NULL DEFAULT '',
     sort_order INTEGER NOT NULL DEFAULT 0,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL DEFAULT ''
   )`,
   `CREATE INDEX IF NOT EXISTS tickers_fair_idx ON tickers(fair_slug, sort_order)`,
+  `CREATE TABLE IF NOT EXISTS smtp_settings (
+    id TEXT PRIMARY KEY,
+    host TEXT NOT NULL DEFAULT '',
+    port INTEGER NOT NULL DEFAULT 587,
+    secure INTEGER NOT NULL DEFAULT 0,
+    username TEXT NOT NULL DEFAULT '',
+    password_encrypted TEXT NOT NULL DEFAULT '',
+    from_name TEXT NOT NULL DEFAULT 'OKGS',
+    from_email TEXT NOT NULL DEFAULT '',
+    reply_to TEXT NOT NULL DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT ''
+  )`,
   `CREATE TABLE IF NOT EXISTS activity (
     id TEXT PRIMARY KEY,
     actor_id TEXT NOT NULL DEFAULT '',
@@ -348,6 +387,80 @@ const schema = [
   `CREATE INDEX IF NOT EXISTS password_resets_user_idx ON password_resets(user_id, purpose)`,
 ];
 
+const portalMigrations: Record<string, Record<string, string>> = {
+  classes: {
+    fee_amount: "REAL NOT NULL DEFAULT 0",
+    fee_title: "TEXT NOT NULL DEFAULT 'শ্রেণি ফি'",
+    fee_session: "TEXT NOT NULL DEFAULT ''",
+  },
+  funds: {
+    due_id: "TEXT NOT NULL DEFAULT ''",
+    receipt_no: "TEXT NOT NULL DEFAULT ''",
+  },
+  expenses: { memo_no: "TEXT NOT NULL DEFAULT ''" },
+  dues: { class_fee_id: "TEXT NOT NULL DEFAULT ''" },
+  passes: {
+    parent_pass_id: "TEXT NOT NULL DEFAULT ''",
+    guest_index: "INTEGER NOT NULL DEFAULT 0",
+    guest_limit: "INTEGER NOT NULL DEFAULT 0",
+  },
+  tickers: {
+    audience: "TEXT NOT NULL DEFAULT 'all'",
+    target_role: "TEXT NOT NULL DEFAULT ''",
+    payment_segment: "TEXT NOT NULL DEFAULT ''",
+    starts_at: "TEXT NOT NULL DEFAULT ''",
+    ends_at: "TEXT NOT NULL DEFAULT ''",
+  },
+};
+
+const portalIndexes = [
+  `CREATE INDEX IF NOT EXISTS funds_due_idx ON funds(due_id, status)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS funds_receipt_no_idx ON funds(receipt_no) WHERE receipt_no <> ''`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS expenses_memo_no_idx ON expenses(memo_no) WHERE memo_no <> ''`,
+  `CREATE INDEX IF NOT EXISTS dues_fee_idx ON dues(class_fee_id, user_id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS dues_fee_student_idx ON dues(class_fee_id, user_id) WHERE class_fee_id <> ''`,
+  `CREATE INDEX IF NOT EXISTS passes_guest_parent_idx ON passes(parent_pass_id, guest_index)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS passes_guest_slot_idx ON passes(parent_pass_id, guest_index) WHERE parent_pass_id <> ''`,
+  `CREATE TRIGGER IF NOT EXISTS passes_guest_slot_limit_insert BEFORE INSERT ON passes WHEN NEW.parent_pass_id <> '' AND (SELECT COUNT(*) FROM passes WHERE parent_pass_id = NEW.parent_pass_id) >= COALESCE((SELECT guest_limit FROM passes WHERE id = NEW.parent_pass_id), 0) BEGIN SELECT RAISE(ABORT, 'GUEST_LIMIT_EXCEEDED'); END`,
+  `CREATE TRIGGER IF NOT EXISTS passes_guest_limit_update BEFORE UPDATE OF guest_limit ON passes WHEN NEW.parent_pass_id = '' AND (NEW.guest_limit < 0 OR NEW.guest_limit > 4 OR NEW.guest_limit < (SELECT COUNT(*) FROM passes WHERE parent_pass_id = OLD.id)) BEGIN SELECT RAISE(ABORT, 'GUEST_LIMIT_BELOW_ISSUED'); END`,
+  `CREATE INDEX IF NOT EXISTS tickers_window_idx ON tickers(is_active, starts_at, ends_at)`,
+];
+
+async function repairLegacyUniqueRows() {
+  const duplicateDues = await db.execute(`SELECT class_fee_id, user_id, MIN(id) AS keep_id FROM dues WHERE class_fee_id <> '' GROUP BY class_fee_id, user_id HAVING COUNT(*) > 1`);
+  for (const row of duplicateDues.rows) {
+    const feeId = String(row.class_fee_id ?? "");
+    const userId = String(row.user_id ?? "");
+    const keepId = String(row.keep_id ?? "");
+    if (!feeId || !keepId) continue;
+    await db.execute({ sql: `UPDATE dues SET amount = (SELECT MAX(other.amount) FROM dues other WHERE other.class_fee_id = ? AND other.user_id = ?) WHERE id = ?`, args: [feeId, userId, keepId] });
+    await db.execute({ sql: `UPDATE funds SET due_id = ? WHERE due_id IN (SELECT id FROM dues WHERE class_fee_id = ? AND user_id = ? AND id <> ?)`, args: [keepId, feeId, userId, keepId] });
+    await db.execute({ sql: `DELETE FROM dues WHERE class_fee_id = ? AND user_id = ? AND id <> ?`, args: [feeId, userId, keepId] });
+    await db.execute({ sql: `UPDATE dues SET paid_amount = (SELECT COALESCE(SUM(amount),0) FROM funds WHERE due_id = ? AND status = 'verified'), status = CASE WHEN (SELECT COALESCE(SUM(amount),0) FROM funds WHERE due_id = ? AND status = 'verified') >= amount THEN 'paid' WHEN (SELECT COALESCE(SUM(amount),0) FROM funds WHERE due_id = ? AND status = 'verified') > 0 THEN 'partial' ELSE 'due' END WHERE id = ?`, args: [keepId, keepId, keepId, keepId] });
+  }
+
+  const duplicateGuestSlots = await db.execute(`SELECT parent_pass_id, guest_index, MIN(id) AS keep_id FROM passes WHERE parent_pass_id <> '' GROUP BY parent_pass_id, guest_index HAVING COUNT(*) > 1`);
+  for (const row of duplicateGuestSlots.rows) {
+    const parentId = String(row.parent_pass_id ?? "");
+    const guestIndex = Number(row.guest_index ?? 0);
+    const keepId = String(row.keep_id ?? "");
+    if (!parentId || !keepId) continue;
+    await db.execute({ sql: `UPDATE passes SET status = 'revoked', parent_pass_id = '', guest_index = 0, guest_limit = 0, note = CASE WHEN note = '' THEN 'duplicate guest slot revoked during migration' ELSE note || ' · duplicate guest slot revoked during migration' END WHERE parent_pass_id = ? AND guest_index = ? AND id <> ?`, args: [parentId, guestIndex, keepId] });
+  }
+}
+
+async function migratePortalColumns() {
+  for (const [table, columns] of Object.entries(portalMigrations)) {
+    const result = await db.execute(`PRAGMA table_info("${table}")`);
+    const present = new Set(result.rows.map((row) => String(row.name)));
+    for (const [name, declaration] of Object.entries(columns)) {
+      if (!present.has(name)) await db.execute(`ALTER TABLE "${table}" ADD COLUMN "${name}" ${declaration}`);
+    }
+  }
+  await repairLegacyUniqueRows();
+  for (const statement of portalIndexes) await db.execute(statement);
+}
+
 const globalForPortal = globalThis as unknown as { okgsPortalReady?: Promise<void> };
 
 /**
@@ -364,6 +477,7 @@ export function ensurePortal() {
       try {
         await ensureDatabase();
         for (const statement of schema) await db.execute(statement);
+        await migratePortalColumns();
         await seedPortal();
       } finally {
         bootstrapping = false;
@@ -378,6 +492,7 @@ export function ensurePortal() {
 }
 
 const nowIso = () => new Date().toISOString();
+const documentNumber = (prefix: string) => `${prefix}-${nowIso().slice(0, 10).replace(/-/g, "")}-${randomUUID().slice(0, 6).toUpperCase()}`;
 
 /* ------------------------------------------------------------------ *
  * Tiny query helpers
@@ -477,7 +592,7 @@ const userWritable = [
   "is_active",
 ] as const;
 
-export async function listUsers(filter: { role?: string; class_level?: string; section?: string; search?: string; limit?: number } = {}) {
+export async function listUsers(filter: { role?: string; class_level?: string; section?: string; search?: string; payment_status?: "paid" | "unpaid"; payment_fair_slug?: string; limit?: number } = {}) {
   const clauses: string[] = [];
   const args: string[] = [];
   if (filter.role) {
@@ -496,6 +611,16 @@ export async function listUsers(filter: { role?: string; class_level?: string; s
     clauses.push("(name LIKE ? OR email LIKE ? OR student_id LIKE ? OR phone LIKE ? OR designation LIKE ?)");
     const like = `%${filter.search}%`;
     args.push(like, like, like, like, like);
+  }
+  if (filter.payment_status) {
+    const fairClause = filter.payment_fair_slug ? " AND d.fair_slug = ?" : "";
+    if (filter.payment_status === "paid") {
+      clauses.push(`EXISTS (SELECT 1 FROM dues d WHERE d.user_id = users.id${fairClause}) AND NOT EXISTS (SELECT 1 FROM dues d WHERE d.user_id = users.id${fairClause} AND d.status IN ('due','partial') AND d.amount > d.paid_amount)`);
+      if (filter.payment_fair_slug) args.push(filter.payment_fair_slug, filter.payment_fair_slug);
+    } else {
+      clauses.push(`EXISTS (SELECT 1 FROM dues d WHERE d.user_id = users.id${fairClause} AND d.status IN ('due','partial') AND d.amount > d.paid_amount)`);
+      if (filter.payment_fair_slug) args.push(filter.payment_fair_slug);
+    }
   }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const limit = Math.max(1, Math.min(5000, Math.floor(filter.limit ?? 500)));
@@ -728,7 +853,7 @@ export async function listClasses(activeOnly = false) {
   return rows;
 }
 
-export async function createClass(values: { name: string; level?: number; sections?: string; note?: string; sort_order?: number; is_active?: number }) {
+export async function createClass(values: { name: string; level?: number; sections?: string; note?: string; fee_amount?: number; fee_title?: string; fee_session?: string; sort_order?: number; is_active?: number }) {
   const id = randomUUID();
   const record = {
     id,
@@ -736,6 +861,9 @@ export async function createClass(values: { name: string; level?: number; sectio
     level: values.level ?? 0,
     sections: values.sections ?? "",
     note: values.note ?? "",
+    fee_amount: Math.max(0, Number(values.fee_amount) || 0),
+    fee_title: values.fee_title ?? "শ্রেণি ফি",
+    fee_session: values.fee_session ?? String(new Date().getFullYear()),
     sort_order: values.sort_order ?? 0,
     is_active: values.is_active ?? 1,
     created_at: nowIso(),
@@ -748,7 +876,7 @@ export async function createClass(values: { name: string; level?: number; sectio
 
 export async function updateClass(id: string, values: Partial<PortalClass>) {
   const clean: Record<string, string | number> = {};
-  for (const key of ["name", "level", "sections", "note", "sort_order", "is_active"] as const) {
+  for (const key of ["name", "level", "sections", "note", "fee_amount", "fee_title", "fee_session", "sort_order", "is_active"] as const) {
     if (key in values && values[key] !== undefined) clean[key] = values[key] as string | number;
   }
   if (!Object.keys(clean).length) return;
@@ -785,6 +913,100 @@ export async function classOptions() {
   return Array.from(names).filter(Boolean);
 }
 
+export function classFeeId(classId: string, sessionYear: string, fairSlug = "") {
+  return `${classId}:${sessionYear || new Date().getFullYear()}:${fairSlug}`;
+}
+
+/** Keep the configured class fee represented by one live due row per student. */
+export async function syncClassFeeDues(classInfo: PortalClass, fairSlug = "", createdBy = "") {
+  const amount = Math.max(0, Number(classInfo.fee_amount) || 0);
+  const feeId = classFeeId(classInfo.id, classInfo.fee_session, fairSlug);
+  const [students, dues] = await Promise.all([
+    listUsers({ role: "student", class_level: classInfo.name, limit: 5000 }),
+    listDues({ class_fee_id: feeId, limit: 5000 }),
+  ]);
+  const byUser = new Map(dues.map((due) => [due.user_id, due]));
+  let created = 0;
+  let updated = 0;
+
+  // A zero fee stops new dues but does not erase or silently waive historical obligations.
+  if (!amount) return { created, updated, fee_id: feeId };
+
+  for (const student of students.filter((item) => Number(item.is_active) === 1)) {
+    const current = byUser.get(student.id);
+    if (current) {
+      await updateDue(current.id, {
+        amount,
+        title: classInfo.fee_title || "শ্রেণি ফি",
+        student_name: student.name,
+        student_id: student.student_id,
+        class_level: student.class_level,
+        section: student.section,
+      });
+      await syncDuePayment(current.id);
+      updated += 1;
+    } else {
+      try {
+        await createDue({
+          fair_slug: fairSlug,
+          user_id: student.id,
+          student_name: student.name,
+          student_id: student.student_id,
+          class_level: student.class_level,
+          section: student.section,
+          title: classInfo.fee_title || "শ্রেণি ফি",
+          class_fee_id: feeId,
+          amount,
+          due_date: "",
+          status: "due",
+          note: `স্বয়ংক্রিয় শ্রেণি ফি · ${classInfo.fee_session || new Date().getFullYear()}`,
+          created_by: createdBy,
+        });
+        created += 1;
+      } catch (error) {
+        if (!/unique|constraint/i.test(error instanceof Error ? error.message : String(error))) throw error;
+        const raced = (await listDues({ class_fee_id: feeId, limit: 5000 })).find((item) => item.user_id === student.id);
+        if (!raced) throw error;
+        await updateDue(raced.id, { amount, title: classInfo.fee_title || "শ্রেণি ফি", student_name: student.name, student_id: student.student_id, class_level: student.class_level, section: student.section });
+        await syncDuePayment(raced.id);
+        updated += 1;
+      }
+    }
+  }
+  return { created, updated, fee_id: feeId };
+}
+
+export async function classFeeTotals(fairSlug?: string) {
+  const [classes, studentGroups, allDues] = await Promise.all([
+    listClasses(true),
+    studentsByClass(),
+    listDues({ fair_slug: fairSlug, limit: 5000 }),
+  ]);
+  const grouped = new Map(studentGroups.map((row) => [row.class_level, row.total]));
+  const rows = classes.filter((item) => Number(item.fee_amount) > 0).map((item) => {
+    const feeId = classFeeId(item.id, item.fee_session, fairSlug ?? "");
+    const students = Number(grouped.get(item.name) ?? 0);
+    const expected = students * Number(item.fee_amount);
+    const collected = allDues.filter((due) => due.class_fee_id === feeId).reduce((sum, due) => sum + Number(due.paid_amount), 0);
+    return {
+      class_level: item.name,
+      title: item.fee_title || "শ্রেণি ফি",
+      session_year: item.fee_session || String(new Date().getFullYear()),
+      fee_amount: Number(item.fee_amount),
+      students,
+      expected,
+      collected,
+      pending: Math.max(0, expected - collected),
+    };
+  });
+  return {
+    rows,
+    expected: rows.reduce((sum, row) => sum + row.expected, 0),
+    collected: rows.reduce((sum, row) => sum + row.collected, 0),
+    pending: rows.reduce((sum, row) => sum + row.pending, 0),
+  };
+}
+
 /* ------------------------------------------------------------------ *
  * Funds / dues / expenses
  * ------------------------------------------------------------------ */
@@ -798,6 +1020,8 @@ export interface FundInput {
   section?: string;
   student_id?: string;
   phone?: string;
+  due_id?: string;
+  receipt_no?: string;
   amount: number;
   method?: string;
   trx_id?: string;
@@ -819,6 +1043,8 @@ export async function createFund(input: FundInput) {
     section: input.section ?? "",
     student_id: input.student_id ?? "",
     phone: input.phone ?? "",
+    due_id: input.due_id ?? "",
+    receipt_no: input.receipt_no || documentNumber("RCT"),
     amount: Number(input.amount) || 0,
     method: input.method ?? "নগদ",
     trx_id: input.trx_id ?? "",
@@ -826,14 +1052,19 @@ export async function createFund(input: FundInput) {
     status: input.status ?? "verified",
     note: input.note ?? "",
     collected_by: input.collected_by ?? "",
-    verified_by: input.status === "pending" ? "" : input.collected_by ?? "",
-    verified_at: input.status === "pending" ? "" : nowIso(),
+    verified_by: input.status === "verified" || !input.status ? input.collected_by ?? "" : "",
+    verified_at: input.status === "verified" || !input.status ? nowIso() : "",
     created_at: nowIso(),
     updated_at: nowIso(),
   };
   const statement = insertStatement("funds", record);
   await run(statement.sql, statement.args as (string | number)[]);
   return id;
+}
+
+export async function getFundById(id: string) {
+  const rows = await query<FundRow>(`SELECT * FROM funds WHERE id = ? LIMIT 1`, [id]);
+  return rows[0] ?? null;
 }
 
 export async function listFunds(filter: { fair_slug?: string; status?: string; class_level?: string; user_id?: string; limit?: number } = {}) {
@@ -861,7 +1092,7 @@ export async function listFunds(filter: { fair_slug?: string; status?: string; c
 }
 
 export async function updateFund(id: string, values: Record<string, string | number>) {
-  const allowed = ["status", "amount", "method", "trx_id", "purpose", "note", "verified_by", "verified_at", "payer_name", "class_level", "section", "student_id", "phone"];
+  const allowed = ["status", "amount", "method", "trx_id", "purpose", "note", "verified_by", "verified_at", "payer_name", "class_level", "section", "student_id", "phone", "user_id", "due_id", "receipt_no"];
   const clean: Record<string, string | number> = {};
   for (const key of allowed) if (key in values && values[key] !== undefined) clean[key] = values[key];
   if (!Object.keys(clean).length) return;
@@ -970,6 +1201,11 @@ export async function expenseTotalsByCategory(fairSlug?: string) {
   return rows.map((row) => ({ category: String(row.category || "সাধারণ"), total: Number(row.total ?? 0) }));
 }
 
+export async function getExpenseById(id: string) {
+  const rows = await query<ExpenseRow>(`SELECT * FROM expenses WHERE id = ? LIMIT 1`, [id]);
+  return rows[0] ?? null;
+}
+
 export async function listExpenses(fairSlug?: string, limit = 400) {
   const args: string[] = [];
   let where = "";
@@ -982,6 +1218,7 @@ export async function listExpenses(fairSlug?: string, limit = 400) {
 
 export async function createExpense(values: Partial<ExpenseRow>) {
   const id = randomUUID();
+  const memoNo = values.memo_no || documentNumber("EXP");
   const record: Record<string, string | number> = {
     id,
     fair_slug: values.fair_slug ?? "",
@@ -991,7 +1228,8 @@ export async function createExpense(values: Partial<ExpenseRow>) {
     paid_to: values.paid_to ?? "",
     paid_at: values.paid_at ?? nowIso().slice(0, 10),
     method: values.method ?? "নগদ",
-    voucher_no: values.voucher_no ?? "",
+    voucher_no: values.voucher_no || memoNo,
+    memo_no: memoNo,
     note: values.note ?? "",
     status: values.status ?? "approved",
     created_by: values.created_by ?? "",
@@ -1005,7 +1243,7 @@ export async function createExpense(values: Partial<ExpenseRow>) {
 
 export async function updateExpense(id: string, values: Partial<ExpenseRow>) {
   const clean: Record<string, string | number> = {};
-  for (const key of ["title", "category", "amount", "paid_to", "paid_at", "method", "voucher_no", "note", "status", "fair_slug"] as const) {
+  for (const key of ["title", "category", "amount", "paid_to", "paid_at", "method", "voucher_no", "memo_no", "note", "status", "fair_slug"] as const) {
     if (key in values && values[key] !== undefined) clean[key] = values[key] as string | number;
   }
   if (!Object.keys(clean).length) return;
@@ -1019,7 +1257,7 @@ export async function deleteExpense(id: string) {
   return Number(result.rowsAffected ?? 0) > 0;
 }
 
-export async function listDues(filter: { fair_slug?: string; class_level?: string; status?: string; user_id?: string; student_id?: string; limit?: number } = {}) {
+export async function listDues(filter: { fair_slug?: string; class_level?: string; status?: string; user_id?: string; student_id?: string; class_fee_id?: string; limit?: number } = {}) {
   const clauses: string[] = [];
   const args: string[] = [];
   if (filter.fair_slug) {
@@ -1042,9 +1280,13 @@ export async function listDues(filter: { fair_slug?: string; class_level?: strin
     clauses.push("upper(student_id) = upper(?)");
     args.push(filter.student_id);
   }
+  if (filter.class_fee_id) {
+    clauses.push("class_fee_id = ?");
+    args.push(filter.class_fee_id);
+  }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const limit = Math.max(1, Math.min(3000, Math.floor(filter.limit ?? 500)));
-  return query<DueRow>(`SELECT * FROM dues ${where} ORDER BY due_date DESC, created_at DESC LIMIT ${limit}`, args);
+  return query<DueRow>(`SELECT dues.*, COALESCE((SELECT SUM(funds.amount) FROM funds WHERE funds.due_id = dues.id AND funds.status = 'pending'),0) as pending_amount FROM dues ${where} ORDER BY due_date DESC, created_at DESC LIMIT ${limit}`, args);
 }
 
 export async function createDue(values: Partial<DueRow>) {
@@ -1058,6 +1300,7 @@ export async function createDue(values: Partial<DueRow>) {
     class_level: values.class_level ?? "",
     section: values.section ?? "",
     title: values.title ?? "বিজ্ঞান মেলা ফি",
+    class_fee_id: values.class_fee_id ?? "",
     amount: Number(values.amount) || 0,
     paid_amount: Number(values.paid_amount) || 0,
     due_date: values.due_date ?? nowIso().slice(0, 10),
@@ -1074,13 +1317,45 @@ export async function createDue(values: Partial<DueRow>) {
 
 export async function updateDue(id: string, values: Partial<DueRow>) {
   const clean: Record<string, string | number> = {};
-  for (const key of ["student_name", "student_id", "class_level", "section", "title", "amount", "paid_amount", "due_date", "status", "note", "fair_slug"] as const) {
+  for (const key of ["student_name", "student_id", "class_level", "section", "title", "class_fee_id", "amount", "paid_amount", "due_date", "status", "note", "fair_slug"] as const) {
     if (key in values && values[key] !== undefined) clean[key] = values[key] as string | number;
   }
   if (!Object.keys(clean).length) return;
   clean.updated_at = nowIso();
   const statement = updateStatement("dues", id, clean);
   await run(statement.sql, statement.args as (string | number)[]);
+}
+
+export async function getDueById(id: string) {
+  const rows = await query<DueRow>(`SELECT * FROM dues WHERE id = ? LIMIT 1`, [id]);
+  return rows[0] ?? null;
+}
+
+/** Verified receipts count as paid; pending receipts reserve balance until reviewed. */
+export async function dueReceiptTotals(dueId: string, excludeFundId = "") {
+  const rows = await query<{ verified: number; pending: number; count: number }>(
+    `SELECT
+       COALESCE(SUM(CASE WHEN status = 'verified' THEN amount ELSE 0 END),0) as verified,
+       COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END),0) as pending,
+       COUNT(*) as count
+     FROM funds WHERE due_id = ?${excludeFundId ? " AND id <> ?" : ""}`,
+    excludeFundId ? [dueId, excludeFundId] : [dueId],
+  );
+  return { verified: Number(rows[0]?.verified ?? 0), pending: Number(rows[0]?.pending ?? 0), count: Number(rows[0]?.count ?? 0) };
+}
+
+/** Recompute a due's paid balance exclusively from verified linked receipts. */
+export async function syncDuePayment(dueId: string) {
+  const due = await getDueById(dueId);
+  if (!due) return false;
+  const rows = await query<{ total: number }>(
+    `SELECT COALESCE(SUM(amount),0) as total FROM funds WHERE due_id = ? AND status = 'verified'`,
+    [dueId],
+  );
+  const paid = Number(rows[0]?.total ?? 0);
+  const amount = Number(due.amount ?? 0);
+  await updateDue(dueId, { paid_amount: paid, status: paid >= amount ? "paid" : paid > 0 ? "partial" : "due" });
+  return true;
 }
 
 export async function deleteDue(id: string) {
@@ -1117,7 +1392,7 @@ export async function dueTotals(fairSlug?: string) {
  * QR passes & scans
  * ------------------------------------------------------------------ */
 
-export async function listPasses(filter: { fair_slug?: string; status?: string; user_id?: string; limit?: number } = {}) {
+export async function listPasses(filter: { fair_slug?: string; status?: string; user_id?: string; parent_pass_id?: string; limit?: number } = {}) {
   const clauses: string[] = [];
   const args: string[] = [];
   if (filter.fair_slug) {
@@ -1132,6 +1407,10 @@ export async function listPasses(filter: { fair_slug?: string; status?: string; 
     clauses.push("user_id = ?");
     args.push(filter.user_id);
   }
+  if (filter.parent_pass_id) {
+    clauses.push("parent_pass_id = ?");
+    args.push(filter.parent_pass_id);
+  }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const limit = Math.max(1, Math.min(5000, Math.floor(filter.limit ?? 500)));
   return query<PassRow>(`SELECT * FROM passes ${where} ORDER BY created_at DESC LIMIT ${limit}`, args);
@@ -1144,6 +1423,11 @@ export async function getPassById(id: string) {
 
 export async function getPassByToken(token: string) {
   const rows = await query<PassRow>(`SELECT * FROM passes WHERE token = ? LIMIT 1`, [token]);
+  return rows[0] ?? null;
+}
+
+export async function getGuestPass(parentPassId: string, guestIndex: number) {
+  const rows = await query<PassRow>(`SELECT * FROM passes WHERE parent_pass_id = ? AND guest_index = ? LIMIT 1`, [parentPassId, guestIndex]);
   return rows[0] ?? null;
 }
 
@@ -1169,6 +1453,9 @@ export async function createPass(values: Partial<PassRow> & { token: string }) {
     status: "active",
     scan_count: 0,
     last_scan_at: "",
+    parent_pass_id: values.parent_pass_id ?? "",
+    guest_index: Number(values.guest_index ?? 0),
+    guest_limit: Math.max(0, Math.min(4, Number(values.guest_limit ?? 0))),
     expires_at: values.expires_at ?? "",
     note: values.note ?? "",
     created_at: nowIso(),
@@ -1181,7 +1468,7 @@ export async function createPass(values: Partial<PassRow> & { token: string }) {
 
 export async function updatePass(id: string, values: Partial<PassRow>) {
   const clean: Record<string, string | number> = {};
-  for (const key of ["status", "note", "expires_at", "scan_count", "last_scan_at", "holder_name", "class_level", "section", "phone"] as const) {
+  for (const key of ["status", "note", "expires_at", "scan_count", "last_scan_at", "holder_name", "class_level", "section", "phone", "guest_limit", "parent_pass_id", "guest_index"] as const) {
     if (key in values && values[key] !== undefined) clean[key] = values[key] as string | number;
   }
   if (!Object.keys(clean).length) return;
@@ -1267,20 +1554,44 @@ export interface TickerRow {
   phone: string;
   message: string;
   kind: string;
+  audience: string;
+  target_role: string;
+  payment_segment: string;
+  starts_at: string;
+  ends_at: string;
   sort_order: number;
   is_active: number;
   created_at: string;
   updated_at: string;
 }
 
-export async function listTickers(filter: { fair_slug?: string; activeOnly?: boolean; limit?: number } = {}) {
+export interface SmtpSettingsRow {
+  id: string;
+  host: string;
+  port: number;
+  secure: number;
+  username: string;
+  password_encrypted: string;
+  from_name: string;
+  from_email: string;
+  reply_to: string;
+  enabled: number;
+  updated_at: string;
+}
+
+export async function listTickers(filter: { fair_slug?: string; activeOnly?: boolean; publicOnly?: boolean; limit?: number } = {}) {
   const where: string[] = [];
   const args: (string | number)[] = [];
   if (filter.fair_slug) {
     where.push("fair_slug = ?");
     args.push(filter.fair_slug);
   }
-  if (filter.activeOnly) where.push("is_active = 1");
+  if (filter.activeOnly) {
+    const now = nowIso();
+    where.push("is_active = 1", "(starts_at = '' OR starts_at <= ?)", "(ends_at = '' OR ends_at > ?)");
+    args.push(now, now);
+  }
+  if (filter.publicOnly) where.push("audience = 'public'", "target_role = ''", "payment_segment = ''");
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
   return query<TickerRow>(`SELECT * FROM tickers ${clause} ORDER BY sort_order ASC, created_at DESC LIMIT ?`, [...args, filter.limit ?? 200]);
 }
@@ -1299,6 +1610,11 @@ export async function createTicker(values: Partial<TickerRow>) {
       phone: values.phone ?? "",
       message: values.message ?? "",
       kind: values.kind ?? "notice",
+      audience: values.audience ?? "all",
+      target_role: values.target_role ?? "",
+      payment_segment: values.payment_segment ?? "",
+      starts_at: values.starts_at ?? "",
+      ends_at: values.ends_at ?? "",
       sort_order: Number(values.sort_order ?? 0),
       is_active: Number(values.is_active ?? 1),
       created_at: stamp,
@@ -1310,7 +1626,7 @@ export async function createTicker(values: Partial<TickerRow>) {
 
 export async function updateTicker(id: string, values: Partial<TickerRow>) {
   const clean: Record<string, string | number> = {};
-  for (const key of ["fair_slug", "category", "name", "class_level", "section", "email", "phone", "message", "kind"] as const) {
+  for (const key of ["fair_slug", "category", "name", "class_level", "section", "email", "phone", "message", "kind", "audience", "target_role", "payment_segment", "starts_at", "ends_at"] as const) {
     if (values[key] !== undefined) clean[key] = String(values[key] ?? "");
   }
   if (values.sort_order !== undefined) clean.sort_order = Number(values.sort_order);
@@ -1323,6 +1639,37 @@ export async function updateTicker(id: string, values: Partial<TickerRow>) {
 
 export async function deleteTicker(id: string) {
   await run("DELETE FROM tickers WHERE id = ?", [id]);
+}
+
+export async function getSmtpSettings() {
+  const rows = await query<SmtpSettingsRow>(`SELECT * FROM smtp_settings WHERE id = 'primary' LIMIT 1`);
+  return rows[0] ?? null;
+}
+
+export async function saveSmtpSettings(values: Partial<SmtpSettingsRow>) {
+  const current = await getSmtpSettings();
+  const record = {
+    id: "primary",
+    host: values.host ?? current?.host ?? "",
+    port: Math.max(1, Math.min(65535, Math.floor(Number(values.port ?? current?.port ?? 587)))),
+    secure: Number(values.secure ?? current?.secure ?? 0) ? 1 : 0,
+    username: values.username ?? current?.username ?? "",
+    password_encrypted: values.password_encrypted ?? current?.password_encrypted ?? "",
+    from_name: values.from_name ?? current?.from_name ?? "OKGS",
+    from_email: values.from_email ?? current?.from_email ?? "",
+    reply_to: values.reply_to ?? current?.reply_to ?? "",
+    enabled: Number(values.enabled ?? current?.enabled ?? 0) ? 1 : 0,
+    updated_at: nowIso(),
+  };
+  await run(
+    `INSERT INTO smtp_settings (id,host,port,secure,username,password_encrypted,from_name,from_email,reply_to,enabled,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)
+     ON CONFLICT(id) DO UPDATE SET host=excluded.host, port=excluded.port, secure=excluded.secure,
+       username=excluded.username, password_encrypted=excluded.password_encrypted, from_name=excluded.from_name,
+       from_email=excluded.from_email, reply_to=excluded.reply_to, enabled=excluded.enabled, updated_at=excluded.updated_at`,
+    [record.id, record.host, record.port, record.secure, record.username, record.password_encrypted, record.from_name, record.from_email, record.reply_to, record.enabled, record.updated_at],
+  );
+  return record;
 }
 
 /* ------------------------------------------------------------------ *
