@@ -30,6 +30,7 @@ import { DuesPanel, ExpensesPanel, FundsPanel } from "@/components/sf/console/Mo
 import { ClassesPanel, PassesPanel, UsersPanel } from "@/components/sf/console/PeoplePanels";
 import { CollectionsPanel } from "@/components/sf/console/CollectionsPanel";
 import { SettingsPanel } from "@/components/sf/console/SettingsPanel";
+import { SettlementsPanel } from "@/components/sf/console/SettlementsPanel";
 import { TickerPanel } from "@/components/sf/console/TickerPanel";
 import { PortalAnnouncements } from "@/components/portal/PortalAnnouncements";
 
@@ -287,7 +288,12 @@ export function FairConsole({
 
         {tab === "funds" ? <FundsPanel fairSlug={fairSlug} /> : null}
         {tab === "dues" ? <DuesPanel fairSlug={fairSlug} /> : null}
-        {tab === "expenses" ? <ExpensesPanel fairSlug={fairSlug} /> : null}
+        {tab === "expenses" ? (
+          <div className="v2-grid" style={{ gap: 16 }}>
+            <ExpensesPanel fairSlug={fairSlug} />
+            <SettlementsPanel fairSlug={fairSlug} canDelete={isAdmin} />
+          </div>
+        ) : null}
         {tab === "collections" ? <CollectionsPanel fairSlug={fairSlug} categories={categories} clubs={clubs} /> : null}
         {tab === "passes" ? <PassesPanel fairSlug={fairSlug} fairName={fair?.name ?? ""} /> : null}
         {tab === "users" ? <UsersPanel canManageAdmins={isAdmin} canManageSuperAdmins={role === "superadmin"} fairSlug={fairSlug} /> : null}

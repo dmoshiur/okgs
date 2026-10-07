@@ -67,7 +67,16 @@ for (const selector of [".brand-copy", ".brand-copy strong", ".brand-copy small"
   assert.ok(rules, `missing ${selector}`);
   assert.ok(!/overflow:\s*hidden|text-overflow:\s*ellipsis|line-clamp:|white-space:\s*nowrap|max-width:/.test(rules), `${selector} must not truncate names`);
 }
-assert.match(css, /\.brand-copy\s*\{[^}]*white-space:\s*normal;\s*overflow-wrap:\s*anywhere/);
+// The header title must wrap whole words and only break inside a word when a
+// single token cannot fit a line on its own. `overflow-wrap: anywhere` would
+// collapse the min-content width to one character and render the brand title
+// as a vertical column on narrow screens — `break-word` plus explicit width
+// floors on the header columns prevents both failure modes.
+assert.match(css, /\.brand-copy\s*\{[^}]*white-space:\s*normal;\s*overflow-wrap:\s*break-word;\s*word-break:\s*normal/);
+assert.ok(!/\.brand-copy\s*\{[^}]*overflow-wrap:\s*anywhere/.test(css), ".brand-copy must never use overflow-wrap: anywhere (vertical-title collapse)");
+assert.match(css, /\.header-inner\s*\{[^}]*grid-template-columns:\s*minmax\(min\(100%,\s*220px\),\s*1fr\)\s*auto/);
+assert.match(css, /\.header-inner > \.brand\s*\{[^}]*min-width:\s*min\(100%,\s*170px\)/);
+assert.match(css, /\.app-top-inner \.brand\s*\{[^}]*min-width:\s*min\(100%,\s*170px\)/);
 assert.match(css, /\.club-card h3\s*\{[^}]*white-space:\s*normal;\s*overflow-wrap:\s*anywhere/);
 const showcaseStyle = css.match(/\.showcase-card\s*\{([^}]*)\}/)?.[1] || "";
 assert.ok(!/(?:^|[;\s])(?:height|aspect-ratio):/.test(showcaseStyle), "showcase tiles must grow to fit names instead of enforcing a height or ratio");

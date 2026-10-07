@@ -415,7 +415,11 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   backdrop-filter: blur(16px) saturate(140%);
 }
 .header-inner {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  /* The brand column keeps a readable floor (220px, or the full width on tiny
+     screens) so the title can never be squeezed into a one-character-wide
+     column — the old `minmax(0, 1fr)` allowed the grid track to collapse to 0
+     when .header-actions grew, which rendered the title vertically. */
+  display: grid; grid-template-columns: minmax(min(100%, 220px), 1fr) auto;
   align-items: center; gap: 12px 24px;
   min-height: var(--header-h);
   padding-block: 10px;
@@ -436,16 +440,21 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   font-family: var(--font-display); font-size: 20px; font-weight: 700;
 }
 .official-logo.is-compact, .official-logo-fallback.is-compact { width: 38px; height: 38px; flex-basis: 38px; }
-/* Full identity text grows vertically instead of clipping at any breakpoint. */
+/* Full identity text grows vertically instead of clipping at any breakpoint.
+   `overflow-wrap: break-word` (never `anywhere`) keeps the min-content width at
+   the longest word, so a squeezed flex/grid column wraps whole words instead of
+   breaking after every character — that per-character collapse is what made the
+   header title render as a vertical single column on small screens. */
 .brand-copy {
   display: flex; flex: 1 1 auto; flex-direction: column; gap: 3px;
   width: auto; min-width: 0;
-  white-space: normal; overflow-wrap: anywhere;
+  white-space: normal; overflow-wrap: break-word; word-break: normal;
 }
 .brand-copy strong {
   color: var(--ink);
   font-family: var(--font-ui); font-size: 16.5px; font-weight: 700;
   line-height: 1.45; letter-spacing: -.01em;
+  min-width: 0; overflow-wrap: break-word; word-break: normal;
   transition: color .18s ease;
 }
 .brand-copy small {
@@ -465,6 +474,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   white-space: nowrap;
 }
@@ -2119,10 +2129,10 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .portal-error { margin: 16px 0 0; padding: 12px 14px; border: 1px solid #fecaca; border-radius: var(--r); background: #fef2f2; color: #b91c1c; font-size: 14px; }
 .portal-ok { margin: 16px 0 0; padding: 12px 14px; border: 1px solid var(--mint-line); border-radius: var(--r); background: var(--mint-soft); color: var(--mint-text); font-size: 14px; }
 /* ------------------------------------------------------------ app shell -- */
-.app-shell { min-height: 100vh; background: var(--surface-alt-2); }
+.app-shell { min-height: 100vh; min-height: 100svh; background: var(--surface-alt-2); }
 .app-top { position: sticky; top: 0; z-index: 30; background: #fff; border-bottom: 1px solid var(--line); }
 .app-top-inner { display: flex; align-items: center; gap: 16px; padding: 14px 0; }
-.app-top-inner .brand { flex: 1; min-width: 0; }
+.app-top-inner .brand { flex: 1 1 auto; min-width: min(100%, 170px); }
 .app-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 12px; }
 .app-tab { padding: 9px 16px; border: 1px solid transparent; border-radius: var(--r-pill); color: var(--body); font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; background: transparent; }
 .app-tab:hover { background: var(--surface-alt); }
@@ -2711,7 +2721,9 @@ html[data-color-scheme="dark"] .image-msg.is-error { color: #fca5a5; }
   .main-nav, .header-actions, .header-link { display: none; }
   .mobile-menu { display: inline-flex; }
   .header-inner { display: flex; justify-content: space-between; }
-  .header-inner > .brand { flex: 1; }
+  /* Floor keeps the title on one readable line-width even when the menu
+     button and logo take their share of a 320px viewport. */
+  .header-inner > .brand { flex: 1 1 auto; min-width: min(100%, 170px); }
 
   .hero-grid { grid-template-columns: 1fr; gap: 40px; }
   .hero-copy h1 { max-width: 30ch; }
@@ -6796,7 +6808,7 @@ html, body { max-width: 100%; overflow-x: clip; }
 .app-tabs { min-width: 0; overflow: visible; flex-wrap: wrap; }
 .app-mobile-bar { display: none; }
 .app-mobile-more-wrap { position: relative; }
-.app-mobile-more-menu { position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 80; width: min(280px, calc(100vw - 24px)); padding: 8px; border: 1px solid var(--v2-line, #e1e8e4); border-radius: 16px; background: var(--v2-surface, #fff); box-shadow: 0 16px 44px rgba(18, 40, 30, .2); }
+.app-mobile-more-menu { position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 80; width: min(280px, calc(100vw - 24px)); max-height: min(64vh, 420px); max-height: min(64dvh, 420px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 8px; border: 1px solid var(--v2-line, #e1e8e4); border-radius: 16px; background: var(--v2-surface, #fff); box-shadow: 0 16px 44px rgba(18, 40, 30, .2); }
 .app-mobile-more-menu button, .app-mobile-more-menu a { width: 100%; min-height: 42px; display: flex; align-items: center; gap: 9px; padding: 9px 10px; border: 0; border-radius: 10px; background: transparent; color: inherit; text-align: left; text-decoration: none; font: inherit; }
 .app-mobile-more-menu button:hover, .app-mobile-more-menu a:hover { background: var(--v2-soft, #f2f6f3); }
 
@@ -6807,7 +6819,7 @@ html, body { max-width: 100%; overflow-x: clip; }
 .users-filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .users-filter-bar > * { min-width: 0; }
 .users-filter-bar input, .users-filter-bar select { max-width: 100%; }
-.table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+.table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
 .data-table { width: 100%; }
 .v2-input, .v2-select, .v2-textarea { max-width: 100%; min-width: 0; }
 
@@ -6933,6 +6945,13 @@ html, body { max-width: 100%; overflow-x: clip; }
   .app-shell .brand-copy strong { font-size: 17px; line-height: 1.15; }
   .app-shell .brand-copy small { font-size: 10px; }
   .app-body { padding-inline: 12px; }
+  /* Standardized card padding + rhythm so every console/portal card shares the
+     same compact metrics on phones (was 24px desktop padding everywhere). */
+  .panel { padding: 16px 14px; }
+  .panel-head { gap: 10px; margin-bottom: 12px; }
+  .metric { padding: 16px 15px; }
+  .v2-card { padding: 18px 15px; }
+  .pass-card { padding: 20px 16px; gap: 16px; }
   .users-filter-bar .v2-input, .users-filter-bar .v2-select { flex: 1 1 125px; }
   .print-page { padding: 8px; }
   .print-document { padding: 17px 13px; border-radius: 8px; }
@@ -6947,6 +6966,11 @@ html, body { max-width: 100%; overflow-x: clip; }
   .class-fee-edit { grid-template-columns: minmax(0, 1fr); }
   .csv-review-summary { flex-direction: column; }
   .print-footer { flex-direction: column; }
+}
+@media (max-width: 360px) {
+  .app-mobile-bar > button, .app-mobile-bar > a, .app-mobile-more-wrap > button { font-size: 9px; gap: 2px; padding: 4px 1px; }
+  .app-top-actions .v2-select { min-width: 125px; }
+  .users-filter-bar .v2-input, .users-filter-bar .v2-select { flex: 1 1 110px; }
 }
 @media print {
   @page { margin: 10mm; }
