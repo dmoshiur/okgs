@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useApi, postJson } from "./ui";
 import { Panel } from "./ui";
-import { Mail, Check, X, Loader2, Shield, Lock, TestTube } from "lucide-react";
+import { Mail, Check, X, Loader2, Shield, Lock, TestTube, Users } from "lucide-react";
 
 interface SMTPConfig {
   enabled: boolean;
@@ -158,7 +158,7 @@ export function SMTPConfigPanel() {
   return (
     <div className="v2-grid" style={{ gap: 16 }}>
       <Panel title="Central SMTP Configuration">
-        <p style={{ margin: 0 0 16, color: "var(--body)", fontSize: 14 }}>
+        <p style={{ margin: "0 0 16px", color: "var(--body)", fontSize: 14 }}>
           Configure the central SMTP server for sending emails. All email notifications, 
           welcome credentials, and announcements will use these settings.
         </p>
@@ -362,7 +362,7 @@ export function SMTPConfigPanel() {
         {/* Error and Message Display */}
         {error && (
           <p style={{ 
-            margin: 16 0 0, 
+            margin: "16px 0 0", 
             padding: 12, 
             background: "#fef2f2", 
             border: "1px solid #fecaca", 
@@ -376,7 +376,7 @@ export function SMTPConfigPanel() {
 
         {message && (
           <p style={{ 
-            margin: 16 0 0, 
+            margin: "16px 0 0", 
             padding: 12, 
             background: "var(--mint-soft)", 
             border: "1px solid var(--mint-line)", 
@@ -391,7 +391,7 @@ export function SMTPConfigPanel() {
         {/* Test Result */}
         {testResult && (
           <p style={{ 
-            margin: 16 0 0, 
+            margin: "16px 0 0", 
             padding: 12, 
             background: testResult.success ? "#dcfce7" : "#fef2f2", 
             border: testResult.success ? "1px solid #bbf7d0" : "1px solid #fecaca", 
@@ -440,7 +440,7 @@ export function SMTPConfigPanel() {
           borderRadius: 8, 
           border: "1px solid var(--line)" 
         }}>
-          <h4 style={{ margin: 0 0 8, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+          <h4 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
             SMTP Configuration Help
           </h4>
           <ul style={{ 
@@ -455,7 +455,7 @@ export function SMTPConfigPanel() {
             <li><strong>Yahoo:</strong> smtp.mail.yahoo.com, Port: 587 (TLS)</li>
             <li><strong>Custom SMTP:</strong> Use your email provider's SMTP server</li>
           </ul>
-          <p style={{ margin: 8 0 0, fontSize: 12, color: "var(--muted)" }}>
+          <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--muted)" }}>
             <strong>Note:</strong> For Gmail, you may need to enable "Less secure app access" or create an App Password.
           </p>
         </div>
@@ -463,7 +463,7 @@ export function SMTPConfigPanel() {
 
       {/* Multi-Channel Announcements Info */}
       <Panel title="Multi-Channel Announcements">
-        <p style={{ margin: 0 0 16, color: "var(--body)", fontSize: 14 }}>
+        <p style={{ margin: "0 0 16px", color: "var(--body)", fontSize: 14 }}>
           When updates or news items are published on the Science Fair dashboard or club sites,
           the system can automatically send email notifications to targeted audiences.
         </p>
@@ -482,7 +482,7 @@ export function SMTPConfigPanel() {
               <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
                 Email Notifications
               </h4>
-              <p style={{ margin: 4 0 0, fontSize: 13, color: "var(--body)" }}>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--body)" }}>
                 Send announcements via email to specific groups
               </p>
             </div>
@@ -496,7 +496,7 @@ export function SMTPConfigPanel() {
                   display: "inline-flex", 
                   alignItems: "center", 
                   gap: 6, 
-                  padding: 8 12, 
+                  padding: "8px 12px", 
                   background: "var(--surface)", 
                   border: "1px solid var(--line)", 
                   borderRadius: 20, 
@@ -531,9 +531,9 @@ export function SMTPConfigPanel() {
 }
 
 // EyeOff component for password visibility toggle
-function EyeOff(props: React.SVGProps<SVGSVGElement>) {
+function EyeOff({ size = 16, ...props }: React.SVGProps<SVGSVGElement> & { size?: number }) {
   return (
-    <svg {...props} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg {...props} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
       <line x1="1" y1="1" x2="23" y2="23"/>
     </svg>
@@ -541,9 +541,9 @@ function EyeOff(props: React.SVGProps<SVGSVGElement>) {
 }
 
 // Eye component for password visibility toggle
-function Eye(props: React.SVGProps<SVGSVGElement>) {
+function Eye({ size = 16, ...props }: React.SVGProps<SVGSVGElement> & { size?: number }) {
   return (
-    <svg {...props} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg {...props} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
       <circle cx="12" cy="12" r="3"/>
     </svg>

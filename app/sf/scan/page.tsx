@@ -9,7 +9,7 @@ import { Scanner } from "@/components/sf/Scanner";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "QR স্ক্যানার",
+  title: "QR gate scanner",
   robots: { index: false, follow: false },
 };
 
@@ -22,5 +22,5 @@ export default async function ScanPage() {
   const mode = fairMode(content.settings);
   const fair = activeFair(content, mode.slug);
 
-  return <Scanner fairSlug={fair?.slug ?? ""} fairName={fair?.name ?? "বিজ্ঞান মেলা"} />;
+  return <Scanner fairSlug={fair?.slug ?? ""} fairName={fair?.name ?? "Science Fair"} />;
 }

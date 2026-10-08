@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useApi, postJson, money } from "./ui";
 import { Panel } from "./ui";
-import { formatDate, bn } from "@/lib/format";
+import { formatDateEn, en } from "@/lib/format";
 import { Upload, Users, Check, X, Loader2, FileText, Eye, EyeOff } from "lucide-react";
 
 interface CSVRow {
@@ -161,7 +161,7 @@ export function CSVImportPanel({ fairSlug }: { fairSlug: string }) {
     const rows: CSVRow[] = [];
     for (let i = 1; i < lines.length; i++) {
       const values = parseCSVLine(lines[i]);
-      const row: CSVRow = { id: `row-${i}` };
+      const row = { id: `row-${i}` } as CSVRow;
       
       headers.forEach((header, index) => {
         const cleanHeader = header.toLowerCase().trim();
@@ -240,7 +240,7 @@ export function CSVImportPanel({ fairSlug }: { fairSlug: string }) {
   return (
     <div className="v2-grid" style={{ gap: 16 }}>
       <Panel title="Smart CSV Student Import">
-        <p style={{ margin: 0 0 16, color: "var(--body)", fontSize: 14 }}>
+        <p style={{ margin: "0 0 16px", color: "var(--body)", fontSize: 14 }}>
           Upload a CSV file containing student, teacher, or user records. The system will parse the data and allow you to map roles before importing.
         </p>
         
@@ -272,7 +272,7 @@ export function CSVImportPanel({ fairSlug }: { fairSlug: string }) {
             e.currentTarget.style.borderColor = "var(--line)";
             const droppedFile = e.dataTransfer.files[0];
             if (droppedFile) {
-              const event = { target: { files: [droppedFile] } } as React.ChangeEvent<HTMLInputElement>;
+              const event = { target: { files: [droppedFile] } } as unknown as React.ChangeEvent<HTMLInputElement>;
               handleFileUpload(event);
             }
           }}
@@ -297,7 +297,7 @@ export function CSVImportPanel({ fairSlug }: { fairSlug: string }) {
 
         {error && (
           <p style={{ 
-            margin: 16 0 0, 
+            margin: "16px 0 0", 
             padding: 12, 
             background: "#fef2f2", 
             border: "1px solid #fecaca", 
@@ -311,7 +311,7 @@ export function CSVImportPanel({ fairSlug }: { fairSlug: string }) {
 
         {message && (
           <p style={{ 
-            margin: 16 0 0, 
+            margin: "16px 0 0", 
             padding: 12, 
             background: "var(--mint-soft)", 
             border: "1px solid var(--mint-line)", 
@@ -345,9 +345,9 @@ export function CSVImportPanel({ fairSlug }: { fairSlug: string }) {
               alignItems: "center", 
               justifyContent: "space-between", 
               gap: 12, 
-              padding: 12 0, 
+              padding: "12px 0", 
               borderBottom: "1px solid var(--line-2)",
-              margin: 16 0 
+              margin: "16px 0" 
             }}>
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
                 Preview ({preview.totalRows} records)
@@ -367,7 +367,7 @@ export function CSVImportPanel({ fairSlug }: { fairSlug: string }) {
             {/* Role Mapping Section */}
             {uniqueRoles.length > 0 && (
               <Panel title="Role Mapping">
-                <p style={{ margin: 0 0 12, fontSize: 13, color: "var(--body)" }}>
+                <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--body)" }}>
                   The following roles from your CSV need to be mapped to OKGS roles:
                 </p>
                 <div style={{ display: "grid", gap: 12 }}>
@@ -502,7 +502,7 @@ export function CSVImportPanel({ fairSlug }: { fairSlug: string }) {
                         display: "flex", 
                         alignItems: "center", 
                         gap: 8, 
-                        padding: 8 12, 
+                        padding: "8px 12px", 
                         borderBottom: "1px solid var(--line-2)",
                         fontSize: 12,
                         minWidth: "fit-content"
@@ -537,7 +537,7 @@ export function CSVImportPanel({ fairSlug }: { fairSlug: string }) {
                   ))}
                   {preview.totalRows > 10 && (
                     <div style={{ 
-                      padding: 8 12, 
+                      padding: "8px 12px", 
                       textAlign: "center", 
                       color: "var(--muted)", 
                       fontSize: 12 
@@ -604,7 +604,7 @@ export function CSVImportPanel({ fairSlug }: { fairSlug: string }) {
               <li>Real-time preview before import</li>
               <li>Support for custom CSV formats</li>
             </ul>
-            <p style={{ margin: 8 0 0, fontSize: 12, color: "var(--muted)" }}>
+            <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--muted)" }}>
               <strong>CSV Format:</strong> Include columns for name, email, student_id, class, section, role, etc.
             </p>
           </div>

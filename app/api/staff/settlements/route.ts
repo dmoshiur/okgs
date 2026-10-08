@@ -68,18 +68,18 @@ export async function POST(request: Request) {
   const userId = safeId(str(body.user_id));
   const payee = userId ? await getUser(userId) : null;
   const payeeName = str(body.payee_name) || payee?.name || "";
-  if (!payeeName) return fail("যার হিসাবে সমন্বয় হবে সেই অ্যাকাউন্ট/নাম নির্বাচন করুন।", 422);
+  if (!payeeName) return fail("Select the account/name to settle with.", 422);
   if (payee && !payeeRoles.has(payee.role)) {
-    return fail("শুধু শিক্ষক/স্টাফ/অ্যাডমিন অ্যাকাউন্টে মাসিক সমন্বয় পোস্ট করা যায়।", 422);
+    return fail("Monthly settlements can only be posted to teacher, staff or admin accounts.", 422);
   }
 
   let amount = Math.round(num(body.amount, 0) * 100) / 100;
   if (reconcile) {
     const ledger = await monthlyLedger(period, fairSlug);
     amount = Math.round(ledger.balance * 100) / 100;
-    if (amount <= 0) return fail("এই মাসে সমন্বয়ের মতো অবশিষ্ট ব্যালেন্স নেই।", 422);
+    if (amount <= 0) return fail("There is no remaining balance to settle this month.", 422);
   }
-  if (!(amount > 0)) return fail("টাকার পরিমাণ শূন্যের বেশি হতে হবে।", 422);
+  if (!(amount > 0)) return fail("Amount must be greater than zero.", 422);
 
   const created = await createSettlement({
     fair_slug: fairSlug,
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
     action: kind === "salary" ? "settlement.salary" : "settlement.reconcile",
     entity: "settlements",
     entity_id: created.id,
-    detail: `${payeeName} · ${period} · ৳${amount}${created.memo_no ? ` · মেমো ${created.memo_no}` : ""}`,
+    detail: `${payeeName} · ${period} · ৳${amount}${created.memo_no ? ` · Memo ${created.memo_no}` : ""}`,
   });
 
   const summary = await monthlyLedger(period, fairSlug);
@@ -113,13 +113,13 @@ export async function DELETE(request: Request) {
   if ("status" in guard) return guard;
   const { session } = guard;
   if (session.role !== "admin" && session.role !== "superadmin") {
-    return fail("সমন্বয় এন্ট্রি মুছতে অ্যাডমিন দরকার।", 403);
+    return fail("Admin rights are required to delete a settlement entry.", 403);
   }
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const id = safeId(str(body.id));
-  if (!id) return fail("আইডি ঠিক নেই।", 422);
+  if (!id) return fail("Invalid ID.", 422);
   const removed = await deleteSettlement(id);
-  if (!removed) return fail("সমন্বয় এন্ট্রি পাওয়া যায়নি।", 404);
+  if (!removed) return fail("Settlement entry not found.", 404);
   await logActivity({
     actor_id: session.user.id,
     actor_name: session.user.name,

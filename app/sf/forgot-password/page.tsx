@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /sf/forgot-password — Bangla password-reset request for the public portal.
+ * /sf/forgot-password — password-reset request for the portal.
  * The same token pipeline as the admin studio, so one link works everywhere.
  */
 import { FormEvent, useState } from "react";
@@ -26,12 +26,12 @@ export default function PortalForgotPasswordPage() {
       });
       const data = (await response.json()) as { ok?: boolean; message?: string; error?: string; devLink?: string };
       if (!response.ok || !data.ok) {
-        setError(data.error || "অনুরোধটি সম্পন্ন করা যায়নি।");
+        setError(data.error || "The request could not be completed.");
         return;
       }
-      setSent({ message: data.message ?? "আপনার ইমেইলে রিসেট লিংক পাঠানো হয়েছে।", devLink: data.devLink });
+      setSent({ message: data.message ?? "A reset link has been sent to your email.", devLink: data.devLink });
     } catch {
-      setError("নেটওয়ার্ক সমস্যা — আবার চেষ্টা করুন।");
+      setError("Network problem — please try again.");
     } finally {
       setBusy(false);
     }
@@ -43,33 +43,33 @@ export default function PortalForgotPasswordPage() {
         {sent ? (
           <>
             <p className="v2-chip v2-chip-accent">
-              <MailCheck size={14} /> ইমেইল পাঠানো হয়েছে
+              <MailCheck size={14} /> Email sent
             </p>
-            <h2 style={{ marginTop: 12 }}>ইনবক্স দেখুন</h2>
+            <h2 style={{ marginTop: 12 }}>Check your inbox</h2>
             <p className="v2-muted">{sent.message}</p>
             {sent.devLink ? (
               <p className="v2-muted" style={{ fontSize: 13 }}>
-                মেইল সার্ভার কনফিগার করা নেই (ডেভেলপমেন্ট), তাই লিংকটি এখানে দেওয়া হলো:{" "}
+                The mail server is not configured (development), so the link is shown here:{" "}
                 <a className="text-link" href={sent.devLink}>
-                  রিসেট লিংক খুলুন <CheckCircle2 size={13} />
+                  Open reset link <CheckCircle2 size={13} />
                 </a>
               </p>
             ) : null}
             <Link className="v2-btn v2-btn-ghost" href="/sf/login">
-              <ArrowLeft size={15} /> লগইনে ফিরুন
+              <ArrowLeft size={15} /> Back to login
             </Link>
           </>
         ) : (
           <>
-            <p className="v2-chip v2-chip-accent">পাসওয়ার্ড রিসেট</p>
-            <h2 style={{ marginTop: 12 }}>পাসওয়ার্ড ভুলে গেছেন?</h2>
+            <p className="v2-chip v2-chip-accent">Password Reset</p>
+            <h2 style={{ marginTop: 12 }}>Forgot password?</h2>
             <p className="v2-muted">
-              অ্যাকাউন্টের ইমেইল ঠিকানা দিন। ৬০ মিনিটের জন্য একটি একবার-ব্যবহারযোগ্য লিংক পাঠানো হবে।
+              Enter your account email. A one-time link valid for 60 minutes will be sent.
             </p>
             <form onSubmit={submit} style={{ display: "grid", gap: 14, marginTop: 18 }}>
               <div>
                 <label className="v2-label" htmlFor="email">
-                  <AtSign size={13} style={{ verticalAlign: -2 }} /> ইমেইল ঠিকানা
+                  <AtSign size={13} style={{ verticalAlign: -2 }} /> Email address
                 </label>
                 <input
                   id="email"
@@ -83,13 +83,13 @@ export default function PortalForgotPasswordPage() {
                 />
               </div>
               <button className="v2-btn" type="submit" disabled={busy}>
-                {busy ? <Loader2 size={16} className="spin" /> : <Send size={16} />} {busy ? "পাঠানো হচ্ছে…" : "রিসেট লিংক পাঠান"}
+                {busy ? <Loader2 size={16} className="spin" /> : <Send size={16} />} {busy ? "Sending…" : "Send reset link"}
               </button>
             </form>
             {error ? <p className="portal-error">{error}</p> : null}
             <p className="v2-muted" style={{ fontSize: 13, marginTop: 14 }}>
               <Link className="text-link" href="/sf/login">
-                <ArrowLeft size={13} /> লগইনে ফিরুন
+                <ArrowLeft size={13} /> Back to login
               </Link>
             </p>
           </>

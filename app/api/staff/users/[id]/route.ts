@@ -11,12 +11,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if ("status" in guard) return guard;
   const { session } = guard;
   const { id } = await context.params;
-  if (!safeId(id)) return fail("আইডি ঠিক নেই।", 422);
+  if (!safeId(id)) return fail("Invalid ID.", 422);
 
   const target = await getUser(id);
-  if (!target) return fail("অ্যাকাউন্ট পাওয়া যায়নি।", 404);
-  if (target.role === "admin" && session.role !== "admin" && session.role !== "superadmin") return fail("অ্যাডমিন অ্যাকাউন্ট কেবল অ্যাডমিন সম্পাদনা করতে পারেন।", 403);
-  if (target.role === "superadmin" && session.role !== "superadmin") return fail("SuperAdmin অ্যাকাউন্ট কেবল SuperAdmin সম্পাদনা করতে পারেন।", 403);
+  if (!target) return fail("Account not found.", 404);
+  if (target.role === "admin" && session.role !== "admin" && session.role !== "superadmin") return fail("Only an admin can edit an admin account.", 403);
+  if (target.role === "superadmin" && session.role !== "superadmin") return fail("Only a SuperAdmin can edit a SuperAdmin account.", 403);
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const patch: Record<string, string | number> = {};
@@ -26,9 +26,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   }
   if ("role" in body) {
     const role = str(body.role) as PortalRole;
-    if (!allRoles.includes(role)) return fail("ভূমিকাটি ঠিক নয়।", 422);
+    if (!allRoles.includes(role)) return fail("Invalid role.", 422);
     if ((role === "admin" || role === "superadmin") && session.role !== "superadmin") {
-      return fail("কেবল সুপার অ্যাডমিন এই ভূমিকা দিতে পারেন।", 403);
+      return fail("Only a SuperAdmin can assign this role.", 403);
     }
     patch.role = role;
   }
@@ -61,7 +61,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     });
     return ok({ user: updated ? publicUser(updated) : null });
   } catch (error) {
-    if (error instanceof Error && /UNIQUE/i.test(error.message)) return fail("এই ইমেইল বা আইডি নম্বর আগেই নিবন্ধিত।", 409);
+    if (error instanceof Error && /UNIQUE/i.test(error.message)) return fail("This email or ID number is already registered.", 409);
     throw error;
   }
 }
@@ -71,16 +71,16 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
   const guard = await staff();
   if ("status" in guard) return guard;
   const { session } = guard;
-  if (session.role !== "admin" && session.role !== "superadmin") return fail("কেবল অ্যাডমিন অ্যাকাউন্ট মুছে ফেলতে পারেন।", 403);
+  if (session.role !== "admin" && session.role !== "superadmin") return fail("Only an admin can delete accounts.", 403);
   const { id } = await context.params;
-  if (!safeId(id)) return fail("আইডি ঠিক নেই।", 422);
-  if (id === session.user.id) return fail("নিজের অ্যাকাউন্ট মুছে ফেলা যাবে না।", 400);
+  if (!safeId(id)) return fail("Invalid ID.", 422);
+  if (id === session.user.id) return fail("You cannot delete your own account.", 400);
   const target = await getUser(id);
-  if (!target) return fail("অ্যাকাউন্ট পাওয়া যায়নি।", 404);
-  if (target.role === "superadmin" && session.role !== "superadmin") return fail("SuperAdmin অ্যাকাউন্ট শুধু SuperAdmin মুছতে পারেন।", 403);
+  if (!target) return fail("Account not found.", 404);
+  if (target.role === "superadmin" && session.role !== "superadmin") return fail("Only a SuperAdmin can delete a SuperAdmin account.", 403);
 
   const removed = await deleteUser(id);
-  if (!removed) return fail("অ্যাকাউন্ট পাওয়া যায়নি।", 404);
+  if (!removed) return fail("Account not found.", 404);
   await logActivity({ actor_id: session.user.id, actor_name: session.user.name, actor_role: session.role, action: "user.delete", entity: "users", entity_id: id });
   return ok({ deleted: true });
 }

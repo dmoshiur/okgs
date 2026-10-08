@@ -38,17 +38,17 @@ export async function POST(request: Request) {
     const requestedUser = str(row.user_id);
     const dueIdInput = str(row.due_id);
     const dueId = safeId(dueIdInput);
-    if (dueIdInput && !dueId) return fail("পাওনার আইডি ঠিক নেই।", 422);
+    if (dueIdInput && !dueId) return fail("Invalid due ID.", 422);
     const linkedDue = dueId ? await getDueById(dueId) : null;
     const status = str(row.status, "verified") || "verified";
-    if (!["verified", "pending", "rejected"].includes(status)) return fail("রসিদের অবস্থা ঠিক নেই।", 422);
-    if (dueId && !linkedDue) return fail("এই পাওনাটি খুঁজে পাওয়া যায়নি।", 404);
-    if (linkedDue?.user_id && requestedUser && linkedDue.user_id !== requestedUser) return fail("পাওনা ও ব্যবহারকারীর তথ্য মেলে না।", 422);
-    if (linkedDue?.fair_slug && requestedFair && linkedDue.fair_slug !== requestedFair) return fail("পাওনা ও মেলার তথ্য মেলে না।", 422);
+    if (!["verified", "pending", "rejected"].includes(status)) return fail("Invalid receipt status.", 422);
+    if (dueId && !linkedDue) return fail("Due not found.", 404);
+    if (linkedDue?.user_id && requestedUser && linkedDue.user_id !== requestedUser) return fail("Due and user details do not match.", 422);
+    if (linkedDue?.fair_slug && requestedFair && linkedDue.fair_slug !== requestedFair) return fail("Due and fair details do not match.", 422);
     if (linkedDue && ["verified", "pending"].includes(status)) {
       const reserved = await dueReceiptTotals(dueId);
       const remaining = Math.max(0, Number(linkedDue.amount) - reserved.verified - reserved.pending);
-      if (amount > remaining + 0.000001) return fail(`এই পাওনার সর্বোচ্চ অবশিষ্ট জমা ${remaining} টাকা।`, 422);
+      if (amount > remaining + 0.000001) return fail(`Maximum remaining for this due is ${remaining} Tk.`, 422);
     }
     const fairSlug = requestedFair || linkedDue?.fair_slug || (await defaultFairSlug());
     const userId = requestedUser || linkedDue?.user_id || "";
@@ -56,16 +56,16 @@ export async function POST(request: Request) {
       fair_slug: fairSlug,
       user_id: userId,
       due_id: dueId,
-      payer_name: str(row.payer_name) || str(row.student_name) || linkedDue?.student_name || "অজ্ঞাত",
+      payer_name: str(row.payer_name) || str(row.student_name) || linkedDue?.student_name || "Unknown",
       payer_role: str(row.payer_role, "student") || "student",
       class_level: str(row.class_level) || linkedDue?.class_level || "",
       section: str(row.section) || linkedDue?.section || "",
       student_id: str(row.student_id || linkedDue?.student_id).toUpperCase(),
       phone: str(row.phone),
       amount,
-      method: str(row.method, "নগদ") || "নগদ",
+      method: str(row.method, "Cash") || "Cash",
       trx_id: str(row.trx_id),
-      purpose: str(row.purpose, linkedDue?.title || "বিজ্ঞান মেলা ফান্ড") || "বিজ্ঞান মেলা ফান্ড",
+      purpose: str(row.purpose, linkedDue?.title || "Science fair fund") || "Science fair fund",
       status,
       note: str(row.note),
       collected_by: session.user.name,
@@ -76,14 +76,14 @@ export async function POST(request: Request) {
     if (dueId) await syncDuePayment(dueId);
   }
 
-  if (!created.length) return fail("কোনো বৈধ এন্ট্রি পাওয়া যায়নি (টাকার পরিমাণ দিন)।", 422);
+  if (!created.length) return fail("No valid entry found (enter an amount).", 422);
   await logActivity({
     actor_id: session.user.id,
     actor_name: session.user.name,
     actor_role: session.role,
     action: "fund.create",
     entity: "funds",
-    detail: `${created.length} টি এন্ট্রি`,
+    detail: `${created.length} entries`,
   });
   return ok({ created }, 201);
 }
@@ -95,27 +95,27 @@ export async function PATCH(request: Request) {
   const { session } = guard;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const id = safeId(str(body.id));
-  if (!id) return fail("আইডি ঠিক নেই।", 422);
+  if (!id) return fail("Invalid ID.", 422);
 
   const existing = await getFundById(id);
-  if (!existing) return fail("ফান্ড এন্ট্রি পাওয়া যায়নি।", 404);
+  if (!existing) return fail("Fund entry not found.", 404);
   const status = str(body.status);
-  if (status && !["verified", "pending", "rejected"].includes(status)) return fail("অবস্থা ঠিক নেই।", 422);
+  if (status && !["verified", "pending", "rejected"].includes(status)) return fail("Invalid status.", 422);
   const nextStatus = status || existing.status;
   const nextAmount = "amount" in body ? Number(body.amount) : Number(existing.amount);
-  if ("amount" in body && (!Number.isFinite(nextAmount) || nextAmount <= 0)) return fail("টাকার পরিমাণ শূন্যের বেশি হতে হবে।", 422);
+  if ("amount" in body && (!Number.isFinite(nextAmount) || nextAmount <= 0)) return fail("Amount must be greater than zero.", 422);
   const dueIdInput = "due_id" in body ? str(body.due_id) : existing.due_id;
   const targetDueId = safeId(dueIdInput);
-  if (dueIdInput && !targetDueId) return fail("পাওনার আইডি ঠিক নেই।", 422);
+  if (dueIdInput && !targetDueId) return fail("Invalid due ID.", 422);
   const linkedDue = targetDueId ? await getDueById(targetDueId) : null;
-  if (targetDueId && !linkedDue) return fail("এই পাওনাটি খুঁজে পাওয়া যায়নি।", 404);
+  if (targetDueId && !linkedDue) return fail("Due not found.", 404);
   const requestedUserId = str(body.user_id);
-  if (linkedDue?.user_id && requestedUserId && linkedDue.user_id !== requestedUserId) return fail("পাওনা ও ব্যবহারকারীর তথ্য মেলে না।", 422);
-  if (linkedDue?.user_id && existing.user_id && linkedDue.user_id !== existing.user_id && !requestedUserId) return fail("পাওনা ও ব্যবহারকারীর তথ্য মেলে না।", 422);
+  if (linkedDue?.user_id && requestedUserId && linkedDue.user_id !== requestedUserId) return fail("Due and user details do not match.", 422);
+  if (linkedDue?.user_id && existing.user_id && linkedDue.user_id !== existing.user_id && !requestedUserId) return fail("Due and user details do not match.", 422);
   if (linkedDue && ["verified", "pending"].includes(nextStatus) && ("amount" in body || "status" in body || "due_id" in body)) {
     const reserved = await dueReceiptTotals(targetDueId, id);
     const remaining = Math.max(0, Number(linkedDue.amount) - reserved.verified - reserved.pending);
-    if (nextAmount > remaining + 0.000001) return fail(`এই পাওনার সর্বোচ্চ অবশিষ্ট জমা ${remaining} টাকা।`, 422);
+    if (nextAmount > remaining + 0.000001) return fail(`Maximum remaining for this due is ${remaining} Tk.`, 422);
   }
 
   const patch: Record<string, string | number> = {};
@@ -161,8 +161,8 @@ export async function DELETE(request: Request) {
     // Teachers may correct their own typos, but not silently wipe the ledger.
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const id = safeId(str(body.id));
-    if (!id) return fail("আইডি ঠিক নেই।", 422);
-    if (str(body.confirm) !== "delete") return fail("মুছে ফেলতে নিশ্চিত করুন (confirm: 'delete')।", 400);
+    if (!id) return fail("Invalid ID.", 422);
+    if (str(body.confirm) !== "delete") return fail("Confirm deletion (confirm: 'delete').", 400);
     const existing = await getFundById(id);
     const removed = await deleteFund(id);
     if (existing?.due_id) await syncDuePayment(existing.due_id);
@@ -171,7 +171,7 @@ export async function DELETE(request: Request) {
   }
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const id = safeId(str(body.id));
-  if (!id) return fail("আইডি ঠিক নেই।", 422);
+  if (!id) return fail("Invalid ID.", 422);
   const existing = await getFundById(id);
   const removed = await deleteFund(id);
   if (existing?.due_id) await syncDuePayment(existing.due_id);

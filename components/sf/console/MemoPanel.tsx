@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useApi, postJson, money } from "./ui";
 import { Panel } from "./ui";
-import { formatDate, bn } from "@/lib/format";
+import { formatDateEn, en } from "@/lib/format";
 import { Receipt, Plus, Search, Filter, Download, Printer } from "lucide-react";
 
 interface Memo {
@@ -43,7 +43,7 @@ export function MemoPanel({ fairSlug }: { fairSlug: string }) {
     amount: "",
     category: "",
     paid_to: "",
-    paid_at: formatDate(new Date().toISOString()),
+    paid_at: formatDateEn(new Date().toISOString()),
     method: "cash",
     note: "",
   });
@@ -73,7 +73,7 @@ export function MemoPanel({ fairSlug }: { fairSlug: string }) {
         amount: "",
         category: "",
         paid_to: "",
-        paid_at: formatDate(new Date().toISOString()),
+        paid_at: formatDateEn(new Date().toISOString()),
         method: "cash",
         note: "",
       });
@@ -93,7 +93,7 @@ export function MemoPanel({ fairSlug }: { fairSlug: string }) {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `memos-${fairSlug}-${formatDate(new Date().toISOString(), "compact")}.csv`;
+      a.download = `memos-${fairSlug}-${formatDateEn(new Date().toISOString(), "short")}.csv`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -140,7 +140,7 @@ export function MemoPanel({ fairSlug }: { fairSlug: string }) {
         <div className="metric-grid" style={{ marginBottom: 16 }}>
           <div className="metric">
             <span>Total Memos</span>
-            <strong>{bn(data.totalMemos)}</strong>
+            <strong>{en(data.totalMemos)}</strong>
           </div>
           <div className="metric metric-accent">
             <span>Total Amount</span>
@@ -346,7 +346,7 @@ export function MemoPanel({ fairSlug }: { fairSlug: string }) {
                     {memo.title} · {memo.category} · {memo.paid_to}
                   </span>
                   <div style={{ marginTop: 4, fontSize: 11, color: "var(--muted)" }}>
-                    {formatDate(memo.paid_at || memo.created_at)} · {memo.method}
+                    {formatDateEn(memo.paid_at || memo.created_at)} · {memo.method}
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
@@ -395,7 +395,7 @@ export function MemoPanel({ fairSlug }: { fairSlug: string }) {
                   {item.category}
                 </span>
                 <span style={{ color: "var(--muted)", fontSize: 12 }}>
-                  {bn(item.count)} memos
+                  {en(item.count)} memos
                 </span>
                 <strong style={{ fontSize: 14 }}>
                   {money(item.total)}

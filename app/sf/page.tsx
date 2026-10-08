@@ -10,7 +10,7 @@ import { FairConsole } from "@/components/sf/FairConsole";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "বিজ্ঞান মেলা কনসোল",
+  title: "Science Fair console",
   robots: { index: false, follow: false },
 };
 

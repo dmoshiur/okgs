@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   const fairSlug = params.get("fair") || undefined;
   const guestOnly = params.get("guest") === "true";
   
-  const passes = await listPasses(fairSlug, 10000); // Large limit for export
+  const passes = await listPasses({ fair_slug: fairSlug, limit: 10000 }); // Large limit for export
   
   // Filter passes if needed
   const filteredPasses = guestOnly 

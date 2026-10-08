@@ -63,10 +63,9 @@ export async function POST(request: Request) {
       guest_limit: guest_count,
       expires_at,
       note: note || `Parent pass with ${guest_count} guest passes`,
-      created_by: session.user.name,
     });
     
-    createdPasses.push(parentPassIdFinal);
+    createdPasses.push(parentPassIdFinal.id);
     
     // Create guest passes
     for (let i = 1; i <= guest_count; i++) {
@@ -84,15 +83,14 @@ export async function POST(request: Request) {
         token: guestToken,
         status: "active",
         scan_count: 0,
-        parent_pass_id: parentPassIdFinal,
+        parent_pass_id: parentPassIdFinal.id,
         guest_index: i,
         guest_limit: 0,
         expires_at,
         note: note || `Guest pass ${i} of ${guest_count}`,
-        created_by: session.user.name,
       });
       
-      createdPasses.push(guestPassId);
+      createdPasses.push(guestPassId.id);
     }
     
     // Log activity
@@ -107,7 +105,7 @@ export async function POST(request: Request) {
     
     return ok({
       created: createdPasses,
-      parent_pass_id: parentPassIdFinal,
+      parent_pass_id: parentPassIdFinal.id,
       guest_count,
       message: `Successfully created ${guest_count + 1} passes (1 parent + ${guest_count} guest)`,
     }, 201);

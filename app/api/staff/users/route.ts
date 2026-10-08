@@ -35,11 +35,11 @@ export async function POST(request: Request) {
   const email = str(body.email).toLowerCase();
   const studentId = str(body.student_id).toUpperCase();
 
-  if (!name) return fail("নাম দিতে হবে।", 422);
-  if (!allRoles.includes(role)) return fail("ভূমিকাটি ঠিক নয়।", 422);
-  if (!email && !studentId) return fail("ইমেইল অথবা স্কুল আইডি নম্বর — অন্তত একটি দিতে হবে।", 422);
+  if (!name) return fail("Name is required.", 422);
+  if (!allRoles.includes(role)) return fail("Invalid role.", 422);
+  if (!email && !studentId) return fail("Email or school ID number — at least one is required.", 422);
   if ((role === "admin" || role === "superadmin") && session.role !== "superadmin") {
-    return fail("কেবল সুপার অ্যাডমিন নতুন অ্যাডমিন তৈরি করতে পারেন।", 403);
+    return fail("Only a SuperAdmin can create new admins.", 403);
   }
 
   const password = str(body.password) || defaultPortalPassword();
@@ -86,14 +86,14 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (/UNIQUE/i.test(message)) {
-      return fail("এই ইমেইল বা আইডি নম্বর আগেই নিবন্ধিত।", 409);
+      return fail("This email or ID number is already registered.", 409);
     }
     throw error;
   }
 }
 
 function defaultPasswordFor(studentId: string) {
-  return studentId ? `আইডি: ${studentId}` : defaultPortalPassword();
+  return studentId ? `ID: ${studentId}` : defaultPortalPassword();
 }
 
 /** PATCH /api/staff/users — reset a password (admin only for staff accounts). */
@@ -103,11 +103,11 @@ export async function PATCH(request: Request) {
   const { session } = guard;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const id = str(body.id);
-  if (!id) return fail("কোন অ্যাকাউন্ট, সেটি ঠিক নেই।", 422);
+  if (!id) return fail("Invalid account.", 422);
   const target = await getUser(id);
-  if (!target) return fail("অ্যাকাউন্ট পাওয়া যায়নি।", 404);
-  if (target.role === "admin" && session.role !== "admin" && session.role !== "superadmin") return fail("অ্যাডমিন অ্যাকাউন্ট কেবল অ্যাডমিন বদলাতে পারেন।", 403);
-  if (target.role === "superadmin" && session.role !== "superadmin") return fail("SuperAdmin অ্যাকাউন্ট কেবল SuperAdmin বদলাতে পারেন।", 403);
+  if (!target) return fail("Account not found.", 404);
+  if (target.role === "admin" && session.role !== "admin" && session.role !== "superadmin") return fail("Only an admin can change an admin account.", 403);
+  if (target.role === "superadmin" && session.role !== "superadmin") return fail("Only a SuperAdmin can change a SuperAdmin account.", 403);
 
   const newPassword = str(body.password);
   if (newPassword) {

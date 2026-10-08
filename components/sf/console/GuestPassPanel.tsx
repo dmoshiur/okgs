@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useApi, postJson, money } from "./ui";
 import { Panel } from "./ui";
-import { formatDate, bn } from "@/lib/format";
+import { formatDateEn, en } from "@/lib/format";
 import { QrCode, Plus, Search, User, Clock, Check, X, Loader2, Calendar, Settings } from "lucide-react";
 
 interface Student {
@@ -52,7 +52,7 @@ export function GuestPassPanel({ fairSlug }: { fairSlug: string }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [guestCount, setGuestCount] = useState(1);
-  const [expiryDate, setExpiryDate] = useState(formatDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()));
+  const [expiryDate, setExpiryDate] = useState(formatDateEn(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()));
   const [note, setNote] = useState("");
   const [showAssignForm, setShowAssignForm] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -147,7 +147,7 @@ export function GuestPassPanel({ fairSlug }: { fairSlug: string }) {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `guest-passes-${fairSlug}-${formatDate(new Date().toISOString(), "compact")}.csv`;
+      a.download = `guest-passes-${fairSlug}-${formatDateEn(new Date().toISOString(), "short")}.csv`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -187,19 +187,19 @@ export function GuestPassPanel({ fairSlug }: { fairSlug: string }) {
         <div className="metric-grid" style={{ marginBottom: 16 }}>
           <div className="metric">
             <span>Total Students</span>
-            <strong>{bn(data.totalStudents)}</strong>
+            <strong>{en(data.totalStudents)}</strong>
           </div>
           <div className="metric metric-accent">
             <span>Total Passes</span>
-            <strong>{bn(data.totalPasses)}</strong>
+            <strong>{en(data.totalPasses)}</strong>
           </div>
           <div className="metric">
             <span>Guest Passes</span>
-            <strong>{bn(data.guestPasses?.length || 0)}</strong>
+            <strong>{en(data.guestPasses?.length || 0)}</strong>
           </div>
           <div className="metric">
             <span>Active Passes</span>
-            <strong>{bn(data.guestPasses?.filter(p => p.status === "active").length || 0)}</strong>
+            <strong>{en(data.guestPasses?.filter(p => p.status === "active").length || 0)}</strong>
           </div>
         </div>
       )}
@@ -280,7 +280,7 @@ export function GuestPassPanel({ fairSlug }: { fairSlug: string }) {
                     type="button"
                     onClick={() => setGuestCount(count)}
                     style={{
-                      padding: 8 16,
+                      padding: "8px 16px",
                       border: guestCount === count ? "2px solid var(--brand)" : "1px solid var(--line)",
                       borderRadius: 8,
                       background: guestCount === count ? "var(--brand)" : "var(--surface)",
@@ -305,7 +305,7 @@ export function GuestPassPanel({ fairSlug }: { fairSlug: string }) {
                 type="date"
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
-                min={formatDate(new Date().toISOString())}
+                min={formatDateEn(new Date().toISOString())}
                 style={{ padding: 10, border: "1px solid var(--line)", borderRadius: 8, fontSize: 14 }}
               />
             </div>
@@ -391,12 +391,12 @@ export function GuestPassPanel({ fairSlug }: { fairSlug: string }) {
                   </div>
                   <div style={{ marginTop: 4, fontSize: 11, color: "var(--muted)" }}>
                     <Calendar size={12} style={{ verticalAlign: -2, marginRight: 4 }} />
-                    Expires: {formatDate(pass.expires_at)}
+                    Expires: {formatDateEn(pass.expires_at)}
                     {pass.last_scan_at && (
                       <>
                         <span style={{ marginLeft: 12 }}>|</span>
                         <span style={{ marginLeft: 12 }}>
-                          Last scan: {formatDate(pass.last_scan_at)}
+                          Last scan: {formatDateEn(pass.last_scan_at)}
                         </span>
                       </>
                     )}
@@ -445,10 +445,10 @@ export function GuestPassPanel({ fairSlug }: { fairSlug: string }) {
                   {item.class_level}{item.section && item.section !== "—" ? ` · ${item.section}` : ""}
                 </span>
                 <span style={{ color: "var(--muted)", fontSize: 12 }}>
-                  {bn(item.students)} students
+                  {en(item.students)} students
                 </span>
                 <strong style={{ fontSize: 14 }}>
-                  {bn(item.total)} passes
+                  {en(item.total)} passes
                 </strong>
               </div>
             ))}
@@ -458,7 +458,7 @@ export function GuestPassPanel({ fairSlug }: { fairSlug: string }) {
 
       {/* Time-Bound Notification Ticker */}
       <Panel title="Time-Bound Notification Ticker">
-        <p style={{ margin: 0 0 16, color: "var(--body)", fontSize: 14 }}>
+        <p style={{ margin: "0 0 16px", color: "var(--body)", fontSize: 14 }}>
           Create global or targeted banner tickers that are scheduled by Start Date/Time and End Date/Time with automatic expiration.
         </p>
         
@@ -478,7 +478,7 @@ export function GuestPassPanel({ fairSlug }: { fairSlug: string }) {
             borderRadius: 8, 
             border: "1px solid var(--line)" 
           }}>
-            <h4 style={{ margin: 0 0 8, fontSize: 13, fontWeight: 600 }}>
+            <h4 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>
               Ticker Features:
             </h4>
             <ul style={{ 
@@ -549,14 +549,14 @@ export function GuestPassPanel({ fairSlug }: { fairSlug: string }) {
               <p style={{ margin: 0, fontSize: 14, color: "var(--body)" }}>
                 <strong>{selectedPass.holder_name}</strong>
               </p>
-              <p style={{ margin: 4 0 0, fontSize: 12, color: "var(--muted)" }}>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}>
                 {selectedPass.student_id} · {selectedPass.class_level}{selectedPass.section ? ` · ${selectedPass.section}` : ""}
               </p>
-              <p style={{ margin: 4 0 0, fontSize: 12, color: "var(--muted)" }}>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}>
                 +{selectedPass.guest_limit} Guest Pass{selectedPass.guest_limit > 1 ? "es" : ""}
               </p>
-              <p style={{ margin: 4 0 8, fontSize: 12, color: "var(--muted)" }}>
-                Expires: {formatDate(selectedPass.expires_at)}
+              <p style={{ margin: "4px 0 8px", fontSize: 12, color: "var(--muted)" }}>
+                Expires: {formatDateEn(selectedPass.expires_at)}
               </p>
               <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>
                 Pass ID: {selectedPass.id.slice(0, 8).toUpperCase()}
@@ -584,7 +584,7 @@ export function GuestPassPanel({ fairSlug }: { fairSlug: string }) {
                   style={{ width: 200, height: 200 }}
                 />
               </div>
-              <p style={{ margin: 12 0 0, fontSize: 12, color: "var(--muted)" }}>
+              <p style={{ margin: "12px 0 0", fontSize: 12, color: "var(--muted)" }}>
                 Scan this QR code for guest entry verification
               </p>
             </div>
@@ -636,7 +636,7 @@ export function GuestPassPanel({ fairSlug }: { fairSlug: string }) {
                           <p><strong>${selectedPass.holder_name}</strong></p>
                           <p>${selectedPass.student_id} · ${selectedPass.class_level}${selectedPass.section ? ` · ${selectedPass.section}` : ""}</p>
                           <p>+${selectedPass.guest_limit} Guest Pass${selectedPass.guest_limit > 1 ? "es" : ""}</p>
-                          <p>Expires: ${formatDate(selectedPass.expires_at)}</p>
+                          <p>Expires: ${formatDateEn(selectedPass.expires_at)}</p>
                           <p>Pass ID: ${selectedPass.id.slice(0, 8).toUpperCase()}</p>
                           <div class="qr-code">
                             <img src="${qrCodeUrl}" alt="QR Code" />
@@ -661,9 +661,9 @@ export function GuestPassPanel({ fairSlug }: { fairSlug: string }) {
 }
 
 // Download icon component
-function Download(props: React.SVGProps<SVGSVGElement>) {
+function Download({ size = 14, ...props }: React.SVGProps<SVGSVGElement> & { size?: number }) {
   return (
-    <svg {...props} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg {...props} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
       <polyline points="7 10 12 15 17 10"/>
       <line x1="12" y1="15" x2="12" y2="3"/>

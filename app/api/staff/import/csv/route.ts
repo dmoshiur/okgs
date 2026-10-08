@@ -77,15 +77,15 @@ export async function POST(request: NextRequest) {
       const line = index + 2; // +2 because line 1 is headers
       
       // Extract fields from the row
-      const name = extractField(row, ["name", "student_name", "full_name", "নাম"]);
-      const emailRaw = extractField(row, ["email", "ইমেইল"]);
+      const name = extractField(row, ["name", "student_name", "full_name", "Name"]);
+      const emailRaw = extractField(row, ["email", "Email"]);
       const email = normalizeEmail(emailRaw);
-      const studentId = extractField(row, ["student_id", "id", "student id", "স্কুল আইডি"]).toUpperCase();
-      const classLevel = extractField(row, ["class", "class_level", "শ্রেণি"]);
-      const section = extractField(row, ["section", "শাখা"]);
+      const studentId = extractField(row, ["student_id", "id", "student id", "স্কুল ID"]).toUpperCase();
+      const classLevel = extractField(row, ["class", "class_level", "Class"]);
+      const section = extractField(row, ["section", "Section"]);
       const roll = extractField(row, ["roll", "রোল"]);
       const phone = extractField(row, ["phone", "mobile", "ফোন"]);
-      const rawRole = extractField(row, ["role", "type", "ভূমিকা"]).toLowerCase().trim();
+      const rawRole = extractField(row, ["role", "type", "Role"]).toLowerCase().trim();
       
       // Map role using the provided mapping
       let role: PortalRole | null = null;
@@ -132,9 +132,9 @@ export async function POST(request: NextRequest) {
           session_year: extractField(row, ["session", "session_year", "সেশন"]),
           blood_group: extractField(row, ["blood_group", "রক্তের গ্রুপ"]),
           address: extractField(row, ["address", "ঠিকানা"]),
-          guardian_name: extractField(row, ["guardian_name", "guardian", "অভিভাবকের নাম"]),
+          guardian_name: extractField(row, ["guardian_name", "guardian", "অভিভাবকের Name"]),
           guardian_phone: extractField(row, ["guardian_phone", "guardian_mobile", "অভিভাবকের ফোন"]),
-          club_slug: extractField(row, ["club", "club_slug", "ক্লাব"]),
+          club_slug: extractField(row, ["club", "club_slug", "Club"]),
           password_hash: hash,
           password_salt: salt,
           must_change_password: generatePasswords ? 1 : 0,
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
         });
         
         if (role === "student" && classLevel) touchedClasses.add(classLevel);
-        if (email && sendCredentials && mailAvailable()) {
+        if (email && sendCredentials && (await mailAvailable())) {
           rowsToMail.push({ name, email, password, line });
         } else if (!email) {
           credentials.push({ name, email, student_id: studentId, role, password });
@@ -166,12 +166,16 @@ export async function POST(request: NextRequest) {
     }
     
     // Sync class fees for new students
-    for (const classLevel of touchedClasses) {
-      await syncClassFeeDues(classLevel, fairSlug);
+    if (touchedClasses.size) {
+      const classList = await listClasses();
+      for (const classLevel of touchedClasses) {
+        const classInfo = classList.find((item) => item.name === classLevel);
+        if (classInfo) await syncClassFeeDues(classInfo, fairSlug);
+      }
     }
     
     // Send welcome emails if SMTP is configured
-    if (sendCredentials && mailAvailable() && rowsToMail.length > 0) {
+    if (sendCredentials && (await mailAvailable()) && rowsToMail.length > 0) {
       try {
         await sendWelcomeEmails(rowsToMail, fairSlug);
       } catch (mailError) {
@@ -294,11 +298,7 @@ async function sendWelcomeEmails(
 ) {
   for (const row of rows) {
     try {
-      await sendMail({
-        to: row.email,
-        subject: `Welcome to OKGS Science Fair ${fairSlug} - Your Account Credentials`,
-        html: welcomeCredentialsMail(row.name, row.email, row.password, fairSlug),
-      });
+      await sendMail(welcomeCredentialsMail(row.name, row.email, row.password, `${process.env.PUBLIC_SITE_URL || "https://okgs.info"}/sf/login`));
     } catch (error) {
       console.error(`Failed to send welcome email to ${row.email}:`, error);
       // Continue with other emails even if one fails

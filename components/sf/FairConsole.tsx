@@ -20,13 +20,15 @@ import {
   ScanLine,
   Settings2,
   Upload,
+  UserCog,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
 import type { Fair, SiteTheme } from "@/lib/types";
 import type { DueRow, FundRow, PublicUser, ScanRow } from "@/lib/portal-db";
-import { bn, formatDate } from "@/lib/format";
-import { isAdminRole, roleLabels, type PortalRole } from "@/lib/roles";
+import { en, formatDateEn } from "@/lib/format";
+import { isAdminRole, roleLabelsEn, type PortalRole } from "@/lib/roles";
 import { Bars, Empty, Metric, Notice, Panel, money, postJson, useApi } from "@/components/sf/console/ui";
 import { DuesPanel, ExpensesPanel, FundsPanel } from "@/components/sf/console/MoneyPanels";
 import { ClassesPanel, PassesPanel, UsersPanel } from "@/components/sf/console/PeoplePanels";
@@ -36,7 +38,7 @@ import { SettlementsPanel } from "@/components/sf/console/SettlementsPanel";
 import { TickerPanel } from "@/components/sf/console/TickerPanel";
 import { MemoPanel } from "@/components/sf/console/MemoPanel";
 import { CSVImportPanel } from "@/components/sf/console/CSVImportPanel";
-import { GuestPassPanel } from "@/components/sf/console/GuestPassPanel";
+import { StudentsPanel } from "@/components/sf/console/StudentsPanel";
 import { PortalAnnouncements } from "@/components/portal/PortalAnnouncements";
 
 interface Stats {
@@ -64,23 +66,38 @@ interface Stats {
   activity: { id: string; actor_name: string; action: string; detail: string; created_at: string }[];
 }
 
-const tabs = [
-  { id: "dashboard", label: "ড্যাশবোর্ড", icon: Gauge },
-  { id: "funds", label: "ফান্ড", icon: Wallet },
-  { id: "dues", label: "পাওনা", icon: Receipt },
-  { id: "expenses", label: "খরচ", icon: ClipboardList },
-  { id: "memos", label: "মেমো", icon: FileText },
-  { id: "collections", label: "সংগ্রহ", icon: Boxes },
-  { id: "passes", label: "QR পাস", icon: QrCode },
-  { id: "ticker", label: "টিকার", icon: Megaphone },
-  { id: "users", label: "ইউজার", icon: Users },
-  { id: "import", label: "ইমপোর্ট", icon: Upload },
-  { id: "classes", label: "শ্রেণি", icon: GraduationCap },
-  { id: "settings", label: "সেটিং", icon: Settings2 },
-] as const;
+type TabId =
+  | "dashboard"
+  | "students"
+  | "funds"
+  | "dues"
+  | "expenses"
+  | "memos"
+  | "collections"
+  | "passes"
+  | "ticker"
+  | "users"
+  | "import"
+  | "classes"
+  | "settings";
 
-type TabId = (typeof tabs)[number]["id"];
-const mobilePrimaryTabIds = new Set<TabId>(["dashboard", "funds", "dues", "memos", "users"]);
+const tabs: { id: TabId; label: string; hint: string; icon: typeof Gauge }[] = [
+  { id: "dashboard", label: "Dashboard", hint: "Totals, alerts and activity", icon: Gauge },
+  { id: "students", label: "Students & Payments", hint: "Roster, payments, tickets, guests", icon: Users },
+  { id: "funds", label: "Funds", hint: "Fund collections and verification", icon: Wallet },
+  { id: "dues", label: "Dues", hint: "Class fees and balances", icon: Receipt },
+  { id: "expenses", label: "Expenses", hint: "Spending and monthly settlements", icon: ClipboardList },
+  { id: "memos", label: "Memos", hint: "Vouchers and memo ledger", icon: FileText },
+  { id: "collections", label: "Collections", hint: "Projects and entries", icon: Boxes },
+  { id: "passes", label: "QR Passes", hint: "Family and guest passes", icon: QrCode },
+  { id: "ticker", label: "Ticker", hint: "Scrolling fair notices", icon: Megaphone },
+  { id: "users", label: "Users", hint: "Accounts and roles", icon: UserCog },
+  { id: "import", label: "User Import", hint: "CSV import of accounts", icon: Upload },
+  { id: "classes", label: "Classes", hint: "Class structure and fees", icon: GraduationCap },
+  { id: "settings", label: "Settings", hint: "Fair and site settings", icon: Settings2 },
+];
+
+const mobilePrimary: TabId[] = ["dashboard", "students", "funds"];
 
 export function FairConsole({
   user,
@@ -110,7 +127,7 @@ export function FairConsole({
   logo: string;
 }) {
   const [tab, setTab] = useState<TabId>("dashboard");
-  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [fairSlug, setFairSlug] = useState(activeFairSlug);
   const isAdmin = isAdminRole(role);
   const { data, loading, error, reload } = useApi<Stats>(tab === "dashboard" ? `/api/staff/stats?fair=${encodeURIComponent(fairSlug)}` : null, [fairSlug, tab]);
@@ -118,24 +135,31 @@ export function FairConsole({
   const [problem, setProblem] = useState("");
 
   const fair = fairs.find((item) => item.slug === fairSlug) ?? fairs[0];
-  const money_ = data?.money;
+  const moneyTotals = data?.money;
   const classRows = useMemo(
     () =>
       (data?.fundsByClass ?? []).map((row) => ({
         label: `${row.class_level}${row.section && row.section !== "—" ? ` · ${row.section}` : ""}`,
         value: row.total,
-        note: row.students ? `(${bn(row.students)} জন)` : "",
+        note: row.students ? `(${en(row.students)} students)` : "",
       })),
     [data],
   );
+  const activeLabel = tabs.find((item) => item.id === tab)?.label ?? "Dashboard";
+
+  function openTab(next: TabId) {
+    setTab(next);
+    setMoreOpen(false);
+    setProblem("");
+  }
 
   async function verifyFund(fund: FundRow) {
     try {
       await postJson("/api/staff/funds", { id: fund.id, status: "verified" }, "PATCH");
-      setMessage(`${fund.payer_name} — ${money(fund.amount)} যাচাই করা হয়েছে।`);
+      setMessage(`${fund.payer_name} — ${money(fund.amount)} verified.`);
       await reload();
     } catch (issue) {
-      setProblem(issue instanceof Error ? issue.message : "যাচাই করা যায়নি।");
+      setProblem(issue instanceof Error ? issue.message : "Could not verify this fund.");
     }
   }
 
@@ -145,158 +169,147 @@ export function FairConsole({
   }
 
   return (
-    <div className="v2 app-shell">
+    <div className="v2 app-shell sf-console">
       <header className="app-top">
         <div className="v2-wrap app-top-inner">
           <div className="brand">
             {logo ? <img className="official-logo" src={logo} alt={schoolName} /> : null}
             <div className="brand-copy">
-              <strong>{fair?.name ?? "বিজ্ঞান মেলা"}</strong>
+              <strong>{fair?.name ?? "Science Fair"}</strong>
               <small>
-                {schoolName} · {roleLabels[role]} · {user.name}
+                {schoolName} · {roleLabelsEn[role]} · {user.name}
               </small>
             </div>
           </div>
           <div className="app-top-actions">
-            <select className="v2-select" style={{ width: "auto" }} value={fairSlug} onChange={(e) => setFairSlug(e.target.value)}>
+            <select className="v2-select sf-fair-select" aria-label="Active fair" value={fairSlug} onChange={(event) => setFairSlug(event.target.value)}>
               {fairs.map((item) => (
                 <option key={item.slug} value={item.slug}>{item.name}</option>
               ))}
             </select>
             <Link className="v2-btn v2-btn-sm" href="/sf/scan">
-              <ScanLine size={15} /> স্ক্যান
+              <ScanLine size={15} /> <span className="sf-hide-sm">Gate scanner</span>
             </Link>
-            <button className="v2-btn v2-btn-sm v2-btn-ghost" type="button" onClick={logout}>
-              <LogOut size={15} />
+            <button className="v2-btn v2-btn-sm v2-btn-ghost" type="button" onClick={logout} aria-label="Sign out">
+              <LogOut size={15} /> <span className="sf-hide-sm">Sign out</span>
             </button>
           </div>
         </div>
-        <div className="v2-wrap app-tabs">
+        <nav className="v2-wrap app-tabs" aria-label="Console sections">
           {tabs.map((item) => (
-            <button key={item.id} type="button" className={`app-tab ${tab === item.id ? "is-on" : ""}`} onClick={() => setTab(item.id)}>
-              <item.icon size={15} style={{ verticalAlign: -3, marginRight: 6 }} />
+            <button key={item.id} type="button" className={`app-tab ${tab === item.id ? "is-on" : ""}`} onClick={() => openTab(item.id)} aria-current={tab === item.id ? "page" : undefined}>
+              <item.icon size={15} />
               {item.label}
             </button>
           ))}
           <a className="app-tab" href="/admin" target="_blank" rel="noreferrer">
-            <LayoutGrid size={15} style={{ verticalAlign: -3, marginRight: 6 }} />
-            কনটেন্ট স্টুডিও
+            <LayoutGrid size={15} />
+            Content Studio
           </a>
-        </div>
+        </nav>
       </header>
 
-      <main className="v2-wrap app-body">
+      <main className="v2-wrap app-body sf-main">
+        <h1 className="sf-page-title">{activeLabel}</h1>
         {message ? <Notice>{message}</Notice> : null}
         {problem ? <Notice kind="bad">{problem}</Notice> : null}
 
         {tab === "dashboard" ? (
-          <div className="v2-grid" style={{ gap: 16 }}>
+          <div className="sf-stack">
             <div className="metric-grid">
-              <Metric
-                accent
-                label="মোট সংগৃহীত (যাচাইকৃত)"
-                value={money(money_?.collected ?? 0)}
-                note={`আজ ${money(money_?.today ?? 0)} · ${bn(money_?.entries ?? 0)} এন্ট্রি`}
-                icon={<Wallet size={14} />}
-              />
-              <Metric label="অপেক্ষমাণ ফান্ড" value={money(money_?.pending ?? 0)} note={`${bn(data?.pendingFunds?.length ?? 0)} টি যাচাই বাকি`} icon={<Activity size={14} />} />
-              <Metric label="খরচ" value={money(money_?.spent ?? 0)} note="মেলার সব খরচ" icon={<Receipt size={14} />} />
-              <Metric
-                label="বর্তমান ব্যালেন্স"
-                value={money(money_?.balance ?? 0)}
-                note={(money_?.balance ?? 0) >= 0 ? "উদ্বৃত্ত" : "ঘাটতি"}
-                icon={<BadgeCheck size={14} />}
-              />
-              <Metric label="পাওনা বাকি" value={money(money_?.duesOutstanding ?? 0)} note={`${bn(data?.dues?.dueCount ?? 0)} জন বাকি`} icon={<ClipboardList size={14} />} />
-              <Metric label="QR পাস" value={bn(data?.passes?.total ?? 0)} note={`স্ক্যান ${bn(data?.scans?.ok ?? 0)} সফল`} icon={<QrCode size={14} />} />
+              <Metric accent label="Collected (verified)" value={money(moneyTotals?.collected ?? 0)} note={`Today ${money(moneyTotals?.today ?? 0)} · ${en(moneyTotals?.entries ?? 0)} entries`} icon={<Wallet size={14} />} />
+              <Metric label="Pending funds" value={money(moneyTotals?.pending ?? 0)} note={`${en(data?.pendingFunds?.length ?? 0)} waiting for verification`} icon={<Activity size={14} />} />
+              <Metric label="Expenses" value={money(moneyTotals?.spent ?? 0)} note="All fair expenses" icon={<Receipt size={14} />} />
+              <Metric label="Current balance" value={money(moneyTotals?.balance ?? 0)} note={(moneyTotals?.balance ?? 0) >= 0 ? "Surplus" : "Deficit"} icon={<BadgeCheck size={14} />} />
+              <Metric label="Dues outstanding" value={money(moneyTotals?.duesOutstanding ?? 0)} note={`${en(data?.dues?.dueCount ?? 0)} students due`} icon={<ClipboardList size={14} />} />
+              <Metric label="QR passes" value={en(data?.passes?.total ?? 0)} note={`${en(data?.scans?.ok ?? 0)} successful scans`} icon={<QrCode size={14} />} />
             </div>
 
             <PortalAnnouncements />
 
-            <div className="v2-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
-              <Panel title="শ্রেণি অনুযায়ী জমা হওয়া ফান্ড">
+            <div className="sf-grid-2">
+              <Panel title="Funds collected by class">
                 <Bars rows={classRows} />
               </Panel>
-              <Panel title="শ্রেণি ও শাখায় শিক্ষার্থী">
-                <Bars
-                  unit=" জন"
-                  rows={(data?.studentsByClass ?? []).map((row) => ({
-                    label: `${row.class_level}${row.section && row.section !== "—" ? ` · ${row.section}` : ""}`,
-                    value: row.total,
-                  }))}
-                />
+              <Panel title="Students by class and section">
+                <Bars unit=" students" rows={(data?.studentsByClass ?? []).map((row) => ({ label: `${row.class_level}${row.section && row.section !== "—" ? ` · ${row.section}` : ""}`, value: row.total }))} />
               </Panel>
-              <Panel title="খরচের খাত">
+              <Panel title="Expense categories">
                 <Bars rows={(data?.expensesByCategory ?? []).map((row) => ({ label: row.category, value: row.total }))} />
               </Panel>
-              <Panel title="ফান্ডের মাধ্যম">
+              <Panel title="Funds by payment method">
                 <Bars rows={(data?.fundsByMethod ?? []).map((row) => ({ label: row.method, value: row.total }))} />
               </Panel>
             </div>
 
-            <div className="v2-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
-              <Panel title="যাচাইয়ের অপেক্ষায়" action={<span className="badge-soft">{bn(data?.pendingFunds?.length ?? 0)} টি</span>}>
-                {(data?.pendingFunds ?? []).map((fund) => (
-                  <div key={fund.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: "1px solid var(--okgs-line)" }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <strong style={{ display: "block" }}>{fund.payer_name}</strong>
-                      <span className="v2-muted" style={{ fontSize: 12.5 }}>
-                        {fund.class_level || "—"}{fund.section ? ` · ${fund.section}` : ""} · {fund.method} · {formatDate(fund.created_at)}
-                      </span>
+            <div className="sf-grid-2 sf-grid-2-wide">
+              <Panel title="Awaiting verification" action={<span className="badge-soft">{en(data?.pendingFunds?.length ?? 0)}</span>}>
+                <div className="sf-list">
+                  {(data?.pendingFunds ?? []).map((fund) => (
+                    <div key={fund.id} className="sf-list-row">
+                      <div className="sf-list-main">
+                        <strong>{fund.payer_name}</strong>
+                        <span className="v2-muted">{[fund.class_level, fund.section, fund.method, formatDateEn(fund.created_at, "short")].filter(Boolean).join(" · ")}</span>
+                      </div>
+                      <strong className="sf-nowrap">{money(fund.amount)}</strong>
+                      <button className="v2-btn v2-btn-sm" type="button" onClick={() => verifyFund(fund)}>
+                        <BadgeCheck size={14} /> Verify
+                      </button>
                     </div>
-                    <strong>{money(fund.amount)}</strong>
-                    <button className="v2-btn v2-btn-sm" type="button" onClick={() => verifyFund(fund)}>
-                      <BadgeCheck size={14} /> যাচাই
-                    </button>
-                  </div>
-                ))}
-                {!(data?.pendingFunds ?? []).length ? <Empty>সব ফান্ড যাচাই করা শেষ — অপেক্ষায় কিছু নেই।</Empty> : null}
-              </Panel>
-
-              <Panel title="সাম্প্রতিক স্ক্যান" action={<Link className="badge-soft" href="/sf/scan">স্ক্যানার খুলুন</Link>}>
-                {(data?.recentScans ?? []).map((scan) => (
-                  <div key={scan.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "7px 0", borderBottom: "1px solid var(--okgs-line)", fontSize: 13.5 }}>
-                    <span className={`badge-soft ${scan.result === "ok" ? "status-ok" : scan.result === "duplicate" ? "status-pending" : "status-bad"}`}>{scan.result}</span>
-                    <span style={{ flex: 1 }}>{scan.scanned_by_name || "—"}</span>
-                    <span className="v2-muted">{formatDate(scan.created_at)}</span>
-                  </div>
-                ))}
-                {!(data?.recentScans ?? []).length ? <Empty>এখনো কোনো QR স্ক্যান হয়নি।</Empty> : null}
-              </Panel>
-
-              <Panel title="সাম্প্রতিক কার্যক্রম">
-                {(data?.activity ?? []).map((item) => (
-                  <div key={item.id} style={{ padding: "7px 0", borderBottom: "1px solid var(--okgs-line)", fontSize: 13.5 }}>
-                    <strong>{item.actor_name || "সিস্টেম"}</strong> <span className="v2-muted">{item.action}</span>
-                    <div className="v2-muted" style={{ fontSize: 12 }}>{item.detail} · {formatDate(item.created_at)}</div>
-                  </div>
-                ))}
-                {!(data?.activity ?? []).length ? <Empty>কোনো কার্যক্রম নেই।</Empty> : null}
-              </Panel>
-
-              <Panel title="দ্রুত কাজ">
-                <div className="pill-row">
-                  <button className="pill" type="button" onClick={() => setTab("funds")}>ফান্ড যোগ</button>
-                  <button className="pill" type="button" onClick={() => setTab("dues")}>পুরো ক্লাসের পাওনা</button>
-                  <button className="pill" type="button" onClick={() => setTab("expenses")}>খরচ যোগ</button>
-                  <button className="pill" type="button" onClick={() => setTab("collections")}>সংগ্রহ যোগ</button>
-                  <button className="pill" type="button" onClick={() => setTab("passes")}>QR পাস তৈরি</button>
-                  <button className="pill" type="button" onClick={() => setTab("users")}>ইউজার যোগ</button>
+                  ))}
+                  {!(data?.pendingFunds ?? []).length ? <Empty>All funds are verified — nothing is waiting.</Empty> : null}
                 </div>
-                <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
-                  <span className="badge-soft"><CalendarDays size={13} /> {fair?.starts_on ? `${formatDate(fair.starts_on)}${fair.ends_on && fair.ends_on !== fair.starts_on ? ` – ${formatDate(fair.ends_on)}` : ""}` : "তারিখ নির্ধারিত হয়নি"}</span>
-                  <span className="badge-soft">পাওনা: {bn(data?.dues?.paidCount ?? 0)} পরিশোধ · {bn(data?.dues?.dueCount ?? 0)} বাকি</span>
-                  <span className="badge-soft">শিক্ষার্থী {bn(data?.roles?.student ?? 0)} · শিক্ষক {bn(data?.roles?.teacher ?? 0)} · প্রাক্তন {bn(data?.roles?.alumni ?? 0)}</span>
+              </Panel>
+
+              <Panel title="Recent scans" action={<Link className="badge-soft" href="/sf/scan">Open scanner</Link>}>
+                <div className="sf-list">
+                  {(data?.recentScans ?? []).map((scan) => (
+                    <div key={scan.id} className="sf-list-row">
+                      <span className={`sf-badge ${scan.result === "ok" ? "is-good" : scan.result === "duplicate" ? "is-warn" : "is-bad"}`}>{scan.result}</span>
+                      <span className="sf-list-main">{scan.scanned_by_name || "—"}</span>
+                      <span className="v2-muted sf-nowrap">{formatDateEn(scan.created_at, "short")}</span>
+                    </div>
+                  ))}
+                  {!(data?.recentScans ?? []).length ? <Empty>No QR scans yet.</Empty> : null}
+                </div>
+              </Panel>
+
+              <Panel title="Recent activity">
+                <div className="sf-list">
+                  {(data?.activity ?? []).map((item) => (
+                    <div key={item.id} className="sf-list-row sf-list-stack">
+                      <span><strong>{item.actor_name || "System"}</strong> <span className="v2-muted">{item.action}</span></span>
+                      <span className="v2-muted sf-help">{item.detail} · {formatDateEn(item.created_at, "short")}</span>
+                    </div>
+                  ))}
+                  {!(data?.activity ?? []).length ? <Empty>No activity yet.</Empty> : null}
+                </div>
+              </Panel>
+
+              <Panel title="Quick actions">
+                <div className="pill-row">
+                  <button className="pill" type="button" onClick={() => openTab("students")}>Mark payments</button>
+                  <button className="pill" type="button" onClick={() => openTab("students")}>Import Excel roster</button>
+                  <button className="pill" type="button" onClick={() => openTab("funds")}>Add fund</button>
+                  <button className="pill" type="button" onClick={() => openTab("dues")}>Class dues</button>
+                  <button className="pill" type="button" onClick={() => openTab("expenses")}>Add expense</button>
+                  <button className="pill" type="button" onClick={() => openTab("users")}>Add user</button>
+                </div>
+                <div className="sf-chip-stack">
+                  <span className="badge-soft"><CalendarDays size={13} /> {fair?.starts_on ? `${formatDateEn(fair.starts_on)}${fair.ends_on && fair.ends_on !== fair.starts_on ? ` – ${formatDateEn(fair.ends_on)}` : ""}` : "Dates not set"}</span>
+                  <span className="badge-soft">Dues: {en(data?.dues?.paidCount ?? 0)} paid · {en(data?.dues?.dueCount ?? 0)} due</span>
+                  <span className="badge-soft">Students {en(data?.roles?.student ?? 0)} · Teachers {en(data?.roles?.teacher ?? 0)} · Alumni {en(data?.roles?.alumni ?? 0)}</span>
                 </div>
               </Panel>
             </div>
           </div>
         ) : null}
 
+        {tab === "students" ? <StudentsPanel fairSlug={fairSlug} fairName={fair?.name ?? ""} /> : null}
         {tab === "funds" ? <FundsPanel fairSlug={fairSlug} /> : null}
         {tab === "dues" ? <DuesPanel fairSlug={fairSlug} /> : null}
         {tab === "expenses" ? (
-          <div className="v2-grid" style={{ gap: 16 }}>
+          <div className="sf-stack">
             <ExpensesPanel fairSlug={fairSlug} />
             <SettlementsPanel fairSlug={fairSlug} canDelete={isAdmin} />
           </div>
@@ -308,43 +321,69 @@ export function FairConsole({
         {tab === "users" ? <UsersPanel canManageAdmins={isAdmin} canManageSuperAdmins={role === "superadmin"} fairSlug={fairSlug} /> : null}
         {tab === "classes" ? <ClassesPanel fairSlug={fairSlug} /> : null}
         {tab === "ticker" ? <TickerPanel fairSlug={fairSlug} /> : null}
-
         {tab === "settings" ? (
-          <SettingsPanel
-            fairs={fairs}
-            themes={themes}
-            activeFairSlug={activeFairSlug}
-            mode={mode}
-            bannerEnabled={bannerEnabled}
-            registrationOpen={registrationOpen}
-            isAdmin={isAdmin}
-          />
+          <SettingsPanel fairs={fairs} themes={themes} activeFairSlug={activeFairSlug} mode={mode} bannerEnabled={bannerEnabled} registrationOpen={registrationOpen} isAdmin={isAdmin} />
         ) : null}
 
-        {loading ? <Empty>লোড হচ্ছে…</Empty> : null}
-        {error ? <Notice kind="bad">{error}</Notice> : null}
+        {loading && tab === "dashboard" ? <Empty>Loading…</Empty> : null}
+        {error && tab === "dashboard" ? <Notice kind="bad">{error}</Notice> : null}
       </main>
 
-      <nav className="app-mobile-bar" aria-label="Staff navigation">
-        {tabs.filter((item) => mobilePrimaryTabIds.has(item.id)).map((item) => (
-          <button key={item.id} type="button" className={tab === item.id ? "is-active" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { setTab(item.id); setMobileMoreOpen(false); }}>
-            <item.icon size={18} />
-            <span>{item.label}</span>
+      {/* Mobile bottom navigation (under 768px). */}
+      <nav className="sf-bottom-nav" aria-label="Primary">
+        {tabs.filter((item) => mobilePrimary.includes(item.id)).map((item) => (
+          <button key={item.id} type="button" className={tab === item.id && !moreOpen ? "is-active" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => openTab(item.id)}>
+            <item.icon size={20} />
+            <span>{item.label === "Students & Payments" ? "Students" : item.label}</span>
           </button>
         ))}
-        <div className="app-mobile-more-wrap">
-          {mobileMoreOpen ? <div className="app-mobile-more-menu">
-            {tabs.filter((item) => !mobilePrimaryTabIds.has(item.id)).map((item) => (
-              <button key={item.id} type="button" onClick={() => { setTab(item.id); setMobileMoreOpen(false); }}><item.icon size={17} />{item.label}</button>
-            ))}
-            <Link href="/sf/scan"><ScanLine size={17} /> QR স্ক্যানার</Link>
-            <a href="/admin" target="_blank" rel="noreferrer"><LayoutGrid size={17} /> কনটেন্ট স্টুডিও</a>
-          </div> : null}
-          <button type="button" className={!mobilePrimaryTabIds.has(tab) || mobileMoreOpen ? "is-active" : ""} aria-expanded={mobileMoreOpen} onClick={() => setMobileMoreOpen((open) => !open)}>
-            <MoreHorizontal size={18} /><span>আরও</span>
-          </button>
-        </div>
+        <Link href="/sf/scan" className="sf-bottom-scan">
+          <ScanLine size={20} />
+          <span>Scan</span>
+        </Link>
+        <button type="button" className={moreOpen || !mobilePrimary.includes(tab) ? "is-active" : ""} aria-expanded={moreOpen} aria-haspopup="dialog" onClick={() => setMoreOpen(true)}>
+          <MoreHorizontal size={20} />
+          <span>More</span>
+        </button>
       </nav>
+
+      {moreOpen ? (
+        <div className="sf-more" role="dialog" aria-modal="true" aria-labelledby="sf-more-title">
+          <header className="sf-more-head">
+            <div>
+              <h2 id="sf-more-title">All tools</h2>
+              <span className="v2-muted">{fair?.name ?? "Science Fair"} · {roleLabelsEn[role]}</span>
+            </div>
+            <button type="button" className="v2-btn v2-btn-ghost" onClick={() => setMoreOpen(false)} aria-label="Close menu">
+              <X size={18} />
+            </button>
+          </header>
+          <div className="sf-more-grid">
+            {tabs.map((item) => (
+              <button key={item.id} type="button" className={`sf-tool-card ${tab === item.id ? "is-on" : ""}`} onClick={() => openTab(item.id)}>
+                <span className="sf-tool-icon"><item.icon size={22} /></span>
+                <strong>{item.label}</strong>
+                <small>{item.hint}</small>
+              </button>
+            ))}
+            <Link href="/sf/scan" className="sf-tool-card" onClick={() => setMoreOpen(false)}>
+              <span className="sf-tool-icon"><ScanLine size={22} /></span>
+              <strong>Gate scanner</strong>
+              <small>Camera scan and scan audit log</small>
+            </Link>
+            <a href="/admin" target="_blank" rel="noreferrer" className="sf-tool-card">
+              <span className="sf-tool-icon"><LayoutGrid size={22} /></span>
+              <strong>Content Studio</strong>
+              <small>Website pages, news and clubs</small>
+            </a>
+            <button type="button" className="sf-tool-card" onClick={logout}>
+              <span className="sf-tool-icon"><LogOut size={22} /></span>
+              <strong>Sign out</strong>
+              <small>End this session</small>
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

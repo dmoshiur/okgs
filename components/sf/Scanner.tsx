@@ -2,21 +2,64 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Camera, CameraOff, CheckCircle2, Keyboard, RotateCcw, ScanLine, TriangleAlert, XCircle } from "lucide-react";
+import { Camera, CameraOff, CheckCircle2, CircleAlert, Keyboard, RotateCcw, ScanLine, TriangleAlert, XCircle } from "lucide-react";
 import jsQR from "jsqr";
-import type { PassRow, ScanRow } from "@/lib/portal-db";
-import { bn, formatDate } from "@/lib/format";
+import { en, formatDateTimeEn } from "@/lib/format";
 import { Empty, Notice, Panel, postJson, useApi } from "@/components/sf/console/ui";
 
-interface ScanResult {
-  result: "ok" | "duplicate" | "invalid" | "expired" | "revoked";
+type EntryResult = "success" | "duplicate" | "expired" | "invalid";
+
+interface EntryOutcome {
+  result: EntryResult;
+  title: string;
+  message: string;
+  subject: { type: "student" | "guest"; id: string; name: string; code: string; detail: string } | null;
+  entry_time: string;
+  scanned_at: string;
+}
+
+interface LegacyOutcome {
+  result: string;
   tone: "success" | "warn" | "danger";
   title: string;
   message: string;
-  pass?: PassRow;
 }
 
-/** Camera QR scanner for teachers — verifies a fair pass in one tap. */
+interface ScanLog {
+  id: string;
+  subject_type: string;
+  subject_name: string;
+  subject_code: string;
+  method: string;
+  result: string;
+  entry_time: string;
+  scanned_at: string;
+  scanned_by_name: string;
+  note: string;
+}
+
+interface LogsResponse {
+  logs: ScanLog[];
+  summary: { success: number; duplicate: number; expired: number; invalid: number; admitted: number };
+}
+
+const RESULT_STYLE: Record<EntryResult, { tone: "success" | "warn" | "danger"; label: string }> = {
+  success: { tone: "success", label: "SUCCESS" },
+  duplicate: { tone: "warn", label: "DUPLICATE" },
+  expired: { tone: "warn", label: "EXPIRED" },
+  invalid: { tone: "danger", label: "INVALID" },
+};
+
+/** A signed ticket token is base64url JSON, so it always starts with "eyJr". */
+function isTicketToken(value: string) {
+  return value.startsWith("eyJr") && value.includes(".");
+}
+
+function errorText(issue: unknown) {
+  return issue instanceof Error ? issue.message : "Scan failed. Please try again.";
+}
+
+/** Gate scanner: verifies signed student/guest tickets, admits by manual ID, and logs every attempt. */
 export function Scanner({ fairSlug, fairName }: { fairSlug: string; fairName: string }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -25,33 +68,43 @@ export function Scanner({ fairSlug, fairName }: { fairSlug: string; fairName: st
 
   const [active, setActive] = useState(false);
   const [cameraError, setCameraError] = useState("");
-  const [result, setResult] = useState<ScanResult | null>(null);
+  const [result, setResult] = useState<{ tone: "success" | "warn" | "danger"; label: string; title: string; message: string; outcome?: EntryOutcome } | null>(null);
   const [manual, setManual] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const { data, reload } = useApi<{ scans: ScanRow[]; stats: Record<string, number> }>(`/api/staff/scan?fair=${encodeURIComponent(fairSlug)}`, [fairSlug]);
+  const logs = useApi<LogsResponse>(`/api/staff/entry/logs?fair=${encodeURIComponent(fairSlug)}&limit=150`, [fairSlug]);
+  const summary = logs.data?.summary ?? { success: 0, duplicate: 0, expired: 0, invalid: 0, admitted: 0 };
+  // Kept in a ref so the camera effect below is not restarted on every render.
+  const reloadLogs = useRef(logs.reload);
+  reloadLogs.current = logs.reload;
 
   const submit = useCallback(
-    async (value: string) => {
-      if (!value.trim()) return;
+    async (value: string, method: "qr" | "manual" = "qr") => {
+      const text = value.trim();
+      if (!text) return;
       setBusy(true);
       try {
-        const payload = await postJson<ScanResult>("/api/staff/scan", { token: value, fair_slug: fairSlug });
-        setResult(payload as ScanResult);
-        if (navigator.vibrate) navigator.vibrate(payload.result === "ok" ? 60 : [40, 60, 40]);
-        void reload();
+        if (method === "qr" && !isTicketToken(text)) {
+          // Legacy pass / project QR codes keep using the original verifier.
+          const legacy = await postJson<LegacyOutcome>("/api/staff/scan", { token: text, fair_slug: fairSlug });
+          setResult({ tone: legacy.tone, label: legacy.result.toUpperCase(), title: legacy.title, message: legacy.message });
+        } else {
+          const payload = await postJson<EntryOutcome>(
+            "/api/staff/entry/scan",
+            method === "qr" ? { token: text, fair_slug: fairSlug } : { code: text, fair_slug: fairSlug },
+          );
+          const style = RESULT_STYLE[payload.result];
+          setResult({ tone: style.tone, label: style.label, title: payload.title, message: payload.message, outcome: payload });
+        }
+        if (navigator.vibrate) navigator.vibrate(60);
+        await reloadLogs.current();
       } catch (issue) {
-        setResult({
-          result: "invalid",
-          tone: "danger",
-          title: "স্ক্যান ব্যর্থ",
-          message: issue instanceof Error ? issue.message : "আবার চেষ্টা করুন।",
-        });
+        setResult({ tone: "danger", label: "INVALID", title: "Scan failed", message: errorText(issue) });
       } finally {
         setBusy(false);
       }
     },
-    [fairSlug, reload],
+    [fairSlug],
   );
 
   useEffect(() => {
@@ -60,16 +113,12 @@ export function Scanner({ fairSlug, fairName }: { fairSlug: string; fairName: st
       streamRef.current = null;
       return;
     }
-
     let cancelled = false;
     let frame = 0;
 
     async function start() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } },
-          audio: false,
-        });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } }, audio: false });
         if (cancelled) {
           stream.getTracks().forEach((track) => track.stop());
           return;
@@ -83,7 +132,7 @@ export function Scanner({ fairSlug, fairName }: { fairSlug: string; fairName: st
         }
         tick();
       } catch {
-        setCameraError("ক্যামেরা চালু করা যায়নি। অনুমতি দিন, অথবা নিচে টোকেন লিখে যাচাই করুন।");
+        setCameraError("The camera could not be started. Allow camera access, or type the ticket code below.");
         setActive(false);
       }
     }
@@ -92,24 +141,20 @@ export function Scanner({ fairSlug, fairName }: { fairSlug: string; fairName: st
       frame = window.requestAnimationFrame(() => {
         const video = videoRef.current;
         const canvas = canvasRef.current;
-        if (video && canvas && video.readyState === video.HAVE_ENOUGH_DATA) {
-          const width = video.videoWidth;
-          const height = video.videoHeight;
-          if (width && height) {
-            canvas.width = width;
-            canvas.height = height;
-            const context = canvas.getContext("2d", { willReadFrequently: true });
-            if (context) {
-              context.drawImage(video, 0, 0, width, height);
-              const image = context.getImageData(0, 0, width, height);
-              const code = jsQR(image.data, image.width, image.height, { inversionAttempts: "dontInvert" });
-              if (code?.data) {
-                const now = Date.now();
-                // Ignore the same code within 4 seconds so one card is not scanned 30 times.
-                if (code.data !== lastRef.current.value || now - lastRef.current.at > 4000) {
-                  lastRef.current = { value: code.data, at: now };
-                  void submit(code.data);
-                }
+        if (video && canvas && video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const context = canvas.getContext("2d", { willReadFrequently: true });
+          if (context) {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const image = context.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(image.data, image.width, image.height, { inversionAttempts: "dontInvert" });
+            if (code?.data) {
+              const now = Date.now();
+              // Ignore the same code for 4 seconds so one ticket is not logged 30 times.
+              if (code.data !== lastRef.current.value || now - lastRef.current.at > 4000) {
+                lastRef.current = { value: code.data, at: now };
+                void submit(code.data, "qr");
               }
             }
           }
@@ -127,100 +172,126 @@ export function Scanner({ fairSlug, fairName }: { fairSlug: string; fairName: st
     };
   }, [active, submit]);
 
-  const toneClass = result?.tone === "success" ? "scan-ok" : result?.tone === "warn" ? "scan-warn" : "scan-bad";
-  const stats = data?.stats ?? {};
-
   return (
-    <div className="v2 app-shell">
+    <div className="v2 app-shell sf-console sf-scan-page">
       <header className="app-top">
         <div className="v2-wrap app-top-inner">
           <div className="brand">
             <div className="brand-copy">
-              <strong>QR যাচাই</strong>
+              <strong>Gate scanner</strong>
               <small>{fairName}</small>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Link className="v2-btn v2-btn-sm v2-btn-ghost" href="/sf">
-              কনসোলে ফিরুন
-            </Link>
-            <button className="v2-btn v2-btn-sm" type="button" onClick={() => setActive(!active)}>
-              {active ? <CameraOff size={15} /> : <Camera size={15} />} {active ? "বন্ধ" : "ক্যামেরা"}
-            </button>
+          <div className="app-top-actions">
+            <Link className="v2-btn v2-btn-sm v2-btn-ghost" href="/sf">Back to console</Link>
           </div>
         </div>
       </header>
 
-      <main className="v2-wrap app-body" style={{ display: "grid", gap: 16, gridTemplateColumns: "minmax(0, 1fr) minmax(280px, .8fr)" }}>
-        <div>
-          <div className="scanner-stage">
-            <video ref={videoRef} muted playsInline />
-            <canvas ref={canvasRef} style={{ display: "none" }} />
-            {active ? <span className="scan-frame" /> : (
-              <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", color: "#fff", textAlign: "center", padding: 24 }}>
-                <div>
-                  <ScanLine size={46} />
-                  <p style={{ opacity: 0.85 }}>“ক্যামেরা” চাপ দিয়ে QR কোড স্ক্যান করুন।</p>
-                </div>
+      <main className="v2-wrap app-body sf-stack">
+        <div className="sf-scan-grid">
+          <Panel title="Camera">
+            <div className="sf-camera">
+              <video ref={videoRef} muted playsInline className={active ? "is-live" : ""} />
+              <canvas ref={canvasRef} hidden />
+              {!active ? <div className="sf-camera-idle"><ScanLine size={30} /><span>Camera is off</span></div> : null}
+            </div>
+            <div className="sf-scan-buttons">
+              <button type="button" className="v2-btn" onClick={() => { setCameraError(""); setActive((value) => !value); }}>
+                {active ? <><CameraOff size={15} /> Stop camera</> : <><Camera size={15} /> Start camera</>}
+              </button>
+            </div>
+            {cameraError ? <Notice kind="bad">{cameraError}</Notice> : null}
+          </Panel>
+
+          <Panel title="Manual entry">
+            <form
+              className="sf-manual"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void submit(manual, isTicketToken(manual.trim()) ? "qr" : "manual");
+              }}
+            >
+              <label>
+                <span className="v2-label">Student ID, or a ticket code pasted from the QR</span>
+                <input className="v2-input" value={manual} onChange={(event) => setManual(event.target.value)} placeholder="e.g. 2026-0001" autoComplete="off" />
+              </label>
+              <div className="sf-scan-buttons">
+                <button type="submit" className="v2-btn" disabled={busy || !manual.trim()}><Keyboard size={15} /> {busy ? "Checking…" : "Admit"}</button>
+                <button type="button" className="v2-btn v2-btn-ghost" onClick={() => { setManual(""); setResult(null); }}><RotateCcw size={14} /> Clear</button>
               </div>
+              <p className="v2-muted sf-help">A student ID is matched against the roster and logged as a manual entry. Tickets scanned by camera are verified by signature first.</p>
+            </form>
+          </Panel>
+
+          <div className={`sf-result sf-result-${result?.tone ?? "idle"}`} role="status" aria-live="polite">
+            {!result ? (
+              <div className="sf-result-idle"><ScanLine size={28} /><strong>Ready to scan</strong><span>Point the camera at a ticket or enter an ID.</span></div>
+            ) : (
+              <>
+                <span className="sf-result-label">
+                  {result.tone === "success" ? <CheckCircle2 size={18} /> : result.tone === "warn" ? <TriangleAlert size={18} /> : <XCircle size={18} />}
+                  {result.label}
+                </span>
+                <strong className="sf-result-title">{result.title}</strong>
+                <span className="sf-result-message">{result.message}</span>
+                {result.outcome?.subject ? (
+                  <dl className="sf-result-subject">
+                    <div><dt>{result.outcome.subject.type === "guest" ? "Guest" : "Student"}</dt><dd>{result.outcome.subject.name}</dd></div>
+                    <div><dt>ID</dt><dd>{result.outcome.subject.code || "—"}</dd></div>
+                    <div><dt>Details</dt><dd>{result.outcome.subject.detail || "—"}</dd></div>
+                    <div><dt>Entry time</dt><dd>{result.outcome.entry_time ? formatDateTimeEn(result.outcome.entry_time) : "—"}</dd></div>
+                    <div><dt>Scanned at</dt><dd>{formatDateTimeEn(result.outcome.scanned_at)}</dd></div>
+                  </dl>
+                ) : null}
+              </>
             )}
           </div>
-
-          {cameraError ? <Notice kind="bad">{cameraError}</Notice> : null}
-
-          {result ? (
-            <div className={`scan-result ${toneClass}`}>
-              <strong style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {result.tone === "success" ? <CheckCircle2 size={20} /> : result.tone === "warn" ? <TriangleAlert size={20} /> : <XCircle size={20} />}
-                {result.title}
-              </strong>
-              <span>{result.message}</span>
-              {result.pass ? (
-                <div style={{ marginTop: 8, fontSize: 13, opacity: 0.9 }}>
-                  {result.pass.class_level}{result.pass.section ? ` · শাখা ${result.pass.section}` : ""} · স্ক্যান {bn(result.pass.scan_count ?? 0)} বার
-                </div>
-              ) : null}
-              <button className="v2-btn v2-btn-sm v2-btn-ghost" style={{ marginTop: 10 }} type="button" onClick={() => { setResult(null); lastRef.current = { value: "", at: 0 }; }}>
-                <RotateCcw size={14} /> আবার স্ক্যান
-              </button>
-            </div>
-          ) : null}
-
-          <Panel title="টোকেন দিয়ে যাচাই" className="" >
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <input className="v2-input" style={{ flex: 1, minWidth: 220 }} value={manual} onChange={(e) => setManual(e.target.value)} placeholder="যেমন: a1b2c3d4.signature অথবা /pass/..." />
-              <button className="v2-btn" type="button" disabled={busy || !manual.trim()} onClick={() => submit(manual)}>
-                <Keyboard size={16} /> যাচাই
-              </button>
-            </div>
-            <p className="v2-muted" style={{ fontSize: 12.5, marginBottom: 0 }}>
-              QR না পড়লে শিক্ষার্থীর কার্ডে লেখা টোকেন / লিংক লিখে দিন — HMAC স্বাক্ষর মিললেই যাচাই হবে।
-            </p>
-          </Panel>
         </div>
 
-        <div className="v2-grid" style={{ alignContent: "start" }}>
-          <Panel title="এই মেলার স্ক্যান">
-            <div className="pill-row">
-              <span className="badge-soft">সফল {bn(stats.ok ?? 0)}</span>
-              <span className="badge-soft">পুনরায় {bn(stats.duplicate ?? 0)}</span>
-              <span className="badge-soft">ভুল {bn(stats.invalid ?? 0)}</span>
-              <span className="badge-soft">মেয়াদোত্তীর্ণ {bn(stats.expired ?? 0)}</span>
-            </div>
-          </Panel>
-          <Panel title="সাম্প্রতিক">
-            <div style={{ maxHeight: 420, overflowY: "auto" }}>
-              {(data?.scans ?? []).map((scan) => (
-                <div key={scan.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "7px 0", borderBottom: "1px solid var(--okgs-line)", fontSize: 13 }}>
-                  <span className={`badge-soft ${scan.result === "ok" ? "status-ok" : scan.result === "duplicate" ? "status-pending" : "status-bad"}`}>{scan.result}</span>
-                  <span style={{ flex: 1 }}>{scan.scanned_by_name || "—"}</span>
-                  <span className="v2-muted">{formatDate(scan.created_at)}</span>
-                </div>
-              ))}
-              {!(data?.scans ?? []).length ? <Empty>এখনো কোনো স্ক্যান হয়নি।</Empty> : null}
-            </div>
-          </Panel>
+        <div className="sf-stat-row">
+          <span className="sf-stat sf-stat-good"><b>{en(summary.admitted)}</b> admitted</span>
+          <span className="sf-stat sf-stat-good"><b>{en(summary.success)}</b> success</span>
+          <span className="sf-stat sf-stat-warn"><b>{en(summary.duplicate)}</b> duplicate</span>
+          <span className="sf-stat sf-stat-warn"><b>{en(summary.expired)}</b> expired</span>
+          <span className="sf-stat sf-stat-bad"><b>{en(summary.invalid)}</b> invalid</span>
         </div>
+
+        <Panel title="Scan audit log" action={<button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" onClick={() => logs.reload()}><RotateCcw size={14} /> Refresh</button>}>
+          {logs.error ? <Notice kind="bad">{logs.error}</Notice> : null}
+          <div className="sf-table-wrap">
+            <table className="sf-table">
+              <thead>
+                <tr>
+                  <th>Scanned at</th>
+                  <th>Entry time</th>
+                  <th>Result</th>
+                  <th>Person</th>
+                  <th>ID</th>
+                  <th>Method</th>
+                  <th>Scanned by</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(logs.data?.logs ?? []).map((log) => (
+                  <tr key={log.id}>
+                    <td className="sf-nowrap">{formatDateTimeEn(log.scanned_at)}</td>
+                    <td className="sf-nowrap">{log.entry_time ? formatDateTimeEn(log.entry_time) : "—"}</td>
+                    <td><span className={`sf-badge ${log.result === "success" ? "is-good" : log.result === "duplicate" || log.result === "expired" ? "is-warn" : "is-bad"}`}>{log.result.toUpperCase()}</span></td>
+                    <td>{log.subject_name || <span className="v2-muted">Unknown</span>}{log.subject_type ? <small className="v2-muted sf-block">{log.subject_type}</small> : null}</td>
+                    <td>{log.subject_code || "—"}</td>
+                    <td>{log.method === "manual" ? "Manual" : "QR"}</td>
+                    <td>{log.scanned_by_name || "—"}</td>
+                    <td className="sf-note">{log.note || "—"}</td>
+                  </tr>
+                ))}
+                {!logs.data?.logs?.length && !logs.loading ? <tr><td colSpan={8}><Empty>No scans yet. Scans appear here with the exact time they happened.</Empty></td></tr> : null}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+        <p className="v2-muted sf-help"><CircleAlert size={13} /> Scanner for {fairName}. Legacy pass and project codes are still verified by their original rules.</p>
       </main>
     </div>
   );

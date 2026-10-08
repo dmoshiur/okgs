@@ -50,7 +50,7 @@ export function objectsToCSV(data: Record<string, unknown>[], columns?: string[]
     });
   });
   
-  return generateCSV(headers, rows);
+  return generateCSV(headers, rows as string[][]);
 }
 
 /** Format a date for CSV export */
