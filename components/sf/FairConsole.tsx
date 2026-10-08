@@ -8,6 +8,7 @@ import {
   Boxes,
   CalendarDays,
   ClipboardList,
+  FileText,
   Gauge,
   GraduationCap,
   LayoutGrid,
@@ -18,6 +19,7 @@ import {
   Receipt,
   ScanLine,
   Settings2,
+  Upload,
   Users,
   Wallet,
 } from "lucide-react";
@@ -32,6 +34,9 @@ import { CollectionsPanel } from "@/components/sf/console/CollectionsPanel";
 import { SettingsPanel } from "@/components/sf/console/SettingsPanel";
 import { SettlementsPanel } from "@/components/sf/console/SettlementsPanel";
 import { TickerPanel } from "@/components/sf/console/TickerPanel";
+import { MemoPanel } from "@/components/sf/console/MemoPanel";
+import { CSVImportPanel } from "@/components/sf/console/CSVImportPanel";
+import { GuestPassPanel } from "@/components/sf/console/GuestPassPanel";
 import { PortalAnnouncements } from "@/components/portal/PortalAnnouncements";
 
 interface Stats {
@@ -64,16 +69,18 @@ const tabs = [
   { id: "funds", label: "ফান্ড", icon: Wallet },
   { id: "dues", label: "পাওনা", icon: Receipt },
   { id: "expenses", label: "খরচ", icon: ClipboardList },
+  { id: "memos", label: "মেমো", icon: FileText },
   { id: "collections", label: "সংগ্রহ", icon: Boxes },
   { id: "passes", label: "QR পাস", icon: QrCode },
   { id: "ticker", label: "টিকার", icon: Megaphone },
   { id: "users", label: "ইউজার", icon: Users },
+  { id: "import", label: "ইমপোর্ট", icon: Upload },
   { id: "classes", label: "শ্রেণি", icon: GraduationCap },
   { id: "settings", label: "সেটিং", icon: Settings2 },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
-const mobilePrimaryTabIds = new Set<TabId>(["dashboard", "funds", "dues", "users"]);
+const mobilePrimaryTabIds = new Set<TabId>(["dashboard", "funds", "dues", "memos", "users"]);
 
 export function FairConsole({
   user,
@@ -294,8 +301,10 @@ export function FairConsole({
             <SettlementsPanel fairSlug={fairSlug} canDelete={isAdmin} />
           </div>
         ) : null}
+        {tab === "memos" ? <MemoPanel fairSlug={fairSlug} /> : null}
         {tab === "collections" ? <CollectionsPanel fairSlug={fairSlug} categories={categories} clubs={clubs} /> : null}
         {tab === "passes" ? <PassesPanel fairSlug={fairSlug} fairName={fair?.name ?? ""} /> : null}
+        {tab === "import" ? <CSVImportPanel fairSlug={fairSlug} /> : null}
         {tab === "users" ? <UsersPanel canManageAdmins={isAdmin} canManageSuperAdmins={role === "superadmin"} fairSlug={fairSlug} /> : null}
         {tab === "classes" ? <ClassesPanel fairSlug={fairSlug} /> : null}
         {tab === "ticker" ? <TickerPanel fairSlug={fairSlug} /> : null}

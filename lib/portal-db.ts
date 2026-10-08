@@ -8,7 +8,7 @@
  * All tables are created on first use (`ensurePortal`), so a fresh local.db or a
  * brand-new Turso database bootstraps itself without a migration step.
  */
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomBytes } from "node:crypto";
 import { db, ensureDatabase } from "@/lib/db";
 import type { PortalRole } from "@/lib/roles";
 
@@ -26,6 +26,11 @@ export {
   dashboardPathForRole,
 } from "@/lib/roles";
 export type { PortalRole } from "@/lib/roles";
+
+/** Generate a secure random token */
+export function generateToken(): string {
+  return randomBytes(24).toString("base64url");
+}
 
 export interface PortalUser {
   id: string;
@@ -136,6 +141,33 @@ export interface SettlementRow {
   created_by: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface MemoRow {
+  id: string;
+  fair_slug: string;
+  memo_no: string;
+  title: string;
+  amount: number;
+  category: string;
+  paid_to: string;
+  paid_at: string;
+  method: string;
+  voucher_no: string;
+  note: string;
+  status: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MemoStats {
+  totalMemos: number;
+  totalAmount: number;
+  pendingAmount: number;
+  approvedAmount: number;
+  memosByCategory: { category: string; count: number; total: number }[];
+  recentMemos: MemoRow[];
 }
 
 export interface DueRow {
@@ -308,6 +340,28 @@ const schema = [
     updated_at TEXT NOT NULL DEFAULT ''
   )`,
   `CREATE INDEX IF NOT EXISTS settlements_period_idx ON settlements(period, fair_slug)`,
+  /* Memo Ledger System - Voucher/memo generator for tracking student fee collections and event expenses */
+  `CREATE TABLE IF NOT EXISTS memos (
+    id TEXT PRIMARY KEY,
+    fair_slug TEXT NOT NULL DEFAULT '',
+    memo_no TEXT NOT NULL DEFAULT '',
+    title TEXT NOT NULL DEFAULT '',
+    amount REAL NOT NULL DEFAULT 0,
+    category TEXT NOT NULL DEFAULT 'Other',
+    paid_to TEXT NOT NULL DEFAULT '',
+    paid_at TEXT NOT NULL DEFAULT '',
+    method TEXT NOT NULL DEFAULT 'cash',
+    voucher_no TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'approved',
+    created_by TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT ''
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS memos_memo_no_idx ON memos(memo_no) WHERE memo_no <> ''`,
+  `CREATE INDEX IF NOT EXISTS memos_fair_idx ON memos(fair_slug)`,
+  `CREATE INDEX IF NOT EXISTS memos_status_idx ON memos(status, fair_slug)`,
+  `CREATE INDEX IF NOT EXISTS memos_category_idx ON memos(category, fair_slug)`,
   `CREATE TABLE IF NOT EXISTS dues (
     id TEXT PRIMARY KEY,
     fair_slug TEXT NOT NULL DEFAULT '',
@@ -398,6 +452,13 @@ const schema = [
     enabled INTEGER NOT NULL DEFAULT 0,
     updated_at TEXT NOT NULL DEFAULT ''
   )`,
+  /* Generic key-value settings table for various configuration options */
+  `CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT ''
+  )`,
+  `CREATE INDEX IF NOT EXISTS settings_key_idx ON settings(key)`,
   `CREATE TABLE IF NOT EXISTS activity (
     id TEXT PRIMARY KEY,
     actor_id TEXT NOT NULL DEFAULT '',
@@ -1577,6 +1638,127 @@ export async function deleteSettlement(id: string) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Memo Ledger System — Voucher/memo generator for tracking student fee
+ * collections and event expenses with real-time calculations
+ * ------------------------------------------------------------------ */
+
+export async function listMemos(fairSlug?: string, limit = 100) {
+  const where = fairSlug ? "WHERE fair_slug = ?" : "";
+  const args = fairSlug ? [fairSlug] : [];
+  return query<MemoRow>(`SELECT * FROM memos ${where} ORDER BY created_at DESC LIMIT ${limit}`, args);
+}
+
+export async function getMemoById(id: string) {
+  const rows = await query<MemoRow>(`SELECT * FROM memos WHERE id = ? LIMIT 1`, [id]);
+  return rows[0] ?? null;
+}
+
+export async function createMemo(values: Partial<MemoRow> & { fair_slug: string; title: string; amount: number }) {
+  const id = randomUUID();
+  const record: Record<string, string | number> = {
+    id,
+    fair_slug: values.fair_slug ?? "",
+    memo_no: values.memo_no ?? "",
+    title: values.title ?? "",
+    amount: values.amount ?? 0,
+    category: values.category ?? "Other",
+    paid_to: values.paid_to ?? "",
+    paid_at: values.paid_at ?? nowIso().slice(0, 10),
+    method: values.method ?? "cash",
+    voucher_no: values.voucher_no ?? "",
+    note: values.note ?? "",
+    status: values.status ?? "approved",
+    created_by: values.created_by ?? "",
+    created_at: nowIso(),
+    updated_at: nowIso(),
+  };
+  const statement = insertStatement("memos", record);
+  await run(statement.sql, statement.args as (string | number)[]);
+  return id;
+}
+
+export async function updateMemo(id: string, values: Partial<MemoRow>) {
+  const updates: string[] = [];
+  const args: (string | number)[] = [];
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== undefined && key !== "id") {
+      updates.push(`${key} = ?`);
+      args.push(typeof value === "number" ? value : String(value));
+    }
+  }
+  if (!updates.length) return false;
+  args.push(id);
+  const result = await run(`UPDATE memos SET ${updates.join(", ")}, updated_at = ? WHERE id = ?`, [...args, nowIso(), id]);
+  return Number(result.rowsAffected ?? 0) > 0;
+}
+
+export async function deleteMemo(id: string) {
+  const result = await run(`DELETE FROM memos WHERE id = ?`, [id]);
+  return Number(result.rowsAffected ?? 0) > 0;
+}
+
+/**
+ * Get memo statistics with real-time calculations
+ */
+export async function getMemoStats(fairSlug?: string, filter: { search?: string; status?: string; category?: string; limit?: number } = {}): Promise<MemoStats> {
+  const { search = "", status = "all", category = "all", limit = 50 } = filter;
+  
+  const fairClause = fairSlug ? "AND m.fair_slug = ?" : "";
+  const statusClause = status !== "all" ? "AND m.status = ?" : "";
+  const categoryClause = category !== "all" ? "AND m.category = ?" : "";
+  const searchClause = search ? "AND (m.title LIKE ? OR m.paid_to LIKE ? OR m.memo_no LIKE ? OR m.voucher_no LIKE ?)" : "";
+  
+  const args: string[] = [];
+  if (fairSlug) args.push(fairSlug);
+  if (status !== "all") args.push(status);
+  if (category !== "all") args.push(category);
+  if (search) {
+    const searchParam = `%${search}%`;
+    args.push(searchParam, searchParam, searchParam, searchParam);
+  }
+  
+  const where = [fairClause, statusClause, categoryClause, searchClause].filter(Boolean).join(" ");
+  
+  // Get total stats
+  const [totalRows, amountRows, pendingRows, approvedRows] = await Promise.all([
+    query<{ count: number }>(`SELECT COUNT(*) as count FROM memos m ${where ? `WHERE ${where}` : ""}`, args),
+    query<{ total: number }>(`SELECT COALESCE(SUM(amount), 0) as total FROM memos m ${where ? `WHERE ${where}` : ""}`, args),
+    query<{ total: number }>(`SELECT COALESCE(SUM(amount), 0) as total FROM memos m WHERE status = 'pending' ${fairClause ? `AND ${fairClause}` : ""}`, fairSlug ? [fairSlug] : []),
+    query<{ total: number }>(`SELECT COALESCE(SUM(amount), 0) as total FROM memos m WHERE status = 'approved' ${fairClause ? `AND ${fairClause}` : ""}`, fairSlug ? [fairSlug] : []),
+  ]);
+  
+  // Get memos by category
+  const categoryArgs = [...args];
+  const categoryWhere = [fairClause, searchClause].filter(Boolean).join(" ");
+  const memosByCategory = await query<{ category: string; count: number; total: number }>(
+    `SELECT category, COUNT(*) as count, COALESCE(SUM(amount), 0) as total FROM memos m ${categoryWhere ? `WHERE ${categoryWhere}` : ""} GROUP BY category ORDER BY total DESC`,
+    categoryArgs
+  );
+  
+  // Get recent memos
+  const recentMemos = await query<MemoRow>(
+    `SELECT * FROM memos m ${where ? `WHERE ${where}` : ""} ORDER BY created_at DESC LIMIT ${limit}`,
+    args
+  );
+  
+  return {
+    totalMemos: Number(totalRows[0]?.count ?? 0),
+    totalAmount: Number(amountRows[0]?.total ?? 0),
+    pendingAmount: Number(pendingRows[0]?.total ?? 0),
+    approvedAmount: Number(approvedRows[0]?.total ?? 0),
+    memosByCategory: memosByCategory.map(row => ({
+      category: row.category || "Uncategorized",
+      count: Number(row.count ?? 0),
+      total: Number(row.total ?? 0),
+    })),
+    recentMemos: recentMemos.map(row => ({
+      ...row,
+      amount: Number(row.amount ?? 0),
+    })),
+  };
+}
+
+/* ------------------------------------------------------------------ *
  * QR passes & scans
  * ------------------------------------------------------------------ */
 
@@ -1858,6 +2040,24 @@ export async function saveSmtpSettings(values: Partial<SmtpSettingsRow>) {
     [record.id, record.host, record.port, record.secure, record.username, record.password_encrypted, record.from_name, record.from_email, record.reply_to, record.enabled, record.updated_at],
   );
   return record;
+}
+
+/* ------------------------------------------------------------------ *
+ * Generic Settings Management
+ * Simple key-value store for various settings like SMTP configuration
+ * ------------------------------------------------------------------ */
+
+export async function getSetting(key: string, defaultValue: string = ""): Promise<string> {
+  const rows = await query<{ value: string }>(`SELECT value FROM settings WHERE key = ? LIMIT 1`, [key]);
+  return rows[0]?.value ?? defaultValue;
+}
+
+export async function setSetting(key: string, value: string): Promise<void> {
+  const timestamp = nowIso();
+  await run(
+    `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+    [key, value, timestamp]
+  );
 }
 
 /* ------------------------------------------------------------------ *
