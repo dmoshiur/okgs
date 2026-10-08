@@ -71,9 +71,19 @@ export function verifyPassword(password: string, hash: string, salt: string) {
 
 /** Pragmatic password policy — long enough to matter, short enough to type. */
 export function passwordProblem(password: string) {
+  return passwordProblemEn(password, "bn");
+}
+
+/**
+ * The same policy in the language the caller needs: the studio and the staff
+ * panel validate in English, the public portal in Bangla.
+ */
+export function passwordProblemEn(password: string, language: "bn" | "en" = "bn") {
   const value = String(password ?? "");
-  if (value.length < 8) return "পাসওয়ার্ড অন্তত ৮ অক্ষরের হতে হবে।";
-  if (!/[A-Za-z]/.test(value) || !/\d/.test(value)) return "পাসওয়ার্ডে অন্তত একটি অক্ষর ও একটি সংখ্যা থাকতে হবে।";
+  if (value.length < 8) return language === "en" ? "The password must be at least 8 characters long." : "পাসওয়ার্ড অন্তত ৮ অক্ষরের হতে হবে।";
+  if (!/[A-Za-z]/.test(value) || !/\d/.test(value)) {
+    return language === "en" ? "The password needs at least one letter and one number." : "পাসওয়ার্ডে অন্তত একটি অক্ষর ও একটি সংখ্যা থাকতে হবে।";
+  }
   return "";
 }
 
@@ -124,9 +134,17 @@ export function clearPortalCookieHeader() {
 
 export interface LoginResult {
   ok: boolean;
+  /** Message in the language of the public portal (Bangla). */
   error?: string;
+  /**
+   * The same message in English. The staff doors (`/sf/login`, `/admin/login`)
+   * are English-only, so the API answers both and the form picks one — a single
+   * endpoint cannot assume the language of whoever is reading it.
+   */
+  errorEn?: string;
   /** Non-fatal note, e.g. the default password is still in use. */
   warning?: string;
+  warningEn?: string;
   user?: PublicUser;
   role?: PortalRole;
   cookie?: string;
@@ -156,23 +174,31 @@ export async function loginWithPassword(identifier: string, password: string): P
   const user = await findUserByLogin(identifier);
   // Same wording for "no such account" and "wrong password" — the login form
   // must not become an account-enumeration oracle.
-  if (!user) return { ok: false, error: "ইমেইল/আইডি অথবা পাসওয়ার্ড ঠিক নয়।" };
-  if (!Number(user.is_active)) return { ok: false, error: "অ্যাকাউন্টটি বন্ধ করা হয়েছে। অফিসে যোগাযোগ করুন।" };
+  if (!user) return { ok: false, error: "ইমেইল/আইডি অথবা পাসওয়ার্ড ঠিক নয়।", errorEn: "That email or ID and password do not match." };
+  if (!Number(user.is_active)) {
+    return { ok: false, error: "অ্যাকাউন্টটি বন্ধ করা হয়েছে। অফিসে যোগাযোগ করুন।", errorEn: "This account is disabled. Please contact the school office." };
+  }
   if (!user.password_hash || !user.password_salt) {
-    return { ok: false, error: "এই অ্যাকাউন্টে এখনো পাসওয়ার্ড সেট হয়নি। “পাসওয়ার্ড ভুলে গেছেন?” থেকে সেট করুন।" };
+    return {
+      ok: false,
+      error: "এই অ্যাকাউন্টে এখনো পাসওয়ার্ড সেট হয়নি। “পাসওয়ার্ড ভুলে গেছেন?” থেকে সেট করুন।",
+      errorEn: "This account has no password yet — use “Forgot password?” to set one.",
+    };
   }
   if (!verifyPassword(password, user.password_hash, user.password_salt)) {
-    return { ok: false, error: "ইমেইল/আইডি অথবা পাসওয়ার্ড ঠিক নয়।" };
+    return { ok: false, error: "ইমেইল/আইডি অথবা পাসওয়ার্ড ঠিক নয়।", errorEn: "That email or ID and password do not match." };
   }
   await touchLogin(user.id);
   const safe = publicUser(user);
+  const mustChange = Number(user.must_change_password) === 1;
   return {
     ok: true,
     user: safe,
     role: user.role,
     cookie: createPortalSession(user),
     redirect: landingPathFor(safe),
-    warning: Number(user.must_change_password) ? "ডিফল্ট পাসওয়ার্ড এখনো বদলানো হয়নি — বদলে নিন।" : undefined,
+    warning: mustChange ? "ডিফল্ট পাসওয়ার্ড এখনো বদলানো হয়নি — বদলে নিন।" : undefined,
+    warningEn: mustChange ? "The default password has not been changed yet — please change it." : undefined,
   };
 }
 

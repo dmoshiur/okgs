@@ -1,9 +1,22 @@
 "use client";
 
+/**
+ * ThemeModeProvider — light/dark preference.
+ *
+ * The choice is persisted in a **cookie** (never localStorage/sessionStorage:
+ * this app keeps state in the database or in cookies so a different device, or a
+ * cleared browser storage, cannot change what a staff member sees). The server
+ * reads the same cookie in `app/layout.tsx` and paints `data-color-scheme` before
+ * the first frame, so there is no flash of the wrong theme and no inline script.
+ */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 export type ColorScheme = "light" | "dark";
-export const COLOR_SCHEME_STORAGE_KEY = "okgs-color-scheme";
+/** Cookie name — kept as an export so `lib/color-scheme.ts` and the layout agree. */
+export const COLOR_SCHEME_COOKIE = "okgs-color-scheme";
+/** @deprecated the value became a cookie; the alias keeps older imports working. */
+export const COLOR_SCHEME_STORAGE_KEY = COLOR_SCHEME_COOKIE;
+const MAX_AGE = 60 * 60 * 24 * 365;
 
 interface ThemeModeContextValue {
   mode: ColorScheme;
@@ -14,8 +27,19 @@ interface ThemeModeContextValue {
 
 const ThemeModeContext = createContext<ThemeModeContextValue | null>(null);
 
-function isColorScheme(value: string | null): value is ColorScheme {
+function isColorScheme(value: string | null | undefined): value is ColorScheme {
   return value === "light" || value === "dark";
+}
+
+function readCookie(name: string) {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+function writeCookie(name: string, value: string) {
+  document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; SameSite=Lax; Max-Age=${MAX_AGE}${
+    window.location.protocol === "https:" ? "; Secure" : ""
+  }`;
 }
 
 function applyColorScheme(mode: ColorScheme) {
@@ -23,31 +47,30 @@ function applyColorScheme(mode: ColorScheme) {
   if (document.body) document.body.dataset.colorScheme = mode;
 }
 
-/** OS theme by default; an explicit toggle is saved as a durable override. */
+/** The attribute the server rendered (`<html data-color-scheme>`) is the truth. */
+function serverColorScheme(): ColorScheme | null {
+  const value = document.documentElement.dataset.colorScheme;
+  return isColorScheme(value) ? value : null;
+}
+
 export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
   const [mode, updateMode] = useState<ColorScheme>("light");
   const [ready, setReady] = useState(false);
+  // A theme the visitor explicitly picked wins over the OS preference.
   const hasManualChoice = useRef(false);
 
   useEffect(() => {
     const preference = window.matchMedia("(prefers-color-scheme: dark)");
-    let stored: string | null = null;
-    try {
-      stored = window.localStorage.getItem(COLOR_SCHEME_STORAGE_KEY);
-    } catch {
-      // Keep the current visit usable when storage is disabled.
-    }
-
-    const hasSavedPreference = isColorScheme(stored);
-    hasManualChoice.current = hasSavedPreference;
-    const initial: ColorScheme = hasSavedPreference ? (stored as ColorScheme) : preference.matches ? "dark" : "light";
+    const cookie = readCookie(COLOR_SCHEME_COOKIE);
+    const initial: ColorScheme = serverColorScheme() ?? (isColorScheme(cookie) ? cookie : preference.matches ? "dark" : "light");
+    hasManualChoice.current = isColorScheme(cookie);
     applyColorScheme(initial);
     updateMode(initial);
     setReady(true);
 
     const onSystemChange = (event: MediaQueryListEvent) => {
       if (hasManualChoice.current) return;
-      const next = event.matches ? "dark" : "light";
+      const next: ColorScheme = event.matches ? "dark" : "light";
       applyColorScheme(next);
       updateMode(next);
     };
@@ -60,11 +83,7 @@ export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
     hasManualChoice.current = true;
     updateMode(next);
     applyColorScheme(next);
-    try {
-      window.localStorage.setItem(COLOR_SCHEME_STORAGE_KEY, next);
-    } catch {
-      // The chosen mode still applies until the page is closed.
-    }
+    writeCookie(COLOR_SCHEME_COOKIE, next);
   }, []);
 
   const toggleMode = useCallback(() => {

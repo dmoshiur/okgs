@@ -1,5 +1,12 @@
 export type VisualMode = "academic" | "science-fair";
-export const VISUAL_MODE_STORAGE_KEY = "okgs-visual-mode";
+
+/**
+ * The chosen visual mode is remembered in a cookie, never in localStorage —
+ * `app/layout.tsx` reads it while rendering so the first paint is already correct.
+ */
+export const VISUAL_MODE_COOKIE = "okgs-visual-mode";
+/** @deprecated kept as an alias for older imports; the value is a cookie name. */
+export const VISUAL_MODE_STORAGE_KEY = VISUAL_MODE_COOKIE;
 
 export const visualThemes: Record<VisualMode, {
   label: string;

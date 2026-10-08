@@ -175,7 +175,7 @@ export async function listStudentsWithStatus(filter: {
      FROM students s
      LEFT JOIN payments p ON p.student_id = s.id AND p.fair_slug = ?
      ${where}
-     ORDER BY s.class_name ASC, s.section ASC, s.shift ASC, CAST(s.roll AS INTEGER) ASC, s.roll ASC, s.name ASC
+     ORDER BY length(s.class_name) ASC, s.class_name ASC, s.section ASC, s.shift ASC, CAST(s.roll AS INTEGER) ASC, s.roll ASC, s.name ASC
      LIMIT ${limit}`,
     args,
   );
@@ -195,9 +195,13 @@ export async function getStudentById(id: string) {
 }
 
 /** Students matching a class/section/shift scope (roll filtering happens in the caller). */
-export async function scopedStudents(scope: { class_name: string; section?: string; shift?: string }) {
-  const clauses = ["class_name = ?"];
-  const args: string[] = [scope.class_name];
+export async function scopedStudents(scope: { class_name?: string; section?: string; shift?: string }) {
+  const clauses: string[] = [];
+  const args: string[] = [];
+  if (scope.class_name) {
+    clauses.push("class_name = ?");
+    args.push(scope.class_name);
+  }
   if (scope.section) {
     clauses.push("section = ?");
     args.push(scope.section);
@@ -206,8 +210,142 @@ export async function scopedStudents(scope: { class_name: string; section?: stri
     clauses.push("shift = ?");
     args.push(scope.shift);
   }
-  return query<StudentRow>(`SELECT * FROM students WHERE ${clauses.join(" AND ")} ORDER BY CAST(roll AS INTEGER) ASC, roll ASC`, args);
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  return query<StudentRow>(`SELECT * FROM students ${where} ORDER BY CAST(roll AS INTEGER) ASC, roll ASC`, args);
 }
+
+/* ------------------------------------------------------------------ *
+ * Roster / gate summaries — the figures behind the dashboard and reports.
+ * ------------------------------------------------------------------ */
+
+export interface RosterSummary {
+  total: number;
+  paid: number;
+  unpaid: number;
+  printed: number;
+  entered: number;
+  guests: number;
+}
+
+/** Head-counts for one fair: who paid, who has a printed ticket, who entered. */
+export async function rosterSummary(fairSlug: string): Promise<RosterSummary> {
+  const rows = await query<Record<string, number | string>>(
+    `SELECT
+       COUNT(*) AS total,
+       COALESCE(SUM(CASE WHEN p.status = 'PAID' THEN 1 ELSE 0 END), 0) AS paid,
+       COALESCE(SUM(CASE WHEN COALESCE(p.status, 'UNPAID') = 'UNPAID' THEN 1 ELSE 0 END), 0) AS unpaid,
+       COALESCE(SUM(CASE WHEN (SELECT COUNT(*) FROM ticket_prints t WHERE t.student_id = s.id AND t.fair_slug = ?) > 0 THEN 1 ELSE 0 END), 0) AS printed,
+       COALESCE(SUM(CASE WHEN (SELECT COUNT(*) FROM scan_logs l WHERE l.subject_type = 'student' AND l.subject_id = s.id AND l.fair_slug = ? AND l.result = 'success') > 0 THEN 1 ELSE 0 END), 0) AS entered,
+       COALESCE(SUM((SELECT COUNT(*) FROM guests g WHERE g.related_student_id = s.id AND g.fair_slug = ? AND g.status = 'active')), 0) AS guests
+     FROM students s
+     LEFT JOIN payments p ON p.student_id = s.id AND p.fair_slug = ?`,
+    [fairSlug, fairSlug, fairSlug, fairSlug],
+  );
+  const row = rows[0] ?? {};
+  return {
+    total: Number(row.total ?? 0),
+    paid: Number(row.paid ?? 0),
+    unpaid: Number(row.unpaid ?? 0),
+    printed: Number(row.printed ?? 0),
+    entered: Number(row.entered ?? 0),
+    guests: Number(row.guests ?? 0),
+  };
+}
+
+export interface ClassPaymentRow {
+  class_name: string;
+  section: string;
+  shift: string;
+  total: number;
+  paid: number;
+  unpaid: number;
+  printed: number;
+  entered: number;
+  guests: number;
+}
+
+/** Class-wise payment progress — the table behind /sf/reports. */
+export async function classPaymentSummary(fairSlug: string): Promise<ClassPaymentRow[]> {
+  const rows = await query<Record<string, string | number>>(
+    `SELECT
+       s.class_name AS class_name,
+       s.section AS section,
+       s.shift AS shift,
+       COUNT(*) AS total,
+       COALESCE(SUM(CASE WHEN p.status = 'PAID' THEN 1 ELSE 0 END), 0) AS paid,
+       COALESCE(SUM(CASE WHEN (SELECT COUNT(*) FROM ticket_prints t WHERE t.student_id = s.id AND t.fair_slug = ?) > 0 THEN 1 ELSE 0 END), 0) AS printed,
+       COALESCE(SUM(CASE WHEN (SELECT COUNT(*) FROM scan_logs l WHERE l.subject_type = 'student' AND l.subject_id = s.id AND l.fair_slug = ? AND l.result = 'success') > 0 THEN 1 ELSE 0 END), 0) AS entered,
+       COALESCE(SUM((SELECT COUNT(*) FROM guests g WHERE g.related_student_id = s.id AND g.fair_slug = ? AND g.status = 'active')), 0) AS guests
+     FROM students s
+     LEFT JOIN payments p ON p.student_id = s.id AND p.fair_slug = ?
+     GROUP BY s.class_name, s.section, s.shift
+     ORDER BY length(s.class_name) ASC, s.class_name ASC, s.section ASC, s.shift ASC`,
+    [fairSlug, fairSlug, fairSlug, fairSlug],
+  );
+  return rows.map((row) => ({
+    class_name: String(row.class_name ?? ""),
+    section: String(row.section ?? ""),
+    shift: String(row.shift ?? ""),
+    total: Number(row.total ?? 0),
+    paid: Number(row.paid ?? 0),
+    unpaid: Math.max(0, Number(row.total ?? 0) - Number(row.paid ?? 0)),
+    printed: Number(row.printed ?? 0),
+    entered: Number(row.entered ?? 0),
+    guests: Number(row.guests ?? 0),
+  }));
+}
+
+/** How many tickets were sent to the printer, and how many sheets that is. */
+export async function ticketPrintSummary(fairSlug: string) {
+  const rows = await query<{ prints: number; copies: number; students: number }>(
+    `SELECT COUNT(*) AS prints,
+            COALESCE(SUM(copies), 0) AS copies,
+            COUNT(DISTINCT student_id) AS students
+       FROM ticket_prints WHERE fair_slug = ?`,
+    [fairSlug],
+  );
+  const guestRows = await query<{ total: number }>(`SELECT COALESCE(SUM(copies), 0) AS total FROM ticket_prints WHERE fair_slug = ? AND guest_id <> ''`, [fairSlug]);
+  const row = rows[0] ?? {};
+  return {
+    prints: Number(row.prints ?? 0),
+    copies: Number(row.copies ?? 0),
+    students: Number(row.students ?? 0),
+    guestSheets: Number(guestRows[0]?.total ?? 0),
+  };
+}
+
+/** How many outside guests are registered, grouped by the relation label. */
+export async function guestCountsByRelation(fairSlug: string) {
+  const rows = await query<{ relation: string; total: number }>(
+    `SELECT relation, COUNT(*) AS total FROM guests WHERE fair_slug = ? GROUP BY relation ORDER BY total DESC, relation ASC`,
+    [fairSlug],
+  );
+  return rows.map((row) => ({ relation: String(row.relation || "Other guest"), total: Number(row.total ?? 0) }));
+}
+
+/** Scans of the current fair day (Asia/Dhaka) — "today" for the gate. */
+export async function scanDaySummary(fairSlug: string) {
+  const since = dhakaDayStartIso();
+  const rows = await query<{ result: string; total: number }>(
+    `SELECT result, COUNT(*) AS total FROM scan_logs WHERE fair_slug = ? AND scanned_at >= ? GROUP BY result`,
+    [fairSlug, since],
+  );
+  const today: Record<string, number> = { success: 0, duplicate: 0, expired: 0, invalid: 0 };
+  for (const row of rows) today[String(row.result)] = Number(row.total ?? 0);
+  const admitted = await query<{ total: number }>(
+    `SELECT COUNT(DISTINCT subject_type || ':' || subject_id) AS total FROM scan_logs WHERE fair_slug = ? AND result = 'success' AND scanned_at >= ?`,
+    [fairSlug, since],
+  );
+  return { since, ...today, admitted: Number(admitted[0]?.total ?? 0) };
+}
+
+/** Midnight in Bangladesh (UTC+6, no DST) as an ISO string — the gate's "today". */
+export function dhakaDayStartIso(date = new Date()) {
+  const minutes = date.getTime() / 60000 + 6 * 60;
+  const localDay = Math.floor(minutes / 1440) * 1440;
+  return new Date((localDay - 6 * 60) * 60000).toISOString();
+}
+
 
 /** Upserts roster rows keyed by the school ID. Returns how many were new vs updated. */
 export async function upsertStudents(records: StudentImportRecord[], batch: string) {
@@ -289,8 +427,28 @@ export async function setPaymentStatus(input: { fair_slug: string; student_ids: 
  * Guests / guardians
  * ------------------------------------------------------------------ */
 
+/** True for any of the seven relations, exactly as the select in the panel offers them. */
 export function isGuestRelation(value: string) {
   return (guestRelations as readonly string[]).includes(value);
+}
+
+/**
+ * Canonical relation label.
+ *
+ * The stored value must be one of the seven labels, but a sheet, a CSV or an API
+ * caller may say just `Mama`. Matching on the part before the bracket keeps the
+ * database consistent without forcing every writer to repeat the parenthetical.
+ */
+export function guestRelationLabel(value: string) {
+  const wanted = String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  if (!wanted) return "";
+  for (const label of guestRelations) {
+    const head = label.split(" (")[0].toLowerCase();
+    if (wanted === label.toLowerCase() || wanted === head || label.toLowerCase().startsWith(`${wanted} `) || wanted.startsWith(`${head} `)) {
+      return label;
+    }
+  }
+  return "";
 }
 
 const guestSelect = `SELECT g.*, s.name AS related_student_name, s.student_code AS related_student_code,

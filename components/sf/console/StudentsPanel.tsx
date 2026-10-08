@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { BadgeCheck, CircleDashed, Printer, ScanLine, Upload, UserPlus, Users, X, FileSpreadsheet, Ban, RotateCcw } from "lucide-react";
 import { en, formatDateTimeEn } from "@/lib/format";
 import { guestRelations } from "@/lib/student-schema";
@@ -51,6 +52,9 @@ interface StudentsResponse {
 }
 
 const EMPTY_FILTERS = { class_name: "", section: "", shift: "", payment: "", q: "", rolls: "" };
+type FilterKey = keyof typeof EMPTY_FILTERS;
+/** URL query names that pre-fill the filters (`/sf/students?class=Class 8&section=A`). */
+const FILTER_PARAM: Record<FilterKey, string> = { class_name: "class", section: "section", shift: "shift", payment: "payment", q: "q", rolls: "rolls" };
 
 function errorText(issue: unknown) {
   return issue instanceof Error ? issue.message : "Something went wrong. Please try again.";
@@ -58,11 +62,24 @@ function errorText(issue: unknown) {
 
 /** Class-wise student roster, payment marking, Excel import, guest registration and ticket printing. */
 export function StudentsPanel({ fairSlug, fairName }: { fairSlug: string; fairName: string }) {
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  // A link from the report page can open the panel already filtered — the URL is
+  // the state, nothing is kept in the browser.
+  const params = useSearchParams();
+  const [filters, setFilters] = useState<typeof EMPTY_FILTERS>(() => {
+    const initial = { ...EMPTY_FILTERS };
+    for (const [key, name] of Object.entries(FILTER_PARAM) as [FilterKey, string][]) {
+      const value = params.get(name);
+      if (value) initial[key] = value;
+    }
+    return initial;
+  });
   const [message, setMessage] = useState("");
   const [problem, setProblem] = useState("");
   const [busyId, setBusyId] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
+  // “Mark the whole class as paid” — an intentional switch, not a button you can
+  // hit by accident, because it rewrites payment_status for every row in the class.
+  const [allClass, setAllClass] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importBusy, setImportBusy] = useState(false);
@@ -133,7 +150,8 @@ export function StudentsPanel({ fairSlug, fairName }: { fairSlug: string; fairNa
           all_in_class: allInClass,
         },
       });
-      setMessage(`${en(result.updated)} student(s) marked ${status}. Rolls: ${result.rolls.join(", ")}.`);
+      setMessage(`${en(result.updated)} student(s) marked ${status}. ${result.rolls.length ? `Rolls: ${result.rolls.join(", ")}.` : ""}`);
+      if (allInClass) setAllClass(false);
       await students.reload();
     } catch (issue) {
       setProblem(errorText(issue));
@@ -255,8 +273,8 @@ export function StudentsPanel({ fairSlug, fairName }: { fairSlug: string; fairNa
               <option value="unpaid">Unpaid</option>
             </select>
           </label>
-          <label><span className="v2-label">Roll numbers</span>
-            <input className="v2-input" placeholder="e.g. 1, 2, 5, 8, 12-15" value={filters.rolls} onChange={(event) => update("rolls", event.target.value)} />
+          <label><span className="v2-label">Roll numbers {allClass ? <em className="v2-muted">(whole class selected)</em> : null}</span>
+            <input className="v2-input" placeholder="e.g. 1, 2, 5, 8-12" value={filters.rolls} disabled={allClass} onChange={(event) => update("rolls", event.target.value)} />
           </label>
           <label><span className="v2-label">Search</span>
             <input className="v2-input" placeholder="Name, ID or roll" value={filters.q} onChange={(event) => update("q", event.target.value)} />
@@ -264,19 +282,38 @@ export function StudentsPanel({ fairSlug, fairName }: { fairSlug: string; fairNa
         </div>
 
         <div className="sf-bulk-box">
-          <div>
+          <div className="sf-bulk-scope">
             <strong>Bulk payment</strong>
             <span className="v2-muted">
               {filters.class_name
-                ? `Applies to ${filters.class_name}${filters.section ? ` · section ${filters.section}` : ""}${filters.shift ? ` · ${filters.shift} shift` : ""}${rollsActive ? ` · rolls ${filters.rolls.trim()}` : ""}.`
+                ? allClass
+                  ? `Marked paid: all ${en(summary.total)} student(s) shown for ${filters.class_name}${filters.section ? ` · section ${filters.section}` : ""}${filters.shift ? ` · ${filters.shift} shift` : ""}.`
+                  : `Applies to ${filters.class_name}${filters.section ? ` · section ${filters.section}` : ""}${filters.shift ? ` · ${filters.shift} shift` : ""}${rollsActive ? ` · rolls ${filters.rolls.trim()}` : " · no rolls entered"}.`
                 : "Choose a class above to use bulk payment."}
             </span>
           </div>
+
+          <label className={`sf-switch ${allClass ? "is-on" : ""}`} title="Applies to every student in the class, not just the rolls typed above">
+            <input type="checkbox" role="switch" checked={allClass} onChange={(event) => setAllClass(event.target.checked)} disabled={!filters.class_name} />
+            <span className="sf-switch-track" aria-hidden="true"><span className="sf-switch-thumb" /></span>
+            <span className="sf-switch-label">Mark all class as paid</span>
+          </label>
+
           <div className="sf-bulk-actions">
-            <button type="button" className="v2-btn v2-btn-sm" disabled={bulkBusy || !filters.class_name} onClick={() => bulkMark("PAID", false)}>Mark listed rolls PAID</button>
-            <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" disabled={bulkBusy || !filters.class_name} onClick={() => bulkMark("UNPAID", false)}>Mark listed rolls UNPAID</button>
-            <button type="button" className="v2-btn v2-btn-sm" disabled={bulkBusy || !filters.class_name} onClick={() => bulkMark("PAID", true)}>Select all class students → PAID</button>
+            <button type="button" className="v2-btn v2-btn-sm" disabled={bulkBusy || !filters.class_name || allClass} onClick={() => bulkMark("PAID", false)}>
+              <BadgeCheck size={14} /> Mark rolls above PAID
+            </button>
+            <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" disabled={bulkBusy || !filters.class_name || allClass} onClick={() => bulkMark("UNPAID", false)}>
+              <CircleDashed size={14} /> Mark rolls above UNPAID
+            </button>
+            <button type="button" className="v2-btn v2-btn-sm" disabled={bulkBusy || !filters.class_name || !allClass} onClick={() => bulkMark("PAID", true)}>
+              <BadgeCheck size={14} /> {bulkBusy ? "Saving…" : `Mark ${en(summary.total)} student(s) PAID`}
+            </button>
+            <button type="button" className="v2-btn v2-btn-sm v2-btn-danger" disabled={bulkBusy || !filters.class_name || !allClass} onClick={() => bulkMark("UNPAID", true)}>
+              <CircleDashed size={14} /> Mark class UNPAID
+            </button>
           </div>
+          <p className="v2-muted sf-help">Roll numbers accept ranges — <code>1, 2, 5, 8-12</code> marks rolls 1, 2, 5, 8, 9, 10, 11 and 12. Every change is written to the database at once; reloading the page shows the same status.</p>
         </div>
 
         {students.error ? <Notice kind="bad">{students.error}</Notice> : null}
@@ -534,7 +571,7 @@ function PrintTicketModal({
           <h3 id="print-modal-title">Print ticket — {student.name}</h3>
           <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" onClick={onClose} aria-label="Close"><X size={15} /></button>
         </header>
-        <p className="v2-muted sf-help">Landscape A4 tickets with the student&apos;s school ID, roll, class, section and a signed QR code. Copies 2 and 3 also show the parents&apos; names and the external guardian.</p>
+        <p className="v2-muted sf-help">Landscape A4 ticket with the school ID, roll, class, section and a signed QR code. Copies 2 and 3 also print the father&apos;s and mother&apos;s names and every approved external guardian (Mama, Fufa, Chacha, guest), with two blank lines left for a walk-in relative.</p>
         <div className="sf-form-grid">
           <fieldset className="sf-copies">
             <legend className="v2-label">Copies</legend>
@@ -546,12 +583,12 @@ function PrintTicketModal({
             ))}
           </fieldset>
           <label>
-            <span className="v2-label">External guardian on the ticket</span>
+            <span className="v2-label">Guardian whose pass is printed with this ticket</span>
             <select className="v2-select" value={guestId} onChange={(event) => setGuestId(event.target.value)} disabled={copies < 2}>
-              <option value="">None — leave blank for hand-written entry</option>
-              {guests.map((guest) => <option key={guest.id} value={guest.id}>{guest.name} · {guest.relation}</option>)}
+              <option value="">None — the family block still lists every registered guardian</option>
+              {guests.map((guest) => <option key={guest.id} value={guest.id}>{guest.name} · {guest.relation}{guest.contact ? ` · ${guest.contact}` : ""}</option>)}
             </select>
-            {copies < 2 ? <small className="v2-muted">Guardian details print from copy 2 onward.</small> : null}
+            {copies < 2 ? <small className="v2-muted">The family and guardian block prints from copy 2 onward.</small> : (guests.length ? <small className="v2-muted">{en(guests.length)} approved guardian(s) will be listed on the ticket.</small> : <small className="v2-muted">No approved outside guest for this student yet — the ticket prints blank lines to fill in by hand.</small>)}
           </label>
         </div>
         <dl className="sf-print-summary">

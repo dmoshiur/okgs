@@ -37,12 +37,12 @@ function ResetForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),
       });
-      const data = (await response.json()) as { ok?: boolean; message?: string; error?: string };
+      const data = (await response.json()) as { ok?: boolean; message?: string; messageEn?: string; error?: string; errorEn?: string };
       if (!response.ok || !data.ok) {
-        setError(data.error || "Could not change password.");
+        setError(data.errorEn || data.error || "The password could not be changed.");
         return;
       }
-      setDone(data.message ?? "Password changed.");
+      setDone(data.messageEn ?? data.message ?? "Password changed.");
       window.setTimeout(() => router.push("/sf/login"), 2200);
     } catch {
       setError("Network problem — please try again.");

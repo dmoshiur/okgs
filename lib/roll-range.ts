@@ -5,18 +5,23 @@
  *
  * Separators can be commas, semicolons or spaces. Numeric rolls are compared by
  * value (so "01" and "1" match), non-numeric rolls by exact text.
+ *
+ * Bengali digits are accepted in the box — `৮-১২` is the same range as `8-12`,
+ * because that is how the class register is written by hand.
  */
+import { toLatinDigits } from "@/lib/digits";
+
 export const MAX_ROLL_RANGE = 1000;
 
 export function normalizeRoll(value: unknown): string {
-  const text = String(value ?? "").trim();
+  const text = toLatinDigits(value).trim();
   if (/^\d+$/.test(text)) return String(Number(text));
   return text;
 }
 
 export function parseRollExpression(input: string): { rolls: Set<string>; error: string } {
   const rolls = new Set<string>();
-  const tokens = String(input ?? "")
+  const tokens = toLatinDigits(input ?? "")
     .split(/[,;\s]+/)
     .map((token) => token.trim())
     .filter(Boolean);

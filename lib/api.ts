@@ -14,13 +14,18 @@ export function fail(message: string, status = 400) {
   return NextResponse.json({ ok: false, error: message }, { status });
 }
 
+/**
+ * Error text for the staff panel is English — the API answers the console, the
+ * scanner and the ticket screens, and whatever is returned here is printed in a
+ * red notice on those screens. (The public Bangla portal has its own messages.)
+ */
 export function errorResponse(error: unknown, tag: string) {
   if (error instanceof Error) {
-    if (error.message === "UNAUTHORIZED") return fail("লগইন প্রয়োজন।", 401);
-    if (error.message === "FORBIDDEN") return fail("এই কাজটি করার অনুমতি আপনার নেই।", 403);
+    if (error.message === "UNAUTHORIZED") return fail("Please sign in again — your session has ended.", 401);
+    if (error.message === "FORBIDDEN") return fail("Your account is not allowed to do this.", 403);
   }
   console.error(`[${tag}]`, error);
-  return fail("কিছু একটা ভুল হয়েছে — আবার চেষ্টা করুন।", 500);
+  return fail("Something went wrong while saving. Please try again.", 500);
 }
 
 export async function staff(): Promise<{ session: PortalSession } | NextResponse> {
@@ -28,7 +33,7 @@ export async function staff(): Promise<{ session: PortalSession } | NextResponse
     const session = await requireStaffSession();
     return { session };
   } catch {
-    return fail("এই অংশে ঢুকতে শিক্ষক/অ্যাডমিন লগইন দরকার।", 401);
+    return fail("A teacher or administrator sign-in is needed for this part of the site.", 401);
   }
 }
 
