@@ -1,6 +1,6 @@
 import { staff, str } from "@/lib/api";
 import { listPasses } from "@/lib/portal-db";
-import { formatDate, bn } from "@/lib/format";
+import { formatDateEn, en } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -91,9 +91,9 @@ function generatePassCSV(passes: Array<{
     `"${escapeCSV(pass.parent_pass_id)}"`,
     `"${escapeCSV(pass.status)}"`,
     `"${escapeCSV(String(pass.scan_count))}"`,
-    `"${escapeCSV(formatDate(pass.last_scan_at))}"`,
-    `"${escapeCSV(formatDate(pass.expires_at))}"`,
-    `"${escapeCSV(formatDate(pass.created_at))}"`,
+    `"${escapeCSV(formatDateEn(pass.last_scan_at))}"`,
+    `"${escapeCSV(formatDateEn(pass.expires_at))}"`,
+    `"${escapeCSV(formatDateEn(pass.created_at))}"`,
     `"${escapeCSV(pass.note)}"`
   ]);
   

@@ -28,6 +28,10 @@ const store = globalThis as unknown as { okgsMaintenanceFlag?: MaintenanceFlag &
 /** Public paths that stay reachable while the site is down. */
 const EXEMPT_PREFIXES = [
   "/admin",
+  // The fair panel stays open while the public site is under maintenance: a
+  // locked `/sf` would stop the gate scanner mid-event, and `/sf` is behind its
+  // own staff sign-in, so no visitor gets in by this exemption.
+  "/sf",
   "/api",
   "/maintenance",
   "/_next",
@@ -40,7 +44,8 @@ const EXEMPT_PREFIXES = [
 ];
 
 export function isExemptPath(pathname: string) {
-  return EXEMPT_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`) || pathname.startsWith(prefix));
+  // Segment-exact: `/sf` is exempt, `/sfa-something` is not.
+  return EXEMPT_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
 export function invalidateMaintenanceCache() {

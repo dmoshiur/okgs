@@ -1,6 +1,6 @@
 import { staff, str } from "@/lib/api";
 import { listMemos } from "@/lib/portal-db";
-import { formatDate, bn } from "@/lib/format";
+import { formatDateEn, en } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -76,16 +76,16 @@ function generateMemoCSV(memos: Array<{
   
   const rows = memos.map(memo => [
     `"${escapeCSV(memo.memo_no || memo.id.slice(0, 8).toUpperCase())}"`,
-    `"${escapeCSV(formatDate(memo.paid_at || memo.created_at))}"`,
+    `"${escapeCSV(formatDateEn(memo.paid_at || memo.created_at))}"`,
     `"${escapeCSV(memo.title)}"`,
     `"${escapeCSV(memo.category)}"`,
     `"${escapeCSV(memo.paid_to)}"`,
-    `"${escapeCSV(bn(Math.round(memo.amount || 0)))}"`,
+    `"${escapeCSV(en(Math.round(memo.amount || 0)))}"`,
     `"${escapeCSV(memo.method)}"`,
     `"${escapeCSV(memo.voucher_no)}"`,
     `"${escapeCSV(memo.status)}"`,
     `"${escapeCSV(memo.created_by)}"`,
-    `"${escapeCSV(formatDate(memo.created_at))}"`,
+    `"${escapeCSV(formatDateEn(memo.created_at))}"`,
     `"${escapeCSV(memo.note)}"`
   ]);
   

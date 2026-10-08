@@ -1,6 +1,6 @@
 import { defaultFairSlug, fail, ok, safeId, staff, str } from "@/lib/api";
 import { logActivity } from "@/lib/portal-db";
-import { createGuest, getStudentById, isGuestRelation, listGuests } from "@/lib/student-db";
+import { createGuest, getStudentById, guestRelationLabel, listGuests } from "@/lib/student-db";
 
 export const dynamic = "force-dynamic";
 
@@ -25,13 +25,15 @@ export async function POST(request: Request) {
   const name = str(body.name);
   const contact = str(body.contact);
   const relatedId = str(body.related_student_id);
-  const relation = str(body.relation);
+  const relation = guestRelationLabel(str(body.relation));
   const fair = str(body.fair_slug) || (await defaultFairSlug());
 
   if (!name) return fail("Guest name is required.", 422);
   if (contact && !/^[+0-9 ()-]{6,20}$/.test(contact)) return fail("Enter a valid contact number.", 422);
   if (!safeId(relatedId)) return fail("Choose the student this guest is visiting or accompanying.", 422);
-  if (!isGuestRelation(relation)) return fail("Choose a valid guardian relation.", 422);
+  // `Mama`, `mama` and `Mama (maternal uncle)` all mean the same relation; the
+  // canonical label is what lands in the database and on the printed ticket.
+  if (!relation) return fail("Choose the relation — Mama, Chacha, Fufa, Khala, Phupu, Guardian or Other guest.", 422);
 
   const student = await getStudentById(relatedId);
   if (!student) return fail("The related student was not found.", 404);

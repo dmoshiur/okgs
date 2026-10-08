@@ -20,7 +20,12 @@ export default async function PortalLoginPage({ searchParams }: { searchParams: 
   const { next } = await searchParams;
   const content = await getPublicContent();
   const fair = activeFair(content);
-  const note = readSetting(content.settings, "portal_note");
+  // This door belongs to the staff panel, which is English end to end, so the
+  // Bangla `portal_note` written for the public portal is deliberately not shown
+  // here. The office can override this line with a `portal_note_en` setting.
+  const note =
+    readSetting(content.settings, "portal_note_en") ||
+    "Sign in with your school ID or your email — the system recognises whether the account is a student, a teacher, a club admin or an administrator.";
   const logo = settingValue(content.settings, "logo_url");
 
   return (
@@ -58,7 +63,7 @@ export default async function PortalLoginPage({ searchParams }: { searchParams: 
       </aside>
 
       <main className="portal-auth-main">
-        <LoginForm note={note} next={next} fairName={fair?.name ?? ""} />
+        <LoginForm note={note} next={next} fairName={fair?.name ?? ""} lang="en" />
       </main>
     </div>
   );

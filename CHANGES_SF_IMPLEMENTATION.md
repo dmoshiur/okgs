@@ -1,5 +1,13 @@
 # OKGS Science Fair Dashboard - Comprehensive Implementation
 
+> **Superseded for the UI/CSS layer.** The `!important` mobile block described
+> below was removed in the follow-up round: it fought the theme variables and
+> caused the clipping it tried to fix. The nav, contrast, scanner, payment,
+> ticket and database rules now live in the self-contained SF layer in
+> `app/globals.css`, and the full description of that work is
+> **`CHANGES_SF_PANEL_FIXES.md`**. The feature inventory below is still accurate
+> for the panels themselves.
+
 ## Overview
 This document outlines the comprehensive implementation of features for the OKGS Science Fair dashboard (`/sf` route) as requested in the target specification.
 

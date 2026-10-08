@@ -10,7 +10,7 @@ import { makeTicketToken, ticketExpiry } from "@/lib/ticket-token";
 import { getGuestById, getPaymentStatus, getStudentById, lastAdmission } from "@/lib/student-db";
 import { formatDateEn } from "@/lib/format";
 import { TicketSheet } from "@/components/sf/print/TicketSheet";
-import { PrintButton } from "@/components/print/PrintButton";
+import { TicketToolbar } from "@/components/sf/print/TicketToolbar";
 import { AutoPrint } from "@/components/print/AutoPrint";
 
 export const dynamic = "force-dynamic";
@@ -44,10 +44,15 @@ export default async function GuestPassPage({ params, searchParams }: { params: 
 
   return (
     <main className="ticket-print-root v2">
-      <div className="print-actions no-print ticket-toolbar">
-        <PrintButton label="Print guest pass" />
-        <span>1 landscape sheet · guest entry pass</span>
-      </div>
+      <TicketToolbar
+        copies={1}
+        fairSlug={fairSlug}
+        guestId={guest.id}
+        auto={String(query.auto ?? "1") !== "0"}
+        total={["Guest copy"]}
+        hint={`Outside guest pass for ${guest.name} — printed on A4 landscape, 1 sheet.`}
+      />
+      <div className="ticket-sheets">
       <TicketSheet
         kind="guest"
         schoolName={settingValue(content.settings, "site_name", "OKGS")}
@@ -80,7 +85,8 @@ export default async function GuestPassPage({ params, searchParams }: { params: 
         ticketCode={`GUEST · ${guest.name}`}
         printedBy={session.user.name}
       />
-      <AutoPrint />
+      </div>
+      {String(query.auto ?? "1") !== "0" ? <AutoPrint /> : null}
     </main>
   );
 }

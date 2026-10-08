@@ -34,7 +34,7 @@ import "@fontsource/poppins/600.css";
 import "@fontsource/poppins/700.css";
 import "@fontsource-variable/inter/wght.css";
 import "./globals.css";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getPublicContent } from "@/lib/db";
 import { settingValue } from "@/lib/club-data";
@@ -46,8 +46,9 @@ import { JsonLd } from "@/components/public/JsonLd";
 import { VisualModeProvider } from "@/components/public/VisualModeProvider";
 import { ThemeModeProvider } from "@/components/public/ThemeModeProvider";
 import { activeTheme, readFlag, themeCss } from "@/lib/site";
-
-const colorSchemeScript = `(()=>{let saved=null;try{saved=localStorage.getItem("okgs-color-scheme")}catch{}const prefersDark=typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.dataset.colorScheme=saved==="light"||saved==="dark"?saved:(prefersDark?"dark":"light")})()`;
+import { BottomNav } from "@/components/sf/BottomNav";
+import { COLOR_SCHEME_COOKIE } from "@/components/public/ThemeModeProvider";
+import { VISUAL_MODE_COOKIE, type VisualMode } from "@/lib/design-themes";
 
 export async function generateMetadata(): Promise<Metadata> {
   let name = "ওমর কিন্ডারগার্টেন স্কুল | কালাই, জয়পুরহাট";
@@ -124,28 +125,50 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
      ------------------------------------------------------------------------- */
   const requestPath = (await headers()).get("x-okgs-pathname") || "";
   const rewritten = (await headers()).get("x-okgs-maintenance") === "1";
-  // The studio is English-only (screen readers, spell-check, hyphenation), every
-  // public page is Bangla — the document language follows the surface.
-  const documentLang = /^\/admin(\/|$)/.test(requestPath) ? "en" : "bn";
+  /* -------------------------------------------------------------------------
+     Language. The public site is Bangla; every staff surface — the content studio
+     under /admin and the whole Science Fair panel under /sf (console, gate
+     scanner, tickets, print sheets) — is English-only, and the document language
+     has to say so: it drives hyphenation, spell-check, screen-reader
+     pronunciation and the font stack the browser reaches for.
+     ------------------------------------------------------------------------- */
+  const documentLang = /^\/(admin|sf)(\/|$)/.test(requestPath) ? "en" : "bn";
   if (!rewritten && requestPath && !isExemptPath(requestPath) && readFlag(settings, "maintenance_mode", false)) {
     if (!(await canBypassMaintenanceLock())) redirect("/maintenance");
   }
   const theme = content ? activeTheme(content) : null;
   const themeStyle = themeCss(theme);
 
+  /* -------------------------------------------------------------------------
+     Colour scheme and visual mode are read from cookies — never from localStorage.
+     Deciding on the server means the first paint is already correct, so the old
+     blocking inline script (which read localStorage before hydration) is gone.
+     ------------------------------------------------------------------------- */
+  const jar = await cookies();
+  const savedScheme = jar.get(COLOR_SCHEME_COOKIE)?.value;
+  const colorScheme = savedScheme === "light" || savedScheme === "dark" ? savedScheme : theme?.mode === "dark" ? "dark" : "light";
+  const savedVisual = jar.get(VISUAL_MODE_COOKIE)?.value;
+  const visualMode: VisualMode = savedVisual === "science-fair" ? "science-fair" : "academic";
+
   return (
-    <html lang={documentLang} suppressHydrationWarning>
+    <html lang={documentLang} data-color-scheme={colorScheme} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: colorSchemeScript }} />
         {themeStyle ? <style id="okgs-theme" dangerouslySetInnerHTML={{ __html: themeStyle }} /> : null}
       </head>
-      <body data-color-scheme="light" data-theme={theme?.key || "default"} data-theme-mode={theme?.mode || "light"} data-visual-mode="academic">
+      <body data-color-scheme={colorScheme} data-theme={theme?.key || "default"} data-theme-mode={theme?.mode || "light"} data-visual-mode={visualMode}>
         <ThemeModeProvider>
           <VisualModeProvider>
             {children}
             <JsonLd schema={organizationSchema(settings)} />
           </VisualModeProvider>
         </ThemeModeProvider>
+        {/*
+          Global mobile navigation of the Science Fair panel. It is mounted here —
+          not inside each page — so the bar is present on every staff screen,
+          including the ones the console shell does not render (the gate scanner,
+          the ticket sheets), and it never has to be re-implemented per route.
+        */}
+        <BottomNav />
       </body>
     </html>
   );

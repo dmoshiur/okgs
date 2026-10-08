@@ -24,12 +24,13 @@ export default function PortalForgotPasswordPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      const data = (await response.json()) as { ok?: boolean; message?: string; error?: string; devLink?: string };
+      const data = (await response.json()) as { ok?: boolean; message?: string; messageEn?: string; error?: string; errorEn?: string; devLink?: string };
       if (!response.ok || !data.ok) {
-        setError(data.error || "The request could not be completed.");
+        // The staff panel is English-only: the API answers both languages.
+        setError(data.errorEn || data.error || "The request could not be completed.");
         return;
       }
-      setSent({ message: data.message ?? "A reset link has been sent to your email.", devLink: data.devLink });
+      setSent({ message: data.messageEn ?? data.message ?? "A reset link has been sent to your email.", devLink: data.devLink });
     } catch {
       setError("Network problem — please try again.");
     } finally {

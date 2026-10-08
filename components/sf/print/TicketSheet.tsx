@@ -39,6 +39,8 @@ export interface TicketSheetProps {
   student: TicketStudent;
   paymentStatus: "PAID" | "UNPAID";
   guardian: TicketGuardian | null;
+  /** Every approved external guardian of this student — Mama, Fufa, Chacha, … */
+  guardians?: TicketGuardian[];
   guest?: { name: string; relation: string; contact: string; status: string };
   admittedAt: string;
   qr: string;
@@ -67,6 +69,10 @@ export function TicketSheet(props: TicketSheetProps) {
   const isGuest = props.kind === "guest";
   const headline = isGuest ? guest?.name ?? "" : student.name;
   const revoked = isGuest && guest?.status !== "active";
+  // Every approved outside guardian is printed, plus two blank lines a gate
+  // warden can fill by hand for a walk-in relative.
+  const listed = props.guardians?.length ? props.guardians : props.guardian ? [props.guardian] : [];
+  const spare = listed.length < 2 ? ["Name", "Relation"] : [];
 
   return (
     <section className={`ticket-sheet ${isGuest ? "is-guest" : ""}`} aria-label={`${isGuest ? "Guest pass" : "Student ticket"} ${props.copyIndex} of ${props.copyCount}`}>
@@ -121,20 +127,29 @@ export function TicketSheet(props: TicketSheetProps) {
                   <Field label="Father's name" value={student.father_name} />
                   <Field label="Mother's name" value={student.mother_name} />
                 </div>
-                <div className="ticket-guardian">
-                  <span className="ticket-guardian-title">External guardian (Mama / Fufa / Chacha / guest)</span>
-                  {props.guardian ? (
-                    <strong>
-                      {props.guardian.name} · {props.guardian.relation}
-                      {props.guardian.contact ? ` · ${props.guardian.contact}` : ""}
-                    </strong>
+                <div className="ticket-guardians">
+                  <span className="ticket-guardian-title">External guardians admitted with this student (Mama / Fufa / Chacha / guest)</span>
+                  {listed.length ? (
+                    <ul className="ticket-guardian-list">
+                      {listed.map((person) => (
+                        <li key={`${person.name}-${person.relation}`}>
+                          <strong>{person.name || "Unnamed"}</strong>
+                          {person.relation ? ` — ${person.relation}` : ""}
+                          {person.contact ? ` · ${person.contact}` : ""}
+                        </li>
+                      ))}
+                    </ul>
                   ) : (
-                    <div className="ticket-blank">
-                      <span>Name ____________________</span>
-                      <span>Relation ____________</span>
-                      <span>Contact ____________</span>
-                    </div>
+                    <p className="ticket-guardian-note">No outside guardian is registered for this student. The pass below is only valid at the gate once the school office has approved it.</p>
                   )}
+                  {spare.length ? (
+                    <div className="ticket-blank">
+                      {spare.map((label) => (
+                        <span key={label}>{label} ____________________________</span>
+                      ))}
+                      <span>Contact ________________</span>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ) : null}

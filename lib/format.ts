@@ -104,6 +104,7 @@ const enNumber = new Intl.NumberFormat("en-GB");
 const enLongDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric" });
 const enShortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
 const enDateTime = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const enTime = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
 
 /** 12 → "12" (Latin digits, thousands separated). */
 export function en(value: number | string) {
@@ -120,6 +121,18 @@ export function formatDateEn(value: unknown, style: "long" | "short" = "long") {
 export function formatDateTimeEn(value: unknown) {
   const date = safeDate(value);
   return date ? enDateTime.format(date) : "";
+}
+
+/** `14:07` — the gate audit log shows date and time in their own columns. */
+export function formatTimeEn(value: unknown) {
+  const date = safeDate(value);
+  return date ? enTime.format(date) : "";
+}
+
+/** `8 Oct 2026` without the clock — used where a date column stands alone. */
+export function formatClockDayEn(value: unknown) {
+  const date = safeDate(value);
+  return date ? enShortDate.format(date) : "";
 }
 
 /** "3 items" / "1 item" — avoids the “1 items” tell in English tables. */
