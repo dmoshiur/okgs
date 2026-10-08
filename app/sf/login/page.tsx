@@ -6,12 +6,12 @@ import { settingValue } from "@/lib/club-data";
 import { activeFair, readSetting } from "@/lib/site";
 import { LoginForm } from "@/components/portal/LoginForm";
 import { SchoolLogo } from "@/components/public/SchoolLogo";
-import { formatDate } from "@/lib/format";
+import { formatDateEn } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "লগইন — বিজ্ঞান মেলা ও ক্লাব পোর্টাল",
+  title: "Login — Science Fair & Club portal",
   robots: { index: false, follow: false },
 };
 
@@ -29,30 +29,30 @@ export default async function PortalLoginPage({ searchParams }: { searchParams: 
         <div>
           <SchoolLogo src={logo} name="OKGS" />
           <p className="fair-mega-kicker" style={{ marginTop: 26 }}>
-            <Sparkles size={15} /> OKGS ডিজিটাল পোর্টাল
+            <Sparkles size={15} /> OKGS Digital portal
           </p>
           <h1 style={{ fontSize: "clamp(1.875rem, 4vw, 2.875rem)", margin: "14px 0 10px", lineHeight: 1.25 }}>
-            {fair ? fair.name : "স্কুল ও ক্লাব পোর্টাল"}
+            {fair ? fair.name : "School & Club portal"}
           </h1>
           <p style={{ opacity: 0.9, maxWidth: "46ch" }}>
-            শিক্ষার্থী, শিক্ষক, প্রাক্তন শিক্ষার্থী ও অ্যাডমিন — সবার জন্য একটিই লগইন। পাওনা, ফান্ড জমা, QR পাস আর মেলার সম্পূর্ণ হিসাব এক জায়গায়।
+            Students, teachers, alumni and admins — one login for everyone. Dues, fund payments, QR passes and the full fair accounts in one place.
           </p>
         </div>
         <div style={{ display: "grid", gap: 12, marginTop: 30 }}>
           {fair?.starts_on ? (
             <p style={{ display: "flex", alignItems: "center", gap: 8, margin: 0, opacity: 0.92 }}>
-              <CalendarClock size={16} /> {fair.name} · {formatDate(fair.starts_on)}
-              {fair.ends_on && fair.ends_on !== fair.starts_on ? ` – ${formatDate(fair.ends_on)}` : ""}
+              <CalendarClock size={16} /> {fair.name} · {formatDateEn(fair.starts_on)}
+              {fair.ends_on && fair.ends_on !== fair.starts_on ? ` – ${formatDateEn(fair.ends_on)}` : ""}
             </p>
           ) : null}
           <p style={{ display: "flex", alignItems: "center", gap: 8, margin: 0, opacity: 0.92 }}>
-            <GraduationCap size={16} /> শিক্ষার্থী, শিক্ষক, অভিভাবক ও অ্যাডমিন — একই লগইন
+            <GraduationCap size={16} /> Students, teachers, guardians and admins — the same login
           </p>
           <p style={{ display: "flex", alignItems: "center", gap: 8, margin: 0, opacity: 0.92 }}>
-            <ShieldCheck size={16} /> ভূমিকা বাছতে হবে না — ডেটাবেজ থেকেই নিজে চিনে নেয়
+            <ShieldCheck size={16} /> No need to pick a role — the system recognises your account automatically
           </p>
           <Link className="v2-btn v2-btn-ghost" style={{ background: "rgba(255,255,255,.14)", color: "#fff", borderColor: "rgba(255,255,255,.34)", width: "fit-content" }} href="/">
-            স্কুল সাইটে ফিরুন
+            Back to the school site
           </Link>
         </div>
       </aside>

@@ -26,11 +26,11 @@ export async function POST(request: Request) {
     const id = await createExpense({
       fair_slug: str(row.fair_slug) || (await defaultFairSlug()),
       title,
-      category: str(row.category, "সাধারণ") || "সাধারণ",
+      category: str(row.category, "General") || "General",
       amount,
       paid_to: str(row.paid_to),
       paid_at: str(row.paid_at) || new Date().toISOString().slice(0, 10),
-      method: str(row.method, "নগদ") || "নগদ",
+      method: str(row.method, "Cash") || "Cash",
       voucher_no: str(row.voucher_no),
       note: str(row.note),
       status: str(row.status, "approved") || "approved",
@@ -38,14 +38,14 @@ export async function POST(request: Request) {
     });
     created.push(id);
   }
-  if (!created.length) return fail("খরচের বিবরণ আর টাকার পরিমাণ দিন।", 422);
+  if (!created.length) return fail("Enter an expense description and amount.", 422);
   await logActivity({
     actor_id: session.user.id,
     actor_name: session.user.name,
     actor_role: session.role,
     action: "expense.create",
     entity: "expenses",
-    detail: `${created.length} টি খরচ`,
+    detail: `${created.length} expenses`,
   });
   return ok({ created }, 201);
 }
@@ -56,9 +56,9 @@ export async function PATCH(request: Request) {
   const { session } = guard;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const id = safeId(str(body.id));
-  if (!id) return fail("আইডি ঠিক নেই।", 422);
-  if (!(await getExpenseById(id))) return fail("খরচের মেমো পাওয়া যায়নি।", 404);
-  if ("amount" in body && (!Number.isFinite(Number(body.amount)) || Number(body.amount) <= 0)) return fail("খরচের পরিমাণ শূন্যের বেশি হতে হবে।", 422);
+  if (!id) return fail("Invalid ID.", 422);
+  if (!(await getExpenseById(id))) return fail("Expense memo not found.", 404);
+  if ("amount" in body && (!Number.isFinite(Number(body.amount)) || Number(body.amount) <= 0)) return fail("Expense amount must be greater than zero.", 422);
   await updateExpense(id, {
     ...(("title" in body) ? { title: str(body.title) } : {}),
     ...(("category" in body) ? { category: str(body.category) } : {}),
@@ -81,7 +81,7 @@ export async function DELETE(request: Request) {
   const { session } = guard;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const id = safeId(str(body.id));
-  if (!id) return fail("আইডি ঠিক নেই।", 422);
+  if (!id) return fail("Invalid ID.", 422);
   const removed = await deleteExpense(id);
   await logActivity({ actor_id: session.user.id, actor_name: session.user.name, actor_role: session.role, action: "expense.delete", entity: "expenses", entity_id: id });
   return ok({ deleted: removed });

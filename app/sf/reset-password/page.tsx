@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /sf/reset-password?token=… — Bangla “choose a new password” page.
+ * /sf/reset-password?token=… — “choose a new password” page.
  * Shares the single-use token table with the admin reset flow.
  */
 import { FormEvent, Suspense, useEffect, useState } from "react";
@@ -20,14 +20,14 @@ function ResetForm() {
   const [done, setDone] = useState("");
 
   useEffect(() => {
-    if (!token) setError("রিসেট লিংকটি অসম্পূর্ণ — নতুন করে অনুরোধ করুন।");
+    if (!token) setError("The reset link is incomplete — request a new one.");
   }, [token]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     if (password !== confirm) {
-      setError("দুই ঘরে একই পাসওয়ার্ড লিখুন।");
+      setError("Enter the same password in both fields.");
       return;
     }
     setBusy(true);
@@ -39,13 +39,13 @@ function ResetForm() {
       });
       const data = (await response.json()) as { ok?: boolean; message?: string; error?: string };
       if (!response.ok || !data.ok) {
-        setError(data.error || "পাসওয়ার্ড বদলানো যায়নি।");
+        setError(data.error || "Could not change password.");
         return;
       }
-      setDone(data.message ?? "পাসওয়ার্ড বদলানো হয়েছে।");
+      setDone(data.message ?? "Password changed.");
       window.setTimeout(() => router.push("/sf/login"), 2200);
     } catch {
-      setError("নেটওয়ার্ক সমস্যা — আবার চেষ্টা করুন।");
+      setError("Network problem — please try again.");
     } finally {
       setBusy(false);
     }
@@ -55,12 +55,12 @@ function ResetForm() {
     return (
       <>
         <p className="v2-chip v2-chip-accent">
-          <CheckCircle2 size={14} /> সম্পন্ন
+          <CheckCircle2 size={14} /> Done
         </p>
-        <h2 style={{ marginTop: 12 }}>পাসওয়ার্ড বদলানো হয়েছে</h2>
+        <h2 style={{ marginTop: 12 }}>Password changed</h2>
         <p className="v2-muted">{done}</p>
         <Link className="v2-btn" href="/sf/login">
-          লগইনে যান <ArrowLeft size={15} />
+          Go to login <ArrowLeft size={15} />
         </Link>
       </>
     );
@@ -68,13 +68,13 @@ function ResetForm() {
 
   return (
     <>
-      <p className="v2-chip v2-chip-accent">নতুন পাসওয়ার্ড</p>
-      <h2 style={{ marginTop: 12 }}>পাসওয়ার্ড সেট করুন</h2>
-      <p className="v2-muted">অন্তত ৮ অক্ষর, সঙ্গে অন্তত একটি অক্ষর ও একটি সংখ্যা রাখুন।</p>
+      <p className="v2-chip v2-chip-accent">New password</p>
+      <h2 style={{ marginTop: 12 }}>Set your password</h2>
+      <p className="v2-muted">Use at least 8 characters, including at least one letter and one number.</p>
       <form onSubmit={submit} style={{ display: "grid", gap: 14, marginTop: 18 }}>
         <div>
           <label className="v2-label" htmlFor="new-password">
-            <KeyRound size={13} style={{ verticalAlign: -2 }} /> নতুন পাসওয়ার্ড
+            <KeyRound size={13} style={{ verticalAlign: -2 }} /> New password
           </label>
           <div className="password-input">
             <input
@@ -86,14 +86,14 @@ function ResetForm() {
               autoComplete="new-password"
               required
             />
-            <button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখুন"}>
+            <button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? "Hide password" : "Show password"}>
               {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
           </div>
         </div>
         <div>
           <label className="v2-label" htmlFor="confirm-password">
-            <KeyRound size={13} style={{ verticalAlign: -2 }} /> আবার লিখুন
+            <KeyRound size={13} style={{ verticalAlign: -2 }} /> Re-enter password
           </label>
           <input
             id="confirm-password"
@@ -109,23 +109,23 @@ function ResetForm() {
           <p className={`v2-muted portal-check ${password.length >= 8 && /[A-Za-z]/.test(password) && /\d/.test(password) ? "is-ok" : ""}`} style={{ fontSize: 12.5 }}>
             {password.length >= 8 && /[A-Za-z]/.test(password) && /\d/.test(password) ? (
               <>
-                <CheckCircle2 size={13} /> পাসওয়ার্ডটি শক্তিশালী
+                <CheckCircle2 size={13} /> Password is strong
               </>
             ) : (
               <>
-                <AlertTriangle size={13} /> অন্তত ৮ অক্ষর, একটি অক্ষর ও একটি সংখ্যা দিন
+                <AlertTriangle size={13} /> At least 8 characters, one letter and one number
               </>
             )}
           </p>
         ) : null}
         {error ? <p className="portal-error">{error}</p> : null}
         <button className="v2-btn" type="submit" disabled={busy || !token}>
-          {busy ? <Loader2 size={16} className="spin" /> : <KeyRound size={16} />} {busy ? "সংরক্ষণ হচ্ছে…" : "পাসওয়ার্ড সেট করুন"}
+          {busy ? <Loader2 size={16} className="spin" /> : <KeyRound size={16} />} {busy ? "Saving…" : "Set password"}
         </button>
       </form>
       <p className="v2-muted" style={{ fontSize: 13, marginTop: 14 }}>
         <Link className="text-link" href="/sf/forgot-password">
-          <ArrowLeft size={13} /> নতুন লিংক নিন
+          <ArrowLeft size={13} /> Get a new link
         </Link>
       </p>
     </>
@@ -136,7 +136,7 @@ export default function PortalResetPasswordPage() {
   return (
     <div className="v2 portal-auth-single">
       <main className="portal-card" style={{ width: "min(460px, 100%)" }}>
-        <Suspense fallback={<p className="v2-muted">লোড হচ্ছে…</p>}>
+        <Suspense fallback={<p className="v2-muted">Loading…</p>}>
           <ResetForm />
         </Suspense>
       </main>

@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const raw = str(body.token || body.value || body.qr);
-  if (!raw) return fail("QR পড়া যায়নি — আবার স্ক্যান করুন।", 422);
+  if (!raw) return fail("Could not read the QR — scan again.", 422);
 
   const token = extractToken(raw);
 
@@ -30,11 +30,11 @@ export async function POST(request: Request) {
   if (entry) {
     const row = (await getRow("fair_collections", entry.id)) as unknown as FairCollection | null;
     if (!row) {
-      await recordScan({ token, scanned_by: session.user.id, scanned_by_name: session.user.name, result: "invalid", note: "প্রকল্প পাওয়া যায়নি" });
-      return ok({ result: "invalid", tone: "danger", title: "প্রকল্প নেই", message: "এই QR-এর কোনো সংগ্রহ খুঁজে পাওয়া যায়নি।" });
+      await recordScan({ token, scanned_by: session.user.id, scanned_by_name: session.user.name, result: "invalid", note: "Project not found" });
+      return ok({ result: "invalid", tone: "danger", title: "No project", message: "No collection item matches this QR." });
     }
     const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
-    const verifiedLine = `QR যাচাই ✓ ${stamp} · ${session.user.name}`;
+    const verifiedLine = `QR Verified ✓ ${stamp} · ${session.user.name}`;
     if (!String(row.note || "").includes(verifiedLine)) {
       await updateRow("fair_collections", row.id, { note: [String(row.note || "").trim(), verifiedLine].filter(Boolean).join("\n") });
     }
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       scanned_by: session.user.id,
       scanned_by_name: session.user.name,
       result: "ok",
-      note: `প্রকল্প যাচাই: ${row.title}`,
+      note: `Project Verified: ${row.title}`,
     });
     await logActivity({
       actor_id: session.user.id,
@@ -58,8 +58,8 @@ export async function POST(request: Request) {
     return ok({
       result: "ok",
       tone: "success",
-      title: "প্রকল্প যাচাই সম্পন্ন ✓",
-      message: `${row.title} — ${row.student_name || "শিক্ষার্থী"} ${row.class_level ? `· ${row.class_level}` : ""}${row.section ? ` (শাখা ${row.section})` : ""}`,
+      title: "Project verified ✓",
+      message: `${row.title} — ${row.student_name || "Student"} ${row.class_level ? `· ${row.class_level}` : ""}${row.section ? ` (Section ${row.section})` : ""}`,
       entry: { id: row.id, title: row.title, category: row.category, status: row.status, student_name: row.student_name, class_level: row.class_level, section: row.section },
     });
   }
@@ -67,12 +67,12 @@ export async function POST(request: Request) {
   const parsed = parsePassToken(token);
 
   if (!parsed) {
-    await recordScan({ token: raw.slice(0, 120), scanned_by: session.user.id, scanned_by_name: session.user.name, result: "invalid", note: "HMAC মেলেনি" });
+    await recordScan({ token: raw.slice(0, 120), scanned_by: session.user.id, scanned_by_name: session.user.name, result: "invalid", note: "HMAC mismatch" });
     return ok({
       result: "invalid",
       tone: "danger",
-      title: "অবৈধ QR",
-      message: "এই QR কোডটি আমাদের সিস্টেমের নয়। কার্ডটি হাতে নিয়ে যাচাই করুন।",
+      title: "Invalid QR",
+      message: "This QR code does not belong to our system. Check the card in hand.",
     });
   }
 
@@ -81,18 +81,18 @@ export async function POST(request: Request) {
     pass = await getPassById(parsed.id);
   }
   if (!pass) {
-    await recordScan({ token, scanned_by: session.user.id, scanned_by_name: session.user.name, result: "invalid", note: "পাস পাওয়া যায়নি" });
-    return ok({ result: "invalid", tone: "danger", title: "পাস নেই", message: "এই টোকেনের কোনো পাস খুঁজে পাওয়া যায়নি।" });
+    await recordScan({ token, scanned_by: session.user.id, scanned_by_name: session.user.name, result: "invalid", note: "Pass not found" });
+    return ok({ result: "invalid", tone: "danger", title: "No pass", message: "No pass matches this token." });
   }
 
   if (pass.status === "revoked") {
     await recordScan({ pass_id: pass.id, token, fair_slug: pass.fair_slug, scanned_by: session.user.id, scanned_by_name: session.user.name, result: "revoked" });
-    return ok({ result: "revoked", tone: "danger", title: "বাতিল করা পাস", message: `${pass.holder_name} এর পাসটি বাতিল করা হয়েছে।`, pass });
+    return ok({ result: "revoked", tone: "danger", title: "Revoked pass", message: `${pass.holder_name}'s pass has been revoked.`, pass });
   }
 
   if (pass.expires_at && pass.expires_at < new Date().toISOString().slice(0, 10)) {
     await recordScan({ pass_id: pass.id, token, fair_slug: pass.fair_slug, scanned_by: session.user.id, scanned_by_name: session.user.name, result: "expired" });
-    return ok({ result: "expired", tone: "warn", title: "মেয়াদ শেষ", message: "পাসটির মেয়াদ শেষ হয়ে গেছে।", pass });
+    return ok({ result: "expired", tone: "warn", title: "Expired", message: "This pass has expired.", pass });
   }
 
   const alreadyInside = Number(pass.scan_count) > 0 && pass.status === "used";
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     scanned_by: session.user.id,
     scanned_by_name: session.user.name,
     result: alreadyInside ? "duplicate" : "ok",
-    note: alreadyInside ? "পুনরায় স্ক্যান" : "যাচাই সম্পন্ন",
+    note: alreadyInside ? "Scanned again" : "Verified",
   });
   await logActivity({
     actor_id: session.user.id,
@@ -118,16 +118,16 @@ export async function POST(request: Request) {
     action: "pass.scan",
     entity: "passes",
     entity_id: pass.id,
-    detail: `${pass.holder_name} · ${alreadyInside ? "পুনরায়" : "সফল"}`,
+    detail: `${pass.holder_name} · ${alreadyInside ? "again" : "success"}`,
   });
 
   return ok({
     result: alreadyInside ? "duplicate" : "ok",
     tone: alreadyInside ? "warn" : "success",
-    title: alreadyInside ? "আগেই ঢুকেছেন" : "যাচাই সম্পন্ন ✓",
+    title: alreadyInside ? "Already admitted" : "Verified ✓",
     message: alreadyInside
-      ? `${pass.holder_name} এর পাসটি এর আগে স্ক্যান করা হয়েছে (${Number(pass.scan_count) + 1} বার)।`
-      : `${pass.holder_name} — ${pass.class_level || pass.holder_role} ${pass.section ? `(শাখা ${pass.section})` : ""}`,
+      ? `${pass.holder_name}'s pass was already scanned (${Number(pass.scan_count) + 1} times).`
+      : `${pass.holder_name} — ${pass.class_level || pass.holder_role} ${pass.section ? `(Section ${pass.section})` : ""}`,
     pass: { ...pass, scan_count: Number(pass.scan_count) + 1, status: "used", last_scan_at: nowIso },
   });
 }
@@ -153,7 +153,7 @@ export async function PUT(request: Request) {
   const { session } = guard;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const holder = str(body.holder_name);
-  if (!holder) return fail("কার্ডটি কার নামে হবে, সেটি লিখুন।", 422);
+  if (!holder) return fail("Enter the name the card should be issued to.", 422);
   const fairSlug = str(body.fair_slug) || (await defaultFairSlug());
   const pass = await createPass({
     fair_slug: fairSlug,

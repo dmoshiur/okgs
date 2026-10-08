@@ -10,7 +10,7 @@ export async function GET() {
   if ("status" in guard) return guard;
   const { session } = guard;
   const user = await getUser(session.user.id);
-  if (!user) return fail("অ্যাকাউন্টটি পাওয়া যায়নি।", 404);
+  if (!user) return fail("Account not found.", 404);
 
   const [dues, funds, passes] = await Promise.all([
     listDues({ user_id: user.id, limit: 200 }),
@@ -41,10 +41,10 @@ export async function PATCH(request: Request) {
   if (str(body.action) === "password") {
     const current = String(body.current_password ?? "");
     const next = String(body.new_password ?? "");
-    if (next.length < 6) return fail("নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।", 422);
+    if (next.length < 6) return fail("New password must be at least 6 characters.", 422);
     const existing = await getUser(session.user.id);
     if (!existing || !verifyPassword(current, existing.password_hash, existing.password_salt)) {
-      return fail("বর্তমান পাসওয়ার্ড মিলছে না।", 401);
+      return fail("Current password is incorrect.", 401);
     }
     const { hash, salt } = hashPassword(next);
     await updateUser(session.user.id, { password_hash: hash, password_salt: salt, must_change_password: 0 });
@@ -63,8 +63,8 @@ export async function PATCH(request: Request) {
   for (const key of ["name", "name_en", "phone", "photo_url", "designation", "address", "blood_group"] as const) {
     if (body[key] !== undefined) patch[key] = str(body[key]);
   }
-  if (!Object.keys(patch).length) return fail("বদলানোর মতো কিছু পাওয়া যায়নি।", 422);
-  if (patch.name !== undefined && !patch.name) return fail("নাম খালি রাখা যাবে না।", 422);
+  if (!Object.keys(patch).length) return fail("Nothing to change.", 422);
+  if (patch.name !== undefined && !patch.name) return fail("Name cannot be empty.", 422);
 
   await updateUser(session.user.id, patch);
   await logActivity({

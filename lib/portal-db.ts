@@ -10,6 +10,7 @@
  */
 import { randomUUID, randomBytes } from "node:crypto";
 import { db, ensureDatabase } from "@/lib/db";
+import { studentSchema } from "@/lib/student-schema";
 import type { PortalRole } from "@/lib/roles";
 
 export {
@@ -576,7 +577,7 @@ export function ensurePortal() {
       bootstrapping = true;
       try {
         await ensureDatabase();
-        for (const statement of schema) await db.execute(statement);
+        for (const statement of [...schema, ...studentSchema]) await db.execute(statement);
         await migratePortalColumns();
         await seedPortal();
       } finally {
@@ -2143,3 +2144,7 @@ async function seedPortal() {
     }
   }
 }
+
+/* Shared query helpers for sibling modules (student roster, entry scans). */
+export const dbQuery = query;
+export const dbRun = run;

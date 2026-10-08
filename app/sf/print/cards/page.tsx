@@ -30,7 +30,7 @@ export default async function StudentCardPrintPage({ searchParams }: { searchPar
   return (
     <main className="print-page v2 student-card-print-page">
       <div className="print-actions"><PrintButton label="Print student cards" /></div>
-      <header className="student-card-print-heading"><p className="print-kicker">STUDENT IDENTIFICATION CARDS</p><h1>{school}</h1><p>{classLevel || "All classes"}{section ? ` · Section ${section}` : ""} · {students.length.toLocaleString("bn-BD")} students</p></header>
+      <header className="student-card-print-heading"><p className="print-kicker">STUDENT IDENTIFICATION CARDS</p><h1>{school}</h1><p>{classLevel || "All classes"}{section ? ` · Section ${section}` : ""} · {students.length.toLocaleString("en-US")} students</p></header>
       <div className="student-card-grid">
         {students.map((student) => (
           <article className="student-id-card" key={student.id}>

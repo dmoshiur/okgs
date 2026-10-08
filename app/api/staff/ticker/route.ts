@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   const id = safeId(str(body.id));
 
   if (action === "delete") {
-    if (!id) return fail("কোন টিকারটি মুছবেন সেটি বোঝা যায়নি।", 422);
+    if (!id) return fail("Could not tell which ticker to delete.", 422);
     await deleteTicker(id);
     await logActivity({ actor_id: session.user.id, actor_name: session.user.name, actor_role: session.role, action: "ticker.delete", entity: "tickers", entity_id: id });
     return ok({ deleted: id });
@@ -68,10 +68,10 @@ export async function POST(request: Request) {
   if (!["", "paid", "unpaid"].includes(values.payment_segment)) return fail("Select a valid payment group.", 422);
   if (values.starts_at === "INVALID" || values.ends_at === "INVALID") return fail("Enter a valid start and expiry time.", 422);
   if (values.starts_at && values.ends_at && values.ends_at <= values.starts_at) return fail("Expiry must be later than the start time.", 422);
-  if (!values.message && !values.name) return fail("টিকারে অন্তত একটি নাম বা বার্তা দিন।", 422);
+  if (!values.message && !values.name) return fail("Enter at least a name or message for the ticker.", 422);
 
   if (action === "update") {
-    if (!id) return fail("কোন টিকারটি বদলাবেন সেটি বোঝা যায়নি।", 422);
+    if (!id) return fail("Could not tell which ticker to change.", 422);
     await updateTicker(id, values);
     await logActivity({ actor_id: session.user.id, actor_name: session.user.name, actor_role: session.role, action: "ticker.update", entity: "tickers", entity_id: id, detail: values.message.slice(0, 80) });
     return ok({ id });

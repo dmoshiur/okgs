@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   const fairSlug = str(body.fair_slug) || (await defaultFairSlug());
   const manageGuestPasses = "guest_limit" in body;
   const rawGuestLimit = Number(body.guest_limit ?? 0);
-  if (!Number.isInteger(rawGuestLimit) || rawGuestLimit < 0 || rawGuestLimit > 4) return fail("একজন শিক্ষার্থীর জন্য ০–৪টি অতিথি পাস বরাদ্দ করা যায়।", 422);
+  if (!Number.isInteger(rawGuestLimit) || rawGuestLimit < 0 || rawGuestLimit > 4) return fail("Each student can be allocated 0–4 guest passes.", 422);
   const guestLimit = rawGuestLimit;
 
   const targets: { id?: string; name: string; role: string; student_id: string; class_level: string; section: string; email: string; phone: string }[] = [];
@@ -112,21 +112,21 @@ export async function POST(request: Request) {
         const allocated = await allocateGuestPasses(parent, guestLimit);
         for (const guest of allocated.guests) created.push({ id: guest.id, token: guest.token, holder_name: guest.holder_name, parent_pass_id: parent.id, guest_index: guest.guest_index });
       } catch (error) {
-        if (error instanceof GuestPassLimitError) return fail(`অতিথি পাসের সংখ্যা কমানো যাবে না; ${error.message.split(":").at(-1)}টি পাস ইতোমধ্যে ইস্যু হয়েছে।`, 422);
+        if (error instanceof GuestPassLimitError) return fail(`Guest pass count cannot be reduced; ${error.message.split(":").at(-1)} passes have already been issued.`, 422);
         if (error instanceof GuestPassStateError) return fail(error.message, 409);
         throw error;
       }
     }
   }
 
-  if (!created.length) return fail("কার জন্য পাস তৈরি হবে, সেটি ঠিক নেই।", 422);
+  if (!created.length) return fail("No passes would be created — check the input.", 422);
   await logActivity({
     actor_id: session.user.id,
     actor_name: session.user.name,
     actor_role: session.role,
     action: "pass.issue",
     entity: "passes",
-    detail: `${created.length} টি QR পাস`,
+    detail: `${created.length} QR passes`,
   });
   return ok({ created }, 201);
 }
@@ -137,7 +137,7 @@ export async function PATCH(request: Request) {
   const { session } = guard;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const id = safeId(str(body.id));
-  if (!id) return fail("আইডি ঠিক নেই।", 422);
+  if (!id) return fail("Invalid ID.", 422);
   await updatePass(id, {
     ...(("status" in body) ? { status: str(body.status) } : {}),
     ...(("note" in body) ? { note: str(body.note) } : {}),
@@ -151,10 +151,10 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const guard = await staff();
   if ("status" in guard) return guard;
-  if (guard.session.role !== "admin" && guard.session.role !== "superadmin") return fail("পাস মুছে ফেলতে অ্যাডমিন দরকার — চাইলে বাতিল (revoke) করুন।", 403);
+  if (guard.session.role !== "admin" && guard.session.role !== "superadmin") return fail("Admin rights are required to delete a pass — you can revoke it instead.", 403);
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const id = safeId(str(body.id));
-  if (!id) return fail("আইডি ঠিক নেই।", 422);
+  if (!id) return fail("Invalid ID.", 422);
   const removed = await deletePass(id);
   return ok({ deleted: removed });
 }

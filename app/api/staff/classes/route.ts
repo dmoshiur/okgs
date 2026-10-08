@@ -29,21 +29,21 @@ export async function GET(request: Request) {
   });
 }
 
-/** POST — add a class (sections are a comma separated list, e.g. "ক, খ"). */
+/** POST — add a class (sections are a comma separated list, e.g. "A, B"). */
 export async function POST(request: Request) {
   const guard = await staff();
   if ("status" in guard) return guard;
   const { session } = guard;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const name = str(body.name);
-  if (!name) return fail("শ্রেণির নাম দিন।", 422);
+  if (!name) return fail("Enter a class name.", 422);
   const id = await createClass({
     name,
     level: num(body.level),
-    sections: str(body.sections, "ক") || "ক",
+    sections: str(body.sections, "A") || "A",
     note: str(body.note),
     fee_amount: Math.max(0, num(body.fee_amount)),
-    fee_title: str(body.fee_title, "শ্রেণি ফি") || "শ্রেণি ফি",
+    fee_title: str(body.fee_title, "Class fee") || "Class fee",
     fee_session: str(body.fee_session) || String(new Date().getFullYear()),
     sort_order: num(body.sort_order),
   });
@@ -61,14 +61,14 @@ export async function PATCH(request: Request) {
   const { session } = guard;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const id = safeId(str(body.id));
-  if (!id) return fail("কোন শ্রেণি ঠিক নেই।", 422);
+  if (!id) return fail("Invalid class.", 422);
   await updateClass(id, {
     ...(("name" in body) ? { name: str(body.name) } : {}),
     ...(("level" in body) ? { level: num(body.level) } : {}),
     ...(("sections" in body) ? { sections: str(body.sections) } : {}),
     ...(("note" in body) ? { note: str(body.note) } : {}),
     ...(("fee_amount" in body) ? { fee_amount: Math.max(0, num(body.fee_amount)) } : {}),
-    ...(("fee_title" in body) ? { fee_title: str(body.fee_title) || "শ্রেণি ফি" } : {}),
+    ...(("fee_title" in body) ? { fee_title: str(body.fee_title) || "Class fee" } : {}),
     ...(("fee_session" in body) ? { fee_session: str(body.fee_session) } : {}),
     ...(("sort_order" in body) ? { sort_order: num(body.sort_order) } : {}),
     ...(("is_active" in body) ? { is_active: Number(body.is_active) ? 1 : 0 } : {}),
@@ -78,7 +78,7 @@ export async function PATCH(request: Request) {
   const feeSync = shouldSyncFee && updatedClass
     ? await syncClassFeeDues(updatedClass, str(body.fair_slug), session.user.name)
     : { created: 0, updated: 0 };
-  await logActivity({ actor_id: session.user.id, actor_name: session.user.name, actor_role: session.role, action: "class.update", entity: "classes", entity_id: id, detail: "শ্রেণি/ফি সেটিংস আপডেট" });
+  await logActivity({ actor_id: session.user.id, actor_name: session.user.name, actor_role: session.role, action: "class.update", entity: "classes", entity_id: id, detail: "Class fee settings updated" });
   return ok({ updated: true, fee_sync: feeSync });
 }
 
@@ -88,9 +88,9 @@ export async function DELETE(request: Request) {
   const { session } = guard;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const id = safeId(str(body.id));
-  if (!id) return fail("আইডি ঠিক নেই।", 422);
+  if (!id) return fail("Invalid ID.", 422);
   const removed = await deleteClass(id);
-  if (!removed) return fail("শ্রেণি পাওয়া যায়নি।", 404);
+  if (!removed) return fail("Class not found.", 404);
   await logActivity({ actor_id: session.user.id, actor_name: session.user.name, actor_role: session.role, action: "class.delete", entity: "classes", entity_id: id });
   return ok({ deleted: true });
 }

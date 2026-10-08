@@ -28,16 +28,16 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const fairSlug = str(body.fair_slug) || (await defaultFairSlug());
   const amount = Number(body.amount ?? 0);
-  const title = str(body.title, "বিজ্ঞান মেলা ফি") || "বিজ্ঞান মেলা ফি";
-  if (!Number.isFinite(amount) || amount <= 0) return fail("টাকার পরিমাণ ঠিকভাবে দিন।", 422);
-  if (num(body.paid_amount) > 0 || ["paid", "partial"].includes(str(body.status))) return fail("পরিশোধিত পাওনা রসিদ যোগ করে নথিভুক্ত করুন।", 422);
+  const title = str(body.title, "Science fair fee") || "Science fair fee";
+  if (!Number.isFinite(amount) || amount <= 0) return fail("Enter a valid amount.", 422);
+  if (num(body.paid_amount) > 0 || ["paid", "partial"].includes(str(body.status))) return fail("Record payment by adding a receipt against the due.", 422);
 
   if (body.bulk) {
     const classLevel = str(body.class_level);
     const section = str(body.section);
     const users = await listUsers({ role: "student", class_level: classLevel || undefined, limit: 2000 });
     const targets = users.filter((user) => Number(user.is_active) === 1 && (!section || user.section === section));
-    if (!targets.length) return fail("এই শ্রেণি/শাখায় কোনো শিক্ষার্থী পাওয়া যায়নি — আগে ইউজার যোগ করুন।", 422);
+    if (!targets.length) return fail("No students found in this class/section — add users first.", 422);
     for (const student of targets) {
       await createDue({
         fair_slug: fairSlug,
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       actor_role: session.role,
       action: "due.bulk",
       entity: "dues",
-      detail: `${targets.length} জন · ${title} · ${amount}`,
+      detail: `${targets.length} students · ${title} · ${amount}`,
     });
     return ok({ created: targets.length }, 201);
   }
@@ -90,16 +90,16 @@ export async function PATCH(request: Request) {
   const { session } = guard;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const id = safeId(str(body.id));
-  if (!id) return fail("আইডি ঠিক নেই।", 422);
+  if (!id) return fail("Invalid ID.", 422);
   const existing = await getDueById(id);
-  if (!existing) return fail("পাওনাটি পাওয়া যায়নি।", 404);
+  if (!existing) return fail("Due not found.", 404);
   if ("paid_amount" in body || ["paid", "partial"].includes(str(body.status))) {
-    return fail("পাওনার পরিশোধ রসিদ যোগ করে নথিভুক্ত করুন; paid_amount সরাসরি সম্পাদনা করা যাবে না।", 422);
+    return fail("Record payments by adding a receipt; paid_amount cannot be edited directly.", 422);
   }
   const patch: Record<string, string | number> = {};
   if ("amount" in body) {
     const amount = Number(body.amount);
-    if (!Number.isFinite(amount) || amount <= 0) return fail("পাওনার পরিমাণ শূন্যের বেশি হতে হবে।", 422);
+    if (!Number.isFinite(amount) || amount <= 0) return fail("Due amount must be greater than zero.", 422);
     patch.amount = amount;
   }
   if ("title" in body) patch.title = str(body.title);
@@ -121,11 +121,11 @@ export async function DELETE(request: Request) {
   const { session } = guard;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const id = safeId(str(body.id));
-  if (!id) return fail("আইডি ঠিক নেই।", 422);
+  if (!id) return fail("Invalid ID.", 422);
   const due = await getDueById(id);
-  if (!due) return fail("পাওনাটি পাওয়া যায়নি।", 404);
+  if (!due) return fail("Due not found.", 404);
   const receiptTotals = await dueReceiptTotals(id);
-  if (receiptTotals.count) return fail("এই পাওনার সঙ্গে রসিদ যুক্ত আছে। আগে রসিদ মুছে/সংশোধন করে তারপর পাওনা মুছুন।", 409);
+  if (receiptTotals.count) return fail("This due has receipts linked. Delete or correct the receipts first, then delete the due.", 409);
   const removed = await deleteDue(id);
   await logActivity({ actor_id: session.user.id, actor_name: session.user.name, actor_role: session.role, action: "due.delete", entity: "dues", entity_id: id });
   return ok({ deleted: removed });

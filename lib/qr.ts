@@ -9,7 +9,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import QRCode from "qrcode";
 import { portalSecret } from "@/lib/portal-auth";
 
-interface QrOptions {
+export interface QrOptions {
   size?: number;
   margin?: number;
   dark?: string;

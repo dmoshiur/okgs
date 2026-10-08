@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { bn } from "@/lib/format";
+import { en } from "@/lib/format";
 
 export function money(value: unknown) {
   const amount = Number(value ?? 0);
-  return `৳${bn(Math.round(amount))}`;
+  return `৳${en(Math.round(amount))}`;
 }
 
 export function useApi<T>(url: string | null, deps: unknown[] = []) {
@@ -20,10 +20,10 @@ export function useApi<T>(url: string | null, deps: unknown[] = []) {
     try {
       const response = await fetch(url, { cache: "no-store" });
       const payload = (await response.json()) as T & { error?: string };
-      if (!response.ok) throw new Error(payload?.error || "তথ্য লোড করা যায়নি।");
+      if (!response.ok) throw new Error(payload?.error || "Could not load data.");
       setData(payload);
     } catch (issue) {
-      setError(issue instanceof Error ? issue.message : "তথ্য লোড করা যায়নি।");
+      setError(issue instanceof Error ? issue.message : "Could not load data.");
     } finally {
       setLoading(false);
     }
@@ -44,7 +44,7 @@ export async function postJson<T = Record<string, unknown>>(url: string, body: R
     body: JSON.stringify(body),
   });
   const payload = (await response.json().catch(() => ({}))) as T & { ok?: boolean; error?: string };
-  if (!response.ok || payload.ok === false) throw new Error(payload.error || "সংরক্ষণ করা যায়নি।");
+  if (!response.ok || payload.ok === false) throw new Error(payload.error || "Could not save.");
   return payload;
 }
 
@@ -83,12 +83,12 @@ export function Bars({ rows, total, unit = "৳" }: { rows: { label: string; val
             <span className="bar-fill" style={{ width: `${Math.round((row.value / (total || max)) * 100)}%` }} />
           </span>
           <strong style={{ fontSize: 13, whiteSpace: "nowrap" }}>
-            {unit === "৳" ? money(row.value) : `${bn(row.value)}${unit ? ` ${unit}` : ""}`}
+            {unit === "৳" ? money(row.value) : `${en(row.value)}${unit ? ` ${unit}` : ""}`}
             {row.note ? <em className="v2-muted" style={{ fontStyle: "normal", marginLeft: 6, fontWeight: 400 }}>{row.note}</em> : null}
           </strong>
         </div>
       ))}
-      {!rows.length ? <p className="v2-muted" style={{ margin: 0 }}>এখনো কোনো তথ্য নেই।</p> : null}
+      {!rows.length ? <p className="v2-muted" style={{ margin: 0 }}>No data yet.</p> : null}
     </div>
   );
 }

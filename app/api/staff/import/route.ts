@@ -34,11 +34,11 @@ export async function POST(request: Request) {
   const { session } = guard;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const batchRole = String(body.role ?? "student").trim() as PortalRole;
-  if (!allRoles.includes(batchRole)) return fail("ভূমিকাটি ঠিক নয়।", 422);
+  if (!allRoles.includes(batchRole)) return fail("Invalid role.", 422);
 
   const importRows = normalizeInputRows(body);
-  if (!importRows.length) return fail("CSV ফাইলে আমদানির সারি নেই।", 422);
-  if (importRows.length > 3000) return fail("একবারে সর্বোচ্চ ৩০০০টি অ্যাকাউন্ট আমদানি করা যায়।", 413);
+  if (!importRows.length) return fail("The CSV file has no rows to import.", 422);
+  if (importRows.length > 3000) return fail("You can import at most 3000 accounts at a time.", 413);
 
   const created: Array<{ id: string; name: string; email: string; student_id: string; role: PortalRole; class_level: string }> = [];
   const credentials: Array<{ name: string; email: string; student_id: string; role: PortalRole; password: string }> = [];
@@ -57,12 +57,12 @@ export async function POST(request: Request) {
     const classLevel = String(input.class_level ?? "").trim() || String(body.class_level ?? "").trim();
     const section = String(input.section ?? "").trim() || String(body.section ?? "").trim();
 
-    if (!name) { problems.push({ line, message: "নাম নেই" }); continue; }
-    if (!role || !allRoles.includes(role)) { problems.push({ line, message: "ভূমিকা ঠিক নয়" }); continue; }
-    if (role === "superadmin" && !canAssignAllRoles) { problems.push({ line, message: "SuperAdmin ভূমিকা শুধু SuperAdmin দিতে পারেন" }); continue; }
-    if (role === "admin" && session.role !== "superadmin") { problems.push({ line, message: "Admin ভূমিকা শুধু SuperAdmin দিতে পারেন" }); continue; }
-    if (emailRaw && !isEmailAddress(email)) { problems.push({ line, message: "ইমেইল ঠিকানা সঠিক নয়" }); continue; }
-    if (!email && !studentId) { problems.push({ line, message: "ইমেইল অথবা স্কুল আইডি দিতে হবে" }); continue; }
+    if (!name) { problems.push({ line, message: "Name missing" }); continue; }
+    if (!role || !allRoles.includes(role)) { problems.push({ line, message: "Invalid role" }); continue; }
+    if (role === "superadmin" && !canAssignAllRoles) { problems.push({ line, message: "Only a SuperAdmin can assign the SuperAdmin role" }); continue; }
+    if (role === "admin" && session.role !== "superadmin") { problems.push({ line, message: "Only a SuperAdmin can assign the Admin role" }); continue; }
+    if (emailRaw && !isEmailAddress(email)) { problems.push({ line, message: "Invalid email address" }); continue; }
+    if (!email && !studentId) { problems.push({ line, message: "An email or school ID is required" }); continue; }
 
     const password = randomBytes(24).toString("base64url");
     const { hash, salt } = hashPassword(password);
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
       if (email) rowsToMail.push({ name, email, password, line });
       else credentials.push({ name, email, student_id: studentId, role, password });
     } catch (error) {
-      const message = error instanceof Error && /UNIQUE/i.test(error.message) ? "ইমেইল/আইডি আগেই নিবন্ধিত" : "সেভ করা যায়নি";
+      const message = error instanceof Error && /UNIQUE/i.test(error.message) ? "Email/ID already registered" : "Could not save";
       problems.push({ line, message });
     }
   }
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
     actor_role: session.role,
     action: "user.import",
     entity: "users",
-    detail: `${created.length} জন যুক্ত · ${delivered} welcome email delivered`,
+    detail: `${created.length} users added · ${delivered} welcome emails delivered`,
   });
 
   return ok({
