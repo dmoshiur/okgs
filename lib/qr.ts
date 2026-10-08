@@ -9,6 +9,13 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import QRCode from "qrcode";
 import { portalSecret } from "@/lib/portal-auth";
 
+interface QrOptions {
+  size?: number;
+  margin?: number;
+  dark?: string;
+  light?: string;
+}
+
 export function signPassId(passId: string) {
   return createHmac("sha256", `${portalSecret()}::pass`).update(passId).digest("base64url").slice(0, 24);
 }
@@ -82,6 +89,11 @@ export interface QrOptions {
   margin?: number;
   dark?: string;
   light?: string;
+}
+
+/** Generate QR code as PNG data URL */
+export async function generateQRCode(text: string, size: number = 200): Promise<string> {
+  return qrDataUrl(text, { size, margin: 1 });
 }
 
 /** PNG data URL — usable directly in <img src> or a server-rendered card. */
