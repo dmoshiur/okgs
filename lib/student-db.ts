@@ -130,18 +130,51 @@ export async function studentFilterOptions() {
   };
 }
 
-export async function listStudentsWithStatus(filter: {
+export interface StudentFilter {
   fair_slug: string;
   class_name?: string;
   section?: string;
   shift?: string;
   q?: string;
   payment?: "" | "PAID" | "UNPAID";
+  /** Normalised rolls (`parseRollExpression`) — filtered in SQL so paging and totals agree. */
+  rolls?: Set<string>;
   limit?: number;
-}): Promise<StudentListRow[]> {
-  const fair = filter.fair_slug;
+  offset?: number;
+}
+
+/**
+ * Rolls are stored as typed (`01`, `12`, `A-12`), but a filter box compares them
+ * by value. A fully numeric roll therefore matches `CAST(roll AS INTEGER)`; a
+ * roll with letters matches its exact text. Doing this in SQL (instead of in
+ * JavaScript after the rows arrive) is what lets the roster page be paginated
+ * without the page size changing who is in the class.
+ */
+function rollClause(rolls: Set<string>) {
+  const numeric: number[] = [];
+  const text: string[] = [];
+  for (const roll of rolls) {
+    if (/^\d+$/.test(roll)) numeric.push(Number(roll));
+    else text.push(roll);
+  }
+  const parts: string[] = [];
+  const args: (string | number)[] = [];
+  if (numeric.length) {
+    parts.push(`(ltrim(s.roll, '0123456789') = '' AND s.roll <> '' AND CAST(s.roll AS INTEGER) IN (${numeric.map(() => "?").join(", ")}))`);
+    args.push(...numeric);
+  }
+  if (text.length) {
+    parts.push(`s.roll IN (${text.map(() => "?").join(", ")})`);
+    args.push(...text);
+  }
+  if (!parts.length) return { clause: "", args: [] as (string | number)[] };
+  return { clause: `(${parts.join(" OR ")})`, args };
+}
+
+/** Shared WHERE/args for every roster query, so a page and its totals can never disagree. */
+function studentFilterSql(filter: StudentFilter) {
   const clauses: string[] = [];
-  const args: (string | number)[] = [fair, fair, fair, fair];
+  const args: (string | number)[] = [];
   if (filter.class_name) {
     clauses.push("s.class_name = ?");
     args.push(filter.class_name);
@@ -163,8 +196,27 @@ export async function listStudentsWithStatus(filter: {
     clauses.push("COALESCE(p.status, 'UNPAID') = ?");
     args.push(filter.payment);
   }
-  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
-  const limit = Math.max(1, Math.min(5000, Math.floor(filter.limit ?? 2000)));
+  if (filter.rolls?.size) {
+    const rolls = rollClause(filter.rolls);
+    if (rolls.clause) {
+      clauses.push(rolls.clause);
+      args.push(...rolls.args);
+    }
+  }
+  return { where: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", args };
+}
+
+/** The per-student extras (prints, first admission, guests) share one fair slug binding. */
+const STUDENT_JOIN = `FROM students s
+     LEFT JOIN payments p ON p.student_id = s.id AND p.fair_slug = ?`;
+const STUDENT_ORDER = `ORDER BY length(s.class_name) ASC, s.class_name ASC, s.section ASC, s.shift ASC, CAST(s.roll AS INTEGER) ASC, s.roll ASC, s.name ASC`;
+
+/** One page of the roster with payment, print and gate status. */
+export async function listStudentsWithStatus(filter: StudentFilter): Promise<StudentListRow[]> {
+  const fair = filter.fair_slug;
+  const { where, args } = studentFilterSql(filter);
+  const limit = Math.max(1, Math.min(5000, Math.floor(filter.limit ?? 50)));
+  const offset = Math.max(0, Math.floor(filter.offset ?? 0));
   const rows = await query<Record<string, unknown>>(
     `SELECT s.*,
        COALESCE(p.status, 'UNPAID') AS payment_status,
@@ -172,12 +224,11 @@ export async function listStudentsWithStatus(filter: {
        (SELECT COUNT(*) FROM ticket_prints t WHERE t.student_id = s.id AND t.fair_slug = ?) AS print_count,
        COALESCE((SELECT MIN(l.entry_time) FROM scan_logs l WHERE l.subject_type = 'student' AND l.subject_id = s.id AND l.fair_slug = ? AND l.result = 'success'), '') AS entered_at,
        (SELECT COUNT(*) FROM guests g WHERE g.related_student_id = s.id AND g.fair_slug = ? AND g.status = 'active') AS guest_count
-     FROM students s
-     LEFT JOIN payments p ON p.student_id = s.id AND p.fair_slug = ?
+     ${STUDENT_JOIN}
      ${where}
-     ORDER BY length(s.class_name) ASC, s.class_name ASC, s.section ASC, s.shift ASC, CAST(s.roll AS INTEGER) ASC, s.roll ASC, s.name ASC
-     LIMIT ${limit}`,
-    args,
+     ${STUDENT_ORDER}
+     LIMIT ${limit} OFFSET ${offset}`,
+    [fair, fair, fair, fair, ...args],
   );
   return rows.map((row) => ({
     ...(row as unknown as StudentRow),
@@ -187,6 +238,225 @@ export async function listStudentsWithStatus(filter: {
     entered_at: String(row.entered_at ?? ""),
     guest_count: Number(row.guest_count ?? 0),
   }));
+}
+
+/** How many rows the same filter matches — the "Showing 50 of 1,240" denominator. */
+export async function countStudents(filter: StudentFilter): Promise<number> {
+  const { where, args } = studentFilterSql(filter);
+  const rows = await query<{ total: number }>(`SELECT COUNT(*) AS total ${STUDENT_JOIN} ${where}`, [filter.fair_slug, ...args]);
+  return Number(rows[0]?.total ?? 0);
+}
+
+/**
+ * Payment/print/gate totals for the *whole* filter, computed in the database.
+ *
+ * The roster table is paginated, so counting the rows on screen would report the
+ * page instead of the class — one aggregate query keeps the header figures right.
+ */
+export async function studentStatusCounts(filter: StudentFilter) {
+  const { where, args } = studentFilterSql(filter);
+  const rows = await query<Record<string, number>>(
+    `SELECT
+       COUNT(*) AS total,
+       COALESCE(SUM(CASE WHEN p.status = 'PAID' THEN 1 ELSE 0 END), 0) AS paid,
+       COALESCE(SUM(CASE WHEN COALESCE(p.status, 'UNPAID') = 'UNPAID' THEN 1 ELSE 0 END), 0) AS unpaid,
+       COALESCE(SUM(CASE WHEN (SELECT COUNT(*) FROM ticket_prints t WHERE t.student_id = s.id AND t.fair_slug = ?) > 0 THEN 1 ELSE 0 END), 0) AS printed,
+       COALESCE(SUM(CASE WHEN (SELECT COUNT(*) FROM scan_logs l WHERE l.subject_type = 'student' AND l.subject_id = s.id AND l.fair_slug = ? AND l.result = 'success') > 0 THEN 1 ELSE 0 END), 0) AS entered
+     ${STUDENT_JOIN} ${where}`,
+    // Three fair bindings before the WHERE: the print subquery, the gate
+    // subquery and the payments join. Missing one silently empties the result.
+    [filter.fair_slug, filter.fair_slug, filter.fair_slug, ...args],
+  );
+  const row = rows[0] ?? {};
+  return {
+    total: Number(row.total ?? 0),
+    paid: Number(row.paid ?? 0),
+    unpaid: Number(row.unpaid ?? 0),
+    printed: Number(row.printed ?? 0),
+    entered: Number(row.entered ?? 0),
+  };
+}
+
+export interface PrintableStudent {
+  id: string;
+  student_code: string;
+  roll: string;
+  name: string;
+  class_name: string;
+  section: string;
+  shift: string;
+  student_group: string;
+  photo_url: string;
+}
+
+/**
+ * Students whose fee is PAID for this fair, in print order.
+ *
+ * Bulk ticket printing must never put an unpaid student on paper — a sheet at the
+ * gate is proof of payment — so the filter is applied in the query, not in the UI.
+ */
+export async function paidStudentsForPrint(
+  filter: Omit<StudentFilter, "payment" | "limit" | "offset"> & { limit?: number; offset?: number },
+): Promise<PrintableStudent[]> {
+  const { where, args } = studentFilterSql({ ...filter, payment: "PAID" });
+  const limit = Math.max(1, Math.min(2000, Math.floor(filter.limit ?? 20)));
+  const offset = Math.max(0, Math.floor(filter.offset ?? 0));
+  return query<PrintableStudent>(
+    `SELECT s.id, s.student_code, s.roll, s.name, s.class_name, s.section, s.shift, s.student_group, s.photo_url
+     ${STUDENT_JOIN} ${where} ${STUDENT_ORDER}
+     LIMIT ${limit} OFFSET ${offset}`,
+    [filter.fair_slug, ...args],
+  );
+}
+
+/** How many PAID / UNPAID students a scope holds — the bulk-print confirmation. */
+export async function printableStudentCounts(filter: Omit<StudentFilter, "payment" | "limit" | "offset">) {
+  const { where, args } = studentFilterSql(filter);
+  const rows = await query<{ paid: number; total: number }>(
+    `SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN p.status = 'PAID' THEN 1 ELSE 0 END), 0) AS paid
+     ${STUDENT_JOIN} ${where}`,
+    [filter.fair_slug, ...args],
+  );
+  const total = Number(rows[0]?.total ?? 0);
+  const paid = Number(rows[0]?.paid ?? 0);
+  return { total, paid, unpaid: Math.max(0, total - paid) };
+}
+
+/**
+ * Editable student fields. `student_code` is the school ID and must stay unique,
+ * so a rename is checked by the caller before it reaches the database.
+ */
+export interface StudentPatch {
+  student_code?: string;
+  roll?: string;
+  name?: string;
+  branch?: string;
+  shift?: string;
+  class_name?: string;
+  section?: string;
+  student_group?: string;
+  sms_contact?: string;
+  father_contact?: string;
+  father_name?: string;
+  mother_name?: string;
+  photo_url?: string;
+  tags?: string;
+  serial_no?: number;
+}
+
+const STUDENT_PATCH_COLUMNS = [
+  "student_code",
+  "roll",
+  "name",
+  "branch",
+  "shift",
+  "class_name",
+  "section",
+  "student_group",
+  "sms_contact",
+  "father_contact",
+  "father_name",
+  "mother_name",
+  "photo_url",
+  "tags",
+] as const;
+
+/** Writes one student's edited fields. Returns the fresh row. */
+export async function updateStudent(id: string, patch: StudentPatch) {
+  await ensurePortal();
+  const sets: string[] = [];
+  const args: (string | number)[] = [];
+  for (const column of STUDENT_PATCH_COLUMNS) {
+    const value = patch[column];
+    if (value === undefined) continue;
+    sets.push(`${column} = ?`);
+    args.push(String(value ?? "").trim());
+  }
+  if (patch.serial_no !== undefined) {
+    sets.push("serial_no = ?");
+    args.push(Math.max(0, Math.floor(Number(patch.serial_no) || 0)));
+  }
+  if (!sets.length) return getStudentById(id);
+  sets.push("updated_at = ?");
+  args.push(nowIso(), id);
+  await run(`UPDATE students SET ${sets.join(", ")} WHERE id = ?`, args);
+  return getStudentById(id);
+}
+
+export interface PhotoUpdateResult {
+  matched: number;
+  updated: number;
+  unchanged: number;
+  missing: { key: string; row: number }[];
+}
+
+/**
+ * Batch photo mapping — the writer behind the CSV/XLSX photo import.
+ *
+ * A sheet row carries either the school ID or the roll plus a Cloudinary URL.
+ * Students are resolved once, in a single query, and the writes go out in
+ * `db.batch` chunks so a 2,000-row sheet is a handful of round-trips instead of
+ * 2,000 of them. Rows whose key matches nobody are reported, never guessed.
+ */
+export async function updateStudentPhotos(
+  entries: { key: string; match: "code" | "roll"; photo_url: string; row: number }[],
+  options: { dryRun?: boolean } = {},
+): Promise<PhotoUpdateResult> {
+  await ensurePortal();
+  const codes = new Set<string>();
+  const rolls = new Set<string>();
+  for (const entry of entries) {
+    if (entry.match === "code") codes.add(entry.key.toUpperCase());
+    else rolls.add(entry.key);
+  }
+
+  const byCode = new Map<string, StudentRow>();
+  const byRoll = new Map<string, StudentRow>();
+  if (codes.size) {
+    const placeholders = Array.from(codes).map(() => "?").join(", ");
+    for (const row of await query<StudentRow>(`SELECT * FROM students WHERE upper(student_code) IN (${placeholders})`, Array.from(codes))) {
+      byCode.set(row.student_code.toUpperCase(), row);
+    }
+  }
+  if (rolls.size) {
+    const placeholders = Array.from(rolls).map(() => "?").join(", ");
+    for (const row of await query<StudentRow>(`SELECT * FROM students WHERE roll IN (${placeholders})`, Array.from(rolls))) {
+      // A roll is only unique inside a class; the first match wins and the
+      // importer tells the office to use IDs when rolls repeat.
+      if (!byRoll.has(row.roll)) byRoll.set(row.roll, row);
+    }
+  }
+
+  const stamp = nowIso();
+  const statements: { sql: string; args: (string | number)[] }[] = [];
+  const missing: { key: string; row: number }[] = [];
+  let matched = 0;
+  let unchanged = 0;
+
+  for (const entry of entries) {
+    const student = entry.match === "code" ? byCode.get(entry.key.toUpperCase()) : byRoll.get(entry.key);
+    if (!student) {
+      missing.push({ key: entry.key, row: entry.row });
+      continue;
+    }
+    matched += 1;
+    if (student.photo_url === entry.photo_url) {
+      unchanged += 1;
+      continue;
+    }
+    statements.push({
+      sql: `UPDATE students SET photo_url = ?, updated_at = ? WHERE id = ?`,
+      args: [entry.photo_url, stamp, student.id],
+    });
+  }
+
+  if (!options.dryRun) {
+    for (let index = 0; index < statements.length; index += 100) {
+      await db.batch(statements.slice(index, index + 100), "write");
+    }
+  }
+
+  return { matched, updated: statements.length, unchanged, missing: missing.slice(0, 200) };
 }
 
 export async function getStudentById(id: string) {
@@ -510,6 +780,37 @@ export async function recordTicketPrint(values: { fair_slug: string; student_id:
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [randomUUID(), values.fair_slug, values.student_id, values.guest_id, values.copies, values.printed_by, values.printed_by_name, nowIso()],
   );
+}
+
+/**
+ * One bulk print job — a row per student, written in `db.batch` chunks.
+ *
+ * The audit log answers "who printed the whole of Class 8 and when", which is why
+ * a bulk job is recorded per student rather than as a single summary row.
+ */
+export async function recordTicketPrints(values: {
+  fair_slug: string;
+  student_ids: string[];
+  copies?: number;
+  printed_by: string;
+  printed_by_name: string;
+}) {
+  await ensurePortal();
+  const ids = Array.from(new Set(values.student_ids.filter(Boolean)));
+  if (!ids.length) return 0;
+  const copies = Math.max(1, Math.floor(values.copies ?? 1));
+  const stamp = nowIso();
+  for (let index = 0; index < ids.length; index += 200) {
+    await db.batch(
+      ids.slice(index, index + 200).map((studentId) => ({
+        sql: `INSERT INTO ticket_prints (id, fair_slug, student_id, guest_id, copies, printed_by, printed_by_name, printed_at)
+              VALUES (?, ?, ?, '', ?, ?, ?, ?)`,
+        args: [randomUUID(), values.fair_slug, studentId, copies, values.printed_by, values.printed_by_name, stamp],
+      })),
+      "write",
+    );
+  }
+  return ids.length;
 }
 
 /* ------------------------------------------------------------------ *

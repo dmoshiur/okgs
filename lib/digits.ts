@@ -31,3 +31,20 @@ export function toLatinDigits(value: unknown) {
 export function hasBengali(value: unknown) {
   return /[\u0980-\u09ff]/.test(String(value ?? ""));
 }
+
+/**
+ * The mirror of `toLatinDigits`: 8 → ৮, leaving letters and punctuation alone.
+ *
+ * A ticket printed in Bangla must not carry Latin numerals beside Bangla words —
+ * a roll of `5` next to the word রোল reads as a half-translated sheet. Names are
+ * passed through untouched because they hold no ASCII digits to convert.
+ */
+export function toBanglaDigits(value: unknown) {
+  const text = String(value ?? "");
+  let out = "";
+  for (const char of text) {
+    const latin = ASCII_DIGITS.indexOf(char);
+    out += latin >= 0 ? BANGLA_DIGITS[latin] : char;
+  }
+  return out;
+}

@@ -8,7 +8,7 @@ import { settingValue } from "@/lib/club-data";
 import { qrDataUrl } from "@/lib/qr";
 import { makeTicketToken, ticketExpiry } from "@/lib/ticket-token";
 import { getGuestById, getPaymentStatus, getStudentById, lastAdmission } from "@/lib/student-db";
-import { formatDateEn } from "@/lib/format";
+import { parseTicketLang, ticketDate, ticketText } from "@/lib/ticket-locale";
 import { TicketSheet } from "@/components/sf/print/TicketSheet";
 import { TicketToolbar } from "@/components/sf/print/TicketToolbar";
 import { AutoPrint } from "@/components/print/AutoPrint";
@@ -33,6 +33,8 @@ export default async function GuestPassPage({ params, searchParams }: { params: 
   const mode = fairMode(content.settings);
   const fair = activeFair(content, String(query.fair ?? "") || mode.slug);
   const fairSlug = guest.fair_slug || fair?.slug || "";
+  const lang = parseTicketLang(query.lang);
+  const text = ticketText(lang);
 
   const expiresAt = ticketExpiry(fair?.ends_on);
   const token = makeTicketToken({ k: "g", i: guest.id, f: fairSlug, e: expiresAt });
@@ -43,24 +45,26 @@ export default async function GuestPassPage({ params, searchParams }: { params: 
   ]);
 
   return (
-    <main className="ticket-print-root v2">
+    <main className="ticket-print-root v2" data-lang={lang}>
       <TicketToolbar
         copies={1}
         fairSlug={fairSlug}
         guestId={guest.id}
         auto={String(query.auto ?? "1") !== "0"}
-        total={["Guest copy"]}
+        lang={lang}
+        total={[text.titles.guestCopy.primary]}
         hint={`Outside guest pass for ${guest.name} — printed on A4 landscape, 1 sheet.`}
       />
       <div className="ticket-sheets">
       <TicketSheet
         kind="guest"
+        lang={lang}
         schoolName={settingValue(content.settings, "site_name", "OKGS")}
         fairName={fair?.name ?? "Science Fair"}
         logo={readSetting(content.settings, "logo_url")}
         copyIndex={1}
         copyCount={1}
-        copyLabel="Guest copy"
+        copyLabel={text.titles.guestCopy.primary}
         showFamily={false}
         student={{
           name: student.name,
@@ -80,9 +84,9 @@ export default async function GuestPassPage({ params, searchParams }: { params: 
         guest={{ name: guest.name, relation: guest.relation, contact: guest.contact, status: guest.status }}
         admittedAt={admittedAt}
         qr={qr}
-        validUntil={formatDateEn(new Date(expiresAt * 1000).toISOString(), "long")}
-        issuedAt={formatDateEn(new Date().toISOString(), "long")}
-        ticketCode={`GUEST · ${guest.name}`}
+        validUntil={ticketDate(new Date(expiresAt * 1000).toISOString(), lang, "long")}
+        issuedAt={ticketDate(new Date().toISOString(), lang, "long")}
+        ticketCode={`${text.titles.guestPass.primary} · ${guest.name}`}
         printedBy={session.user.name}
       />
       </div>

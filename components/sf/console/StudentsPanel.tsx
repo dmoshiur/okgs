@@ -1,11 +1,30 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { BadgeCheck, CircleDashed, Printer, ScanLine, Upload, UserPlus, Users, X, FileSpreadsheet, Ban, RotateCcw } from "lucide-react";
+import {
+  BadgeCheck,
+  Ban,
+  CircleDashed,
+  FileSpreadsheet,
+  ImagePlus,
+  Pencil,
+  Printer,
+  LayoutGrid,
+  RotateCcw,
+  ScanLine,
+  Upload,
+  UserPlus,
+  Users,
+  X,
+} from "lucide-react";
 import { en, formatDateTimeEn } from "@/lib/format";
 import { guestRelations } from "@/lib/student-schema";
+import { ticketLangOptions, type TicketLang } from "@/lib/ticket-locale";
 import { Empty, Notice, Panel, postJson, useApi } from "@/components/sf/console/ui";
+import { StudentPhoto } from "@/components/sf/StudentPhoto";
+import { StudentEditModal } from "@/components/sf/console/StudentEditModal";
+import { PhotoImportPanel } from "@/components/sf/console/PhotoImportPanel";
 
 export interface StudentListRow {
   id: string;
@@ -49,15 +68,31 @@ interface StudentsResponse {
   students: StudentListRow[];
   options: { classes: string[]; sections: string[]; shifts: string[] };
   summary: { total: number; paid: number; unpaid: number; printed: number; entered: number };
+  total: number;
+  page: number;
+  page_size: number;
+  has_more: boolean;
 }
 
 const EMPTY_FILTERS = { class_name: "", section: "", shift: "", payment: "", q: "", rolls: "" };
 type FilterKey = keyof typeof EMPTY_FILTERS;
 /** URL query names that pre-fill the filters (`/sf/students?class=Class 8&section=A`). */
 const FILTER_PARAM: Record<FilterKey, string> = { class_name: "class", section: "section", shift: "shift", payment: "payment", q: "q", rolls: "rolls" };
+/** Rows per request. Small pages are what keep a 1,000-student roster fast. */
+const PAGE_SIZE = 50;
 
 function errorText(issue: unknown) {
   return issue instanceof Error ? issue.message : "Something went wrong. Please try again.";
+}
+
+/** Waits for a pause in typing before the query changes — one request, not one per key. */
+function useDebouncedValue(value: string, delay = 250) {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return settled;
 }
 
 /** Class-wise student roster, payment marking, Excel import, guest registration and ticket printing. */
@@ -73,6 +108,9 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
     }
     return initial;
   });
+  const search = useDebouncedValue(filters.q);
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState<StudentListRow[]>([]);
   const [credentials, setCredentials] = useState<{ studentId: string; password: string } | null>(null);
   const [message, setMessage] = useState("");
   const [problem, setProblem] = useState("");
@@ -82,27 +120,64 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
   // hit by accident, because it rewrites payment_status for every row in the class.
   const [allClass, setAllClass] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importBusy, setImportBusy] = useState(false);
   const [importResult, setImportResult] = useState<{ file: string; total: number; inserted: number; updated: number; skipped: number; errors: { row: number; message: string }[] } | null>(null);
   const [guestOpen, setGuestOpen] = useState<{ studentId: string } | null>(null);
   const [printFor, setPrintFor] = useState<StudentListRow | null>(null);
+  const [editFor, setEditFor] = useState<StudentListRow | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const sentinel = useRef<HTMLDivElement | null>(null);
 
+  // One page at a time. `q` is deliberately excluded from the loop below: the
+  // debounced value is what reaches the URL, so typing never fires a request.
   const query = useMemo(() => {
-    const params = new URLSearchParams({ fair: fairSlug });
-    for (const [key, value] of Object.entries(filters)) if (value) params.set(key === "class_name" ? "class" : key, value);
-    return `/api/staff/students?${params.toString()}`;
-  }, [fairSlug, filters]);
+    const searchParams = new URLSearchParams({ fair: fairSlug, page: String(page), page_size: String(PAGE_SIZE) });
+    for (const [key, value] of Object.entries(filters)) {
+      if (!value || key === "q") continue;
+      searchParams.set(key === "class_name" ? "class" : key, value);
+    }
+    if (search) searchParams.set("q", search);
+    return `/api/staff/students?${searchParams.toString()}`;
+  }, [fairSlug, filters, search, page]);
 
   const students = useApi<StudentsResponse>(query, [query]);
   const guests = useApi<{ guests: GuestItem[] }>(`/api/staff/guests?fair=${encodeURIComponent(fairSlug)}`, [fairSlug]);
 
-  const rows = students.data?.students ?? [];
   const options = students.data?.options ?? { classes: [], sections: [], shifts: [] };
   const summary = students.data?.summary ?? { total: 0, paid: 0, unpaid: 0, printed: 0, entered: 0 };
+  const total = students.data?.total ?? 0;
+  const hasMore = Boolean(students.data?.has_more);
   const allGuests = guests.data?.guests ?? [];
 
-  function update<K extends keyof typeof EMPTY_FILTERS>(key: K, value: string) {
+  // Pages accumulate into one table; page 1 replaces the list.
+  useEffect(() => {
+    const payload = students.data;
+    if (!payload) return;
+    setRows((current) => (payload.page <= 1 ? payload.students : [...current.slice(0, (payload.page - 1) * payload.page_size), ...payload.students]));
+  }, [students.data]);
+
+  // Any filter change starts over at page 1.
+  useEffect(() => {
+    setPage(1);
+  }, [fairSlug, filters, search]);
+
+  // Infinite scroll: fetch the next page a little before the sentinel appears.
+  useEffect(() => {
+    const node = sentinel.current;
+    if (!node || !hasMore || students.loading) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) setPage((current) => current + 1);
+      },
+      { rootMargin: "480px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, students.loading, query]);
+
+  function update<K extends FilterKey>(key: K, value: string) {
     setFilters((state) => ({ ...state, [key]: value }));
   }
 
@@ -163,7 +238,7 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
         },
       });
       setMessage(`${en(result.updated)} student(s) marked ${status}. ${result.rolls.length ? `Rolls: ${result.rolls.join(", ")}.` : ""}`);
-      if (allInClass) setAllClass(false);
+      if (allClass) setAllClass(false);
       await students.reload();
     } catch (issue) {
       setProblem(errorText(issue));
@@ -209,6 +284,7 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
   }
 
   const rollsActive = Boolean(filters.rolls.trim());
+  const scopeLabel = [filters.class_name, filters.section ? `section ${filters.section}` : "", filters.shift ? `${filters.shift} shift` : "", filters.rolls.trim() ? `rolls ${filters.rolls.trim()}` : ""].filter(Boolean).join(" · ");
 
   return (
     <div className="sf-stack">
@@ -222,8 +298,14 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
         <span className="sf-stat sf-stat-bad"><CircleDashed size={14} /> Unpaid <b>{en(summary.unpaid)}</b></span>
         <span className="sf-stat"><Printer size={14} /> Printed <b>{en(summary.printed)}</b></span>
         <span className="sf-stat"><ScanLine size={14} /> Entered <b>{en(summary.entered)}</b></span>
-        <button type="button" className="v2-btn v2-btn-sm sf-stat-action" onClick={() => setImportOpen((open) => !open)}>
+        <button type="button" className="v2-btn v2-btn-sm sf-stat-action" onClick={() => setBulkOpen(true)} disabled={!summary.paid}>
+          <LayoutGrid size={14} /> Print bulk tickets
+        </button>
+        <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost sf-stat-action" onClick={() => setImportOpen((open) => !open)}>
           <FileSpreadsheet size={14} /> {importOpen ? "Close import" : "Import Excel roster"}
+        </button>
+        <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost sf-stat-action" onClick={() => setPhotoOpen((open) => !open)}>
+          <ImagePlus size={14} /> {photoOpen ? "Close photo update" : "Update photos"}
         </button>
         <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost sf-stat-action" onClick={() => setGuestOpen({ studentId: "" })}>
           <UserPlus size={14} /> Register outside guest
@@ -257,6 +339,15 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
             ) : null}
           </div>
         </Panel>
+      ) : null}
+
+      {photoOpen ? (
+        <PhotoImportPanel
+          onApplied={async (updated) => {
+            setMessage(`${en(updated)} student photo(s) updated from the spreadsheet.`);
+            await students.reload();
+          }}
+        />
       ) : null}
 
       <Panel title="Students by class">
@@ -338,7 +429,7 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
               <tr>
                 <th>Roll</th>
                 <th>ID</th>
-                <th>Name</th>
+                <th>Student</th>
                 <th>Class</th>
                 <th>Section</th>
                 <th>Shift</th>
@@ -353,12 +444,17 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
               {rows.map((student) => {
                 const paid = student.payment_status === "PAID";
                 return (
-                  <tr key={student.id}>
+                  <tr key={student.id} className="sf-row-fade">
                     <td>{student.roll || "—"}</td>
                     <td className="sf-nowrap">{student.student_code}</td>
                     <td className="sf-wrap-cell">
-                      <strong>{student.name}</strong>
-                      {student.father_name ? <small className="v2-muted sf-block">Father: {student.father_name}</small> : null}
+                      <span className="sf-student-cell">
+                        <StudentPhoto src={student.photo_url} name={student.name} size="xs" />
+                        <span className="sf-student-copy">
+                          <strong>{student.name}</strong>
+                          {student.father_name ? <small className="v2-muted sf-block">Father: {student.father_name}</small> : null}
+                        </span>
+                      </span>
                     </td>
                     <td>{student.class_name || "—"}</td>
                     <td>{student.section || "—"}</td>
@@ -378,8 +474,11 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
                     <td>{student.entered_at ? <span className="sf-badge is-good">Entered</span> : <span className="v2-muted">Not yet</span>}</td>
                     <td>{student.guest_count ? en(student.guest_count) : "—"}</td>
                     <td className="sf-actions">
+                      <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" onClick={() => setEditFor(student)} title="Edit student details and photo">
+                        <Pencil size={14} /> Edit
+                      </button>
                       {canProvision ? <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" disabled={busyId === student.id} onClick={() => void createPortalAccount(student)}><UserPlus size={14} /> Portal login</button> : null}
-                      <button type="button" className="v2-btn v2-btn-sm" onClick={() => setPrintFor(student)}>
+                      <button type="button" className="v2-btn v2-btn-sm" disabled={!paid} title={paid ? "Open the A4 landscape ticket" : "Mark the fee PAID before printing a ticket"} onClick={() => setPrintFor(student)}>
                         <Printer size={14} /> Print ticket
                       </button>
                       <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" onClick={() => setGuestOpen({ studentId: student.id })}>
@@ -395,7 +494,12 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
             </tbody>
           </table>
         </div>
-        <p className="v2-muted sf-help">Showing {en(rows.length)} student(s) for {fairName}. Payments are saved as soon as you change them.</p>
+        {/* Sentinel for infinite scroll — the next page is fetched before it is reached. */}
+        <div ref={sentinel} className="sf-scroll-sentinel" aria-hidden="true" />
+        {hasMore ? <Empty>Loading more students…</Empty> : null}
+        <p className="v2-muted sf-help">
+          Showing {en(rows.length)} of {en(total)} student(s) for {fairName}. Payments are saved as soon as you change them.
+        </p>
       </Panel>
 
       <Panel title="External guests & guardians">
@@ -465,6 +569,38 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
             setMessage(`Ticket sent to print for ${printFor.name} (${copies} ${copies === 1 ? "copy" : "copies"}).`);
             setPrintFor(null);
             await reloadAll();
+          }}
+          onError={setProblem}
+        />
+      ) : null}
+
+      {editFor ? (
+        <StudentEditModal
+          student={editFor}
+          fairSlug={fairSlug}
+          classes={options.classes}
+          sections={options.sections}
+          shifts={options.shifts}
+          onClose={() => setEditFor(null)}
+          onSaved={async (name, changed) => {
+            setEditFor(null);
+            setMessage(`${name} updated${changed.length ? ` — ${changed.join(", ")}` : ""}.`);
+            await students.reload();
+          }}
+        />
+      ) : null}
+
+      {bulkOpen ? (
+        <BulkPrintModal
+          fairSlug={fairSlug}
+          scopeLabel={scopeLabel || "the whole roster"}
+          paid={summary.paid}
+          unpaid={summary.unpaid}
+          onClose={() => setBulkOpen(false)}
+          onOpened={(tickets, sheets) => {
+            setBulkOpen(false);
+            setMessage(`Bulk ticket sheet opened: ${en(tickets)} paid student(s) on ${en(sheets)} A4 page(s), 4 tickets per page.`);
+            void reloadAll();
           }}
           onError={setProblem}
         />
@@ -562,12 +698,13 @@ function PrintTicketModal({
 }) {
   const [copies, setCopies] = useState(1);
   const [guestId, setGuestId] = useState("");
+  const [lang, setLang] = useState<TicketLang>("en");
   const [busy, setBusy] = useState(false);
 
   async function print() {
     setBusy(true);
     try {
-      const result = await postJson<{ url: string }>(`/api/staff/students/${student.id}/print`, { fair_slug: fairSlug, copies, guest_id: guestId });
+      const result = await postJson<{ url: string }>(`/api/staff/students/${student.id}/print`, { fair_slug: fairSlug, copies, guest_id: guestId, lang });
       window.open(result.url, "_blank", "noopener");
       await onPrinted(copies);
     } catch (issue) {
@@ -585,7 +722,7 @@ function PrintTicketModal({
           <h3 id="print-modal-title">Print ticket — {student.name}</h3>
           <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" onClick={onClose} aria-label="Close"><X size={15} /></button>
         </header>
-        <p className="v2-muted sf-help">Landscape A4 ticket with the school ID, roll, class, section and a signed QR code. Copies 2 and 3 also print the father&apos;s and mother&apos;s names and every approved external guardian (Mama, Fufa, Chacha, guest), with two blank lines left for a walk-in relative.</p>
+        <p className="v2-muted sf-help">Landscape A4 ticket with the school ID, roll, class, section, the student photo and a signed QR code. Copies 2 and 3 also print the father&apos;s and mother&apos;s names and every approved external guardian (Mama, Fufa, Chacha, guest), with two blank lines left for a walk-in relative.</p>
         <div className="sf-form-grid">
           <fieldset className="sf-copies">
             <legend className="v2-label">Copies</legend>
@@ -593,6 +730,15 @@ function PrintTicketModal({
               <label key={count} className={`sf-radio ${copies === count ? "is-on" : ""}`}>
                 <input type="radio" name="copies" checked={copies === count} onChange={() => setCopies(count)} />
                 {count} {count === 1 ? "copy (student)" : count === 2 ? "copies (+ parent)" : "copies (+ parent, school)"}
+              </label>
+            ))}
+          </fieldset>
+          <fieldset className="sf-copies">
+            <legend className="v2-label">Ticket language</legend>
+            {ticketLangOptions.map((option) => (
+              <label key={option.id} className={`sf-radio ${lang === option.id ? "is-on" : ""}`} title={option.hint}>
+                <input type="radio" name="ticket-lang" checked={lang === option.id} onChange={() => setLang(option.id)} />
+                {option.label}
               </label>
             ))}
           </fieldset>
@@ -613,6 +759,116 @@ function PrintTicketModal({
         <footer className="sf-modal-foot">
           <button type="button" className="v2-btn v2-btn-ghost" onClick={onClose}>Cancel</button>
           <button type="button" className="v2-btn" disabled={busy} onClick={print}><Printer size={15} /> {busy ? "Preparing…" : "Open ticket to print"}</button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Bulk ticket printing — A4 portrait, four tickets per page.
+ *
+ * Only PAID students are printed. The count shown here comes from the same filter
+ * the roster uses, and the server applies the PAID rule again in SQL, so the
+ * office cannot print a ticket for a student whose fee is still due.
+ */
+function BulkPrintModal({
+  fairSlug,
+  scopeLabel,
+  paid,
+  unpaid,
+  onClose,
+  onOpened,
+  onError,
+}: {
+  fairSlug: string;
+  scopeLabel: string;
+  paid: number;
+  unpaid: number;
+  onClose: () => void;
+  onOpened: (tickets: number, sheets: number) => void | Promise<void>;
+  onError: (message: string) => void;
+}) {
+  const [size, setSize] = useState(20);
+  const [page, setPage] = useState(1);
+  const [lang, setLang] = useState<TicketLang>("en");
+  const [busy, setBusy] = useState(false);
+  const runs = Math.max(1, Math.ceil(paid / size));
+  const sheets = Math.ceil(paid / 4);
+
+  async function open() {
+    setBusy(true);
+    try {
+      const scope = Object.fromEntries(
+        new URLSearchParams(window.location.search).entries(),
+      ) as Record<string, string>;
+      const result = await postJson<{ url: string; paid: number; runs: number; sheets_total: number }>("/api/staff/students/bulk-print", {
+        fair_slug: fairSlug,
+        class_name: scope.class ?? "",
+        section: scope.section ?? "",
+        shift: scope.shift ?? "",
+        rolls: scope.rolls ?? "",
+        size,
+        page,
+        lang,
+      });
+      window.open(result.url, "_blank", "noopener");
+      await onOpened(result.paid, result.sheets_total);
+    } catch (issue) {
+      onError(errorText(issue));
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="sf-modal-backdrop" role="presentation" onClick={onClose}>
+      <div className="sf-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-print-title" onClick={(event) => event.stopPropagation()}>
+        <header className="sf-modal-head">
+          <h3 id="bulk-print-title">Print bulk tickets</h3>
+          <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" onClick={onClose} aria-label="Close"><X size={15} /></button>
+        </header>
+        <p className="v2-muted sf-help">
+          A4 portrait sheets, four tickets per page in a 2 × 2 grid, with a page break after every fourth ticket. Scope: <strong>{scopeLabel}</strong>.
+        </p>
+        <dl className="sf-print-summary">
+          <div><dt>Will print</dt><dd>{en(paid)} paid student(s)</dd></div>
+          <div><dt>Excluded</dt><dd>{en(unpaid)} unpaid / pending</dd></div>
+          <div><dt>A4 sheets</dt><dd>{en(sheets)} page(s), 4 per page</dd></div>
+        </dl>
+        <div className="sf-form-grid">
+          <fieldset className="sf-copies">
+            <legend className="v2-label">Tickets per print run</legend>
+            {[20, 40, 100].map((value) => (
+              <label key={value} className={`sf-radio ${size === value ? "is-on" : ""}`}>
+                <input type="radio" name="bulk-size" checked={size === value} onChange={() => { setSize(value); setPage(1); }} />
+                {en(value)} tickets — {en(value / 4)} A4 page(s)
+              </label>
+            ))}
+          </fieldset>
+          <fieldset className="sf-copies">
+            <legend className="v2-label">Ticket language</legend>
+            {ticketLangOptions.map((option) => (
+              <label key={option.id} className={`sf-radio ${lang === option.id ? "is-on" : ""}`} title={option.hint}>
+                <input type="radio" name="bulk-lang" checked={lang === option.id} onChange={() => setLang(option.id)} />
+                {option.label}
+              </label>
+            ))}
+          </fieldset>
+          {runs > 1 ? (
+            <label>
+              <span className="v2-label">Start at print run</span>
+              <input className="v2-input" type="number" min={1} max={runs} value={page} onChange={(event) => setPage(Math.min(runs, Math.max(1, Number(event.target.value) || 1)))} />
+              <small className="v2-muted">Each run covers {en(size)} tickets ({en(size / 4)} A4 pages); use the run arrows on the print page to continue.</small>
+            </label>
+          ) : null}
+        </div>
+        <footer className="sf-modal-foot">
+          <button type="button" className="v2-btn v2-btn-ghost" onClick={onClose}>Cancel</button>
+          <button type="button" className="v2-btn" disabled={busy || !paid} onClick={open}>
+            <LayoutGrid size={15} /> {busy ? "Preparing sheets…" : `Open ${en(Math.min(size, paid))} ticket(s)`}
+          </button>
         </footer>
       </div>
     </div>
