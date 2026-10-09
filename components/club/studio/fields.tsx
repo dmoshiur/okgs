@@ -225,7 +225,15 @@ export function ImagePicker({
   const [percent, setPercent] = useState(0);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState("");
+  // A saved URL can point at an asset that was deleted from Cloudinary. The
+  // picker then shows its placeholder instead of a broken-image glyph, and the
+  // state re-arms as soon as a different URL is set.
+  const [broken, setBroken] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setBroken(false);
+  }, [value]);
 
   useEffect(
     () => () => {
@@ -249,6 +257,9 @@ export function ImagePicker({
       onChange(result.url);
       onUploaded?.(file, result.url);
     } catch (issue) {
+      // The upload failed, so the blob preview no longer represents anything.
+      setPreview("");
+      setBroken(false);
       setError(issue instanceof Error ? issue.message : "আপলোড করা যায়নি।");
     } finally {
       setBusy(false);
@@ -262,9 +273,16 @@ export function ImagePicker({
       <span className="cst-picker-label">{label}</span>
       <div className="cst-picker-row">
         <span className={`cst-picker-shot is-${aspect}`}>
-          {preview || value ? (
+          {preview || (value && !broken) ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={preview || value} alt="" />
+            <img
+              src={preview || value}
+              alt=""
+              onError={() => {
+                if (preview) setPreview("");
+                setBroken(true);
+              }}
+            />
           ) : (
             <ImageIcon size={20} aria-hidden />
           )}
@@ -276,7 +294,18 @@ export function ImagePicker({
               {busy ? `আপলোড ${percent}%` : value ? "ছবি বদলান" : "ছবি আপলোড"}
             </button>
             {value ? (
-              <button type="button" className="cst-btn cst-btn-quiet" onClick={() => onChange("")}>
+              <button
+                type="button"
+                className="cst-btn cst-btn-quiet"
+                onClick={() => {
+                  // Clear the saved reference completely — the file input and
+                  // the local preview too, so nothing stale is saved back.
+                  if (input.current) input.current.value = "";
+                  setPreview("");
+                  setBroken(false);
+                  onChange("");
+                }}
+              >
                 <Trash2 size={13} aria-hidden /> সরান
               </button>
             ) : null}

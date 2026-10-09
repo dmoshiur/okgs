@@ -137,7 +137,7 @@ export function ClubShowcase({ clubs, slides, counts = {} }: ShowcaseProps) {
               className={`showcase-tab ${active === club.slug ? "is-on" : ""}`}
               onClick={() => setActive(club.slug)}
             >
-              {club.logo_url ? <img src={club.logo_url} alt="" /> : null}
+              {club.logo_url ? <SmartImage src={club.logo_url} alt="" transform={{ width: 80 }} label={club.short_code || club.name} /> : null}
               {club.short_code || club.name}
             </button>
           ))}

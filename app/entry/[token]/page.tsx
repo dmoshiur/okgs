@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BadgeCheck, GraduationCap, Palette, ScanLine } from "lucide-react";
+import { SmartImage } from "@/components/public/Media";
 import { getRow } from "@/lib/db";
 import { parseEntryToken } from "@/lib/qr";
 import type { FairCollection } from "@/lib/types";
@@ -46,8 +47,7 @@ export default async function EntryVerifyPage({ params }: EntryProps) {
       </div>
       {row.description ? <p style={{ lineHeight: 1.8 }}>{row.description}</p> : null}
       {row.image_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={row.image_url} alt={row.title} style={{ width: "100%", borderRadius: 18 }} />
+        <SmartImage src={row.image_url} alt={row.title} transform={{ width: 1100 }} label={row.title} className="entry-image" />
       ) : null}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <Link className="v2-btn" href="/sf/scan">

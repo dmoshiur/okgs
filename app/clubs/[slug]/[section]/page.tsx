@@ -11,6 +11,7 @@ import { GalleryViewer } from "@/components/public/GalleryViewer";
 type ClubSectionPageProps = { params: Promise<{ slug: string; section: string }> };
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const sectionCopy: Record<string, { title: string; intro: string; eyebrow: string }> = {
   events: { eyebrow: "ক্যালেন্ডার", title: "সব আয়োজন", intro: "আসন্ন অনুষ্ঠান, প্রতিযোগিতা ও সম্পন্ন হওয়া আয়োজন — একত্রে।" },

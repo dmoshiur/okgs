@@ -12,6 +12,9 @@ import { ContentListTable } from "../components/admin/ContentListTable";
 
 const noop = () => {};
 
+/** The stylesheet — asserted alongside the markup so the CSS contract cannot drift. */
+const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+
 const clubs = [
   { id: "c1", name: "বিজ্ঞান ক্লাব", slug: "alssm", accent: "#2563eb", is_active: 1 },
   { id: "c2", name: "সাহিত্য সমাজ", slug: "artds", is_active: 0 },
@@ -97,6 +100,7 @@ check("recent: meta line is nowrap-truncated, separated from title", /<small cla
 const tableHtml = renderToStaticMarkup(
   h(ContentListTable, {
     resource: "club_events", rows: data.club_events, loading: false, clubs, busyRowId: "", reorderable: true, hasFilters: false,
+    canWrite: true, canDelete: true,
     onCreate: noop, onClearFilters: noop, onEdit: noop, onDuplicate: noop, onDelete: noop, onToggle: noop, onMove: noop,
   }),
 );
@@ -105,11 +109,12 @@ check("table: 5 column headers nowrap", (tableHtml.match(/role="columnheader"/g)
 check("table: status is a real button pill per row", (tableHtml.match(/<button type="button" class="status-pill/g) || []).length === 6);
 check("table: row title truncates with title attr", /<b class="truncate whitespace-nowrap" title="আয়োজন 0">/.test(tableHtml));
 check("table: status pill reads Published/Draft in English", /Published|Draft/.test(tableHtml));
+check("table: every row action is a non-shrinking flex item", (css.match(/\.row-actions > button, \.row-actions > a \{[^}]*flex: 0 0 auto;/g) || []).length === 1);
+check("table: the action track is wide enough for six 32px buttons", /grid-template-columns:[^;]*208px/.test(css));
 
 /* ---- Scroll contract (globals.css) ------------------------------------ */
 /* The studio bugfix: the page never scrolls, the rail and the content pane each
    scroll on their own, and the topbar stays pinned while the list scrolls. */
-const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
 const cssBlock = (selector: string) => {
   const start = css.indexOf(`${selector} {`);
   if (start === -1) return "";

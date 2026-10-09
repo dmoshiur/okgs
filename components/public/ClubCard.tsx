@@ -3,6 +3,7 @@ import type { ClubSummary } from "@/lib/club-data";
 import { clubPath } from "@/lib/club-data";
 import { bn, formatMonthDay, relativeDay } from "@/lib/format";
 import { IconByName } from "@/lib/icons";
+import { SmartImage } from "@/components/public/Media";
 import { SmartBackdrop } from "@/components/public/Media";
 import { normalizeHexColor, readableTextColor } from "@/lib/club-colors";
 
@@ -40,8 +41,7 @@ export function ClubCard({ summary, variant = "grid" }: { summary: ClubSummary; 
       >
         <span className="club-badge">
           {club.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={club.logo_url} alt="" loading="lazy" />
+            <SmartImage src={club.logo_url} alt="" transform={{ width: 120 }} label={club.short_code || club.name} />
           ) : (
             <span className="club-icon" aria-hidden><IconByName name={club.icon} size={19} /></span>
           )}

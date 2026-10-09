@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, CloudUpload, Image as ImageIcon, Link2, Loader2, Settings2, Trash2, X } from "lucide-react";
 import { isCloudinaryUrl, optimizedImage } from "@/lib/cloudinary";
 import { formatBytes, loadMediaConfig, uploadToCloudinary, type MediaConfig } from "@/lib/upload-client";
@@ -26,6 +26,7 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
   const [config, setConfig] = useState<MediaConfig | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [localPreview, setLocalPreview] = useState<string>("");
+  const [previewBroken, setPreviewBroken] = useState(false);
   const [urlMode, setUrlMode] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
@@ -52,7 +53,29 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
     if (status.kind === "done" && !value) setStatus({ kind: "idle" });
   }, [value, status.kind]);
 
-  const preview = localPreview || optimizedImage(value, { width: 420, fit: "cover" });
+  // A different URL is a different asset: stop treating the old one as broken.
+  useEffect(() => {
+    setPreviewBroken(false);
+  }, [value]);
+
+  const remotePreview = optimizedImage(value, { width: 420, fit: "cover" });
+  const preview = previewBroken ? "" : localPreview || remotePreview;
+
+  /**
+   * Clearing the field has to clear *everything* about it: the saved URL, any
+   * still-running upload, the object-URL preview and the value the file input
+   * is holding. Leaving any of those behind is what produced "deleted" images
+   * that came back on the next save or stayed visible on the public page.
+   */
+  const clearValue = useCallback(() => {
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+    if (inputRef.current) inputRef.current.value = "";
+    onChange("");
+    setLocalPreview("");
+    setPreviewBroken(false);
+    setStatus({ kind: "idle" });
+  }, [onChange]);
 
   async function handleFiles(file: File | undefined | null) {
     if (!file) return;
@@ -78,6 +101,10 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
         message: `${formatBytes(result.bytes)} · ${result.width}×${result.height} · ${result.publicId}`,
       });
     } catch (error) {
+      // The upload never reached Cloudinary, so the blob preview is a lie —
+      // drop it and fall back to whatever URL is actually saved.
+      setLocalPreview("");
+      setPreviewBroken(false);
       const message = error instanceof Error ? error.message : "The upload failed.";
       setStatus({ kind: "error", message });
       onError?.(message);
@@ -100,11 +127,8 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
             <button
               type="button"
               className="ghost-button is-danger"
-              onClick={() => {
-                onChange("");
-                setLocalPreview("");
-                setStatus({ kind: "idle" });
-              }}
+              onClick={clearValue}
+              title="Clear the image URL — the public page stops showing this asset"
             >
               <Trash2 size={13} /> Remove
             </button>
@@ -138,7 +162,18 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
         >
           {preview ? (
             <span className="image-thumb">
-              <img src={preview} alt="" style={{ objectFit: previewFit }} />
+              <img
+                src={preview}
+                alt=""
+                style={{ objectFit: previewFit }}
+                onError={() => {
+                  // Saved URL points at an asset that no longer exists. Show the
+                  // "No image" state instead of a broken-image glyph, and make
+                  // Remove the obvious next step.
+                  if (localPreview) setLocalPreview("");
+                  setPreviewBroken(true);
+                }}
+              />
               {status.kind === "uploading" ? (
                 <span className="image-busy">
                   <Loader2 size={14} className="spin" /> {status.percent ?? 0}%

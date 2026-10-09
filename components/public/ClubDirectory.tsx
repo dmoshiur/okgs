@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { CalendarClock, Globe, Images, Search, SlidersHorizontal, Trophy, Users, X } from "lucide-react";
 import type { ClubSummary } from "@/lib/club-data";
 import { ClubCard } from "@/components/public/ClubCard";
+import { SmartImage } from "@/components/public/Media";
 import { bn } from "@/lib/format";
 
 type SortKey = "order" | "name" | "events" | "photos";
@@ -156,8 +157,7 @@ export function ClubDirectory({ summaries }: { summaries: ClubSummary[] }) {
               onClick={() => setClubSlug(summary.club.slug)}
             >
               {summary.club.logo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={summary.club.logo_url} alt="" loading="lazy" />
+                <SmartImage src={summary.club.logo_url} alt="" transform={{ width: 80 }} label={summary.club.short_code || summary.club.slug} />
               ) : (
                 <span className="hub-pill-code">{summary.club.short_code || summary.club.slug}</span>
               )}

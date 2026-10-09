@@ -36,6 +36,31 @@ const clubSlugs = new Set<string>(DEFAULT_CLUB_SLUGS);
 
 const slugPattern = /^[a-z0-9-]{2,24}$/;
 
+/**
+ * Routes whose HTML is assembled from the database on every request.
+ *
+ * A dynamic render is not enough on its own: Next answers one with
+ * `Cache-Control: no-cache, must-revalidate`, which still allows a browser or an
+ * edge cache to hold the body and revalidate it later — so an admin edit can
+ * lag behind what a visitor sees. `no-store` removes that window entirely.
+ */
+const dynamicPublicRoutes = [
+  /^\/$/,
+  /^\/clubs(?:\/|$)/,
+  /^\/news(?:\/|$)/,
+  /^\/fair(?:\/|$)/,
+  /^\/club-site(?:\/|$)/,
+  /^\/entry(?:\/|$)/,
+  /^\/pass(?:\/|$)/,
+  /^\/me\/?$/,
+  /^\/sitemap\.xml$/,
+  /^\/robots\.txt$/,
+];
+
+function isDynamicPublicPath(pathname: string) {
+  return dynamicPublicRoutes.some((pattern) => pattern.test(pathname));
+}
+
 function subdomainOf(host: string) {
   const clean = host.split(":")[0].toLowerCase();
   const parts = clean.split(".");
@@ -47,6 +72,10 @@ function subdomainOf(host: string) {
 function withPathHeader(pathname: string, response: NextResponse) {
   // Server components (the layout fallback gate) read this instead of guessing.
   response.headers.set("x-okgs-pathname", pathname);
+  if (isDynamicPublicPath(pathname)) {
+    response.headers.set("Cache-Control", "no-store, must-revalidate");
+    response.headers.set("CDN-Cache-Control", "no-store");
+  }
   return response;
 }
 
@@ -102,6 +131,7 @@ export async function middleware(request: NextRequest) {
         const response = NextResponse.rewrite(target);
         response.headers.set("x-okgs-maintenance", "1");
         response.headers.set("x-okgs-pathname", pathname);
+        response.headers.set("Cache-Control", "no-store, must-revalidate");
         return response;
       }
     }

@@ -4,6 +4,7 @@ import { logActivity } from "@/lib/portal-db";
 import { updateRow } from "@/lib/db";
 import { normalizeHexColor } from "@/lib/club-colors";
 import { logoSwatches } from "@/lib/logo-swatches";
+import { revalidatePublicSite } from "@/lib/revalidate";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +99,7 @@ export async function POST(request: Request, { params }: Params) {
   if (action === "reset") {
     if (!access.super) return fail("আগের অবস্থায় ফেরানো কেবল প্রধান অ্যাডমিনের কাজ।", 403);
     await saveClubSite(slug, { updated_at: "", updated_by: "" } as ClubOverride, access);
+    revalidatePublicSite([`/club-site/${slug}`, `/clubs/${slug}`]);
     return ok({ reset: true });
   }
 
@@ -181,6 +183,10 @@ export async function POST(request: Request, { params }: Params) {
     entity_id: slug,
     detail: Object.keys(patch).join(", ").slice(0, 120),
   });
+
+  // The micro-site lives on its own subdomain *and* is linked from the
+  // directory; both render from this data, so both are flushed.
+  revalidatePublicSite([`/club-site/${slug}`, `/clubs/${slug}`, "/clubs"]);
 
   const site = await loadClubSite(slug);
   return ok({ saved, site, at: saved.updated_at });

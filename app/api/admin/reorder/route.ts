@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { fieldsFor, resourceSchema } from "@/lib/content-config";
 import { reorderRows } from "@/lib/db";
 import type { ResourceName } from "@/lib/types";
+import { revalidatePublicSite } from "@/lib/revalidate";
 
 const known = new Set(Object.keys(resourceSchema) as ResourceName[]);
 
@@ -24,6 +25,9 @@ export async function POST(request: Request) {
     if (!ids.length) return NextResponse.json({ error: "The order list is empty." }, { status: 422 });
 
     await reorderRows(resource, ids);
+    // Order is part of the public page (slides, stats, fair schedule…), so the
+    // rendered copies are dropped too.
+    revalidatePublicSite();
     return NextResponse.json({ ok: true, count: ids.length });
   } catch (error) {
     if (error instanceof Error && error.message === "UNAUTHORIZED") {

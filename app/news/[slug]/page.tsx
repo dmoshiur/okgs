@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ArrowRight, ArrowUpRight, CalendarDays, Mail, User } from "lucide-react";
 import { notFound } from "next/navigation";
-import { getPublicContent } from "@/lib/db";
+import { loadContent } from "@/lib/content";
 import { clubPath } from "@/lib/club-data";
 import { paragraphs } from "@/lib/content-config";
 import { formatDate } from "@/lib/format";
@@ -12,13 +12,15 @@ import { JsonLd } from "@/components/public/JsonLd";
 import { breadcrumbSchema, newsArticleSchema } from "@/lib/schema";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type NewsPageProps = { params: Promise<{ slug: string }> };
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://okgs.info";
 
 export async function generateMetadata({ params }: NewsPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const content = await getPublicContent();
+  const content = await loadContent();
   const story = content.news.find((item) => item.slug === slug);
   if (!story) return { title: "সংবাদ পাওয়া যায়নি" };
   return {
@@ -36,7 +38,7 @@ export async function generateMetadata({ params }: NewsPageProps): Promise<Metad
 
 export default async function NewsStoryPage({ params }: NewsPageProps) {
   const { slug } = await params;
-  const content = await getPublicContent();
+  const content = await loadContent();
   const story = content.news.find((item) => item.slug === slug);
   if (!story) notFound();
 

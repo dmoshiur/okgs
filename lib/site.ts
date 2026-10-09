@@ -2,7 +2,7 @@
  * Site-level helpers: setting lookup/writes, the science-fair mode switch and
  * the theme (template CSS) engine.
  */
-import { listRows, updateRow } from "@/lib/db";
+import { db, listRows, updateRow } from "@/lib/db";
 import type { Fair, PublicContent, SiteSetting, SiteTheme } from "@/lib/types";
 
 export function findSetting(settings: SiteSetting[], key: string) {
@@ -64,6 +64,57 @@ export function activeFair(content: PublicContent, slug?: string): Fair | null {
   const byConfig = configured ? fairs.find((fair) => fair.slug === configured) : undefined;
   const featured = fairs.find((fair) => fair.is_featured);
   return byConfig ?? featured ?? fairs[0];
+}
+
+/** Child rows that point at a fair by slug. */
+export const fairChildResources = ["fair_categories", "fair_schedule", "fair_collections"] as const;
+
+/**
+ * Keeps the site's “which fair is live” switch pointing at a renamed fair.
+ *
+ * `/fair` and the homepage resolve the active fair through the `fair_mode_slug`
+ * setting. Renaming a fair's slug without moving that setting silently sends
+ * `/fair` to a different fair (or to the homepage), so the two stay in lockstep.
+ */
+export async function syncFairModeSlug(from: string, to: string) {
+  if (!from || !to || from === to) return;
+  const rows = (await listRows("settings")) as unknown as SiteSetting[];
+  const existing = rows.find((row) => row.key === "fair_mode_slug");
+  if (!existing) return;
+  if (String(existing.value ?? "").trim() !== from) return;
+  await updateRow("settings", existing.id, { value: to });
+}
+
+/**
+ * Re-points every fair-scoped row when a fair slug is renamed, so categories,
+ * the programme and the project archive keep belonging to the same fair.
+ */
+export async function renameFairSlug(from: string, to: string) {
+  if (!from || from === to) return;
+  await Promise.all(
+    fairChildResources.map((resource) =>
+      db.execute({ sql: `UPDATE "${resource}" SET "fair_slug" = ? WHERE "fair_slug" = ?`, args: [to, from] }),
+    ),
+  );
+  await syncFairModeSlug(from, to);
+}
+
+/**
+ * Moves a club's saved micro-site override onto its new slug.
+ *
+ * Club-site edits live in the `settings` table under `club_site:<slug>`. Without
+ * this a renamed club would silently lose every edit its club admin ever made
+ * and fall back to the checked-in `club.json` defaults.
+ */
+export async function renameClubSiteOverride(from: string, to: string) {
+  if (!from || from === to) return;
+  const rows = (await listRows("settings")) as unknown as SiteSetting[];
+  const existing = rows.find((row) => row.key === `club_site:${from}`);
+  if (!existing) return;
+  await updateRow("settings", existing.id, {
+    key: `club_site:${to}`,
+    label: `${to} ক্লাব সাইট`,
+  });
 }
 
 /** Everything the public fair page needs, sliced by fair slug. */

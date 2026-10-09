@@ -20,6 +20,7 @@ import { fieldsFor, resourceMeta } from "@/lib/content-config";
 import type { ResourceName } from "@/lib/types";
 import { iconFor } from "@/lib/icons";
 import { formatDateEn } from "@/lib/format";
+import { ThumbImage } from "@/components/public/Media";
 
 export type ContentItem = Record<string, any> & { id: string };
 
@@ -43,6 +44,13 @@ type ContentListTableProps = {
   busyRowId: string;
   reorderable: boolean;
   hasFilters: boolean;
+  /**
+   * Role gate. `settings` rows are SuperAdmin-only on the server (the API
+   * answers 403), so the edit/duplicate/delete controls are not offered at all
+   * to a plain admin instead of failing after the click.
+   */
+  canWrite: boolean;
+  canDelete: boolean;
   onCreate: () => void;
   onClearFilters: () => void;
 } & RowHandlers;
@@ -79,12 +87,14 @@ function ContentRow({
   reorderable,
   isFirst,
   isLast,
+  canWrite,
+  canDelete,
   onEdit,
   onToggle,
   onDelete,
   onDuplicate,
   onMove,
-}: { resource: ResourceName; item: ContentItem; clubs: ContentItem[]; busy: boolean; reorderable: boolean; isFirst: boolean; isLast: boolean } & RowHandlers) {
+}: { resource: ResourceName; item: ContentItem; clubs: ContentItem[]; busy: boolean; reorderable: boolean; isFirst: boolean; isLast: boolean; canWrite: boolean; canDelete: boolean } & RowHandlers) {
   const Icon = iconFor(resourceMeta[resource].icon);
   const thumb = thumbOf(item);
   const isLive = item.is_active !== false;
@@ -100,7 +110,7 @@ function ContentRow({
     <div className={`content-row ${isLive ? "" : "is-draft"}`}>
       <span className="row-title">
         <span className={`row-icon row-${resource}`} aria-hidden="true">
-          {thumb ? <img src={thumb} alt="" loading="lazy" /> : <Icon size={16} />}
+          <ThumbImage src={thumb} alt="" fallback={<Icon size={16} />} />
         </span>
         <span className="min-w-0">
           <b className="truncate whitespace-nowrap" title={titleOf(resource, item)}>{titleOf(resource, item)}</b>
@@ -121,7 +131,7 @@ function ContentRow({
       </button>
       <span className="row-date tabular-nums whitespace-nowrap">{dateValue ? formatDateEn(dateValue, "short") : "—"}</span>
       <span className="row-actions">
-        {reorderable ? (
+        {reorderable && canWrite ? (
           <>
             <button onClick={() => onMove(item, -1)} disabled={isFirst || busy} aria-label="Move up"><ArrowUp size={14} /></button>
             <button onClick={() => onMove(item, 1)} disabled={isLast || busy} aria-label="Move down"><ArrowDown size={14} /></button>
@@ -130,15 +140,15 @@ function ContentRow({
         {canPreview ? (
           <a href={previewHref(resource, item)} target="_blank" rel="noreferrer" aria-label="View on the site"><Eye size={15} /></a>
         ) : null}
-        <button onClick={() => onDuplicate(item)} aria-label="Duplicate this entry"><Copy size={15} /></button>
-        <button onClick={() => onEdit(item)} aria-label="Edit this entry"><Pencil size={15} /></button>
-        <button className="is-danger" onClick={() => onDelete(item)} aria-label="Delete this entry"><Trash2 size={15} /></button>
+        {canWrite ? <button onClick={() => onDuplicate(item)} aria-label="Duplicate this entry"><Copy size={15} /></button> : null}
+        {canWrite ? <button onClick={() => onEdit(item)} aria-label="Edit this entry"><Pencil size={15} /></button> : null}
+        {canDelete ? <button className="is-danger" onClick={() => onDelete(item)} aria-label="Delete this entry"><Trash2 size={15} /></button> : null}
       </span>
     </div>
   );
 }
 
-export function ContentListTable({ resource, rows, loading, clubs, busyRowId, reorderable, hasFilters, onCreate, onClearFilters, onEdit, onDuplicate, onDelete, onToggle, onMove }: ContentListTableProps) {
+export function ContentListTable({ resource, rows, loading, clubs, busyRowId, reorderable, hasFilters, canWrite, canDelete, onCreate, onClearFilters, onEdit, onDuplicate, onDelete, onToggle, onMove }: ContentListTableProps) {
   const visibleIds = rows.map((row) => String(row.id));
   void visibleIds;
   return (
@@ -164,6 +174,8 @@ export function ContentListTable({ resource, rows, loading, clubs, busyRowId, re
               reorderable={reorderable}
               isFirst={index === 0}
               isLast={index === rows.length - 1}
+              canWrite={canWrite}
+              canDelete={canDelete}
               onEdit={onEdit}
               onDuplicate={onDuplicate}
               onDelete={onDelete}
@@ -177,7 +189,7 @@ export function ContentListTable({ resource, rows, loading, clubs, busyRowId, re
             <h3>{hasFilters ? "Nothing matches these filters" : `No ${resourceMeta[resource].label.toLowerCase()} yet`}</h3>
             <p>{hasFilters ? "Clear the filters, or add a new entry." : "Add the first entry and it appears on the site."}</p>
             <div className="empty-actions">
-              <button className="topbar-preview" onClick={onCreate}><Plus size={14} /> New {resourceMeta[resource].singular.toLowerCase()}</button>
+              {canWrite ? <button className="topbar-preview" onClick={onCreate}><Plus size={14} /> New {resourceMeta[resource].singular.toLowerCase()}</button> : null}
               {hasFilters ? (
                 <button className="topbar-preview" onClick={onClearFilters}><X size={14} /> Clear filters</button>
               ) : null}

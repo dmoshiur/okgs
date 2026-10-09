@@ -70,16 +70,20 @@ export function HeroCarousel({
             ) : null}
           </div>
           <div className="hero-visual">
-            <div className="hero-stage">
-              <SmartImage src="/media/campus-building.svg" alt="ক্যাম্পাস" priority transform={{ width: 1200, fit: "cover" }} />
-            </div>
-            {badge?.year || badge?.place ? (
-              <div className="hero-badge">
-                <span>প্রতিষ্ঠা</span>
-                <strong>{badge.year || "—"}</strong>
-                <small>{badge.place}</small>
+            {/* .hero-frame is the badge's containing block — anchored to the
+                image, so it can never land on the controls below it. */}
+            <div className="hero-frame">
+              <div className="hero-stage">
+                <SmartImage src="/media/campus-building.svg" alt="ক্যাম্পাস" priority transform={{ width: 1200, fit: "cover" }} />
               </div>
-            ) : null}
+              {badge?.year || badge?.place ? (
+                <div className="hero-badge">
+                  <span>প্রতিষ্ঠা</span>
+                  <strong className="break-words">{badge.year || "—"}</strong>
+                  <small className="break-words">{badge.place}</small>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
@@ -114,29 +118,34 @@ export function HeroCarousel({
         </div>
 
         <div className="hero-visual">
-          <div className="hero-stage" role="region" aria-roledescription="carousel" aria-label="স্কুলের বিশেষ বার্তা">
-            {slides.map((slide, index) => (
-              <SmartImage
-                key={slide.id}
-                className={index === active ? "is-current" : ""}
-                src={slide.image_url}
-                alt={slide.title}
-                priority={index === 0}
-                loading={index === 0 ? "eager" : "lazy"}
-                transform={{ width: 1200, height: 960, fit: "cover" }}
-                label={slide.title}
-                accent={slide.accent || undefined}
-              />
-            ))}
-          </div>
-
-          {badge?.year || badge?.place ? (
-            <div className="hero-badge">
-              <span>প্রতিষ্ঠা</span>
-              <strong>{badge.year || "—"}</strong>
-              <small>{badge.place}</small>
+          {/* The stage and its badge share one positioned frame, so the badge
+              floats over the photo and the controls stay a normal flow row
+              underneath — the two can no longer overlap. */}
+          <div className="hero-frame">
+            <div className="hero-stage" role="region" aria-roledescription="carousel" aria-label="স্কুলের বিশেষ বার্তা">
+              {slides.map((slide, index) => (
+                <SmartImage
+                  key={slide.id}
+                  className={index === active ? "is-current" : ""}
+                  src={slide.image_url}
+                  alt={slide.title}
+                  priority={index === 0}
+                  loading={index === 0 ? "eager" : "lazy"}
+                  transform={{ width: 1200, height: 960, fit: "cover" }}
+                  label={slide.title}
+                  accent={slide.accent || undefined}
+                />
+              ))}
             </div>
-          ) : null}
+
+            {badge?.year || badge?.place ? (
+              <div className="hero-badge">
+                <span>প্রতিষ্ঠা</span>
+                <strong className="break-words">{badge.year || "—"}</strong>
+                <small className="break-words">{badge.place}</small>
+              </div>
+            ) : null}
+          </div>
 
           {total > 1 ? (
             <div className="hero-controls">

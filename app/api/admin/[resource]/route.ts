@@ -5,6 +5,7 @@ import { coerceFieldValue, defaultValueFor, fieldsFor, resourceSchema } from "@/
 import { findUniqueConflict, insertRow, listRows, resolveSlug, rowExists } from "@/lib/db";
 import type { ResourceName } from "@/lib/types";
 import { sendAnnouncementEmail } from "@/lib/announcements";
+import { publicPathsFor, revalidatePublicSite } from "@/lib/revalidate";
 
 const resources = new Set(Object.keys(resourceSchema) as ResourceName[]);
 
@@ -133,6 +134,10 @@ export async function POST(request: Request, context: { params: Promise<{ resour
         notification = { attempted: 0, delivered: 0, failed: 0, configured: false, error: "MAIL_SEND_FAILED" };
       }
     }
+
+    // A new entry is public the moment it is published — flush the cached
+    // renders so it shows up on the very next visit.
+    revalidatePublicSite(publicPathsFor(resource, item as unknown as Record<string, unknown>));
     return NextResponse.json({ item, notification }, { status: 201 });
   } catch (error) {
     if (unauthorized(error)) return NextResponse.json({ error: "Sign in required." }, { status: 401 });

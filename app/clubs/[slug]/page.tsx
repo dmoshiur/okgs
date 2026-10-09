@@ -29,6 +29,7 @@ type ClubPageProps = { params: Promise<{ slug: string }> };
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://okgs.info";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function generateMetadata({ params }: ClubPageProps): Promise<Metadata> {
   const { slug } = await params;

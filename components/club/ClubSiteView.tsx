@@ -34,6 +34,7 @@ import { siteUrl } from "@/lib/schema";
 
 import { ClubSiteGallery } from "@/components/club/ClubSiteGallery";
 import { ClubSiteNav, type ClubSiteNavItem } from "@/components/club/ClubSiteNav";
+import { SmartImage } from "@/components/public/Media";
 import { ThemeModeToggle } from "@/components/public/ThemeModeToggle";
 
 export interface ClubSiteViewProps {
@@ -155,8 +156,7 @@ export function ClubSiteView({ site, palette, themeCss = "", showBar = true, pre
             <a className="clx-brand" href="#top">
               <span className="clx-brand-mark">
                 {site.logo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={optimizedImage(site.logo_url, { width: 120 })} alt="" />
+                  <SmartImage src={site.logo_url} alt={site.name} transform={{ width: 120 }} label={(site.short_code || site.slug).slice(0, 3)} />
                 ) : (
                   <b>{site.short_code.slice(0, 3) || "OK"}</b>
                 )}
@@ -237,8 +237,7 @@ export function ClubSiteView({ site, palette, themeCss = "", showBar = true, pre
           <aside className="clx-hero-panel" aria-label="ক্লাবের পরিচয়">
             <span className="clx-hero-logo">
               {site.logo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={optimizedImage(site.logo_url, { width: 320 })} alt={`${site.name} এর লোগো`} />
+                <SmartImage src={site.logo_url} alt={`${site.name} এর লোগো`} transform={{ width: 320 }} label={(site.short_code || site.slug).slice(0, 4)} />
               ) : (
                 <b>{(site.short_code || site.slug).slice(0, 4)}</b>
               )}
@@ -362,8 +361,7 @@ export function ClubSiteView({ site, palette, themeCss = "", showBar = true, pre
                 <article className="clx-person" key={`${leader.role}-${leader.name}`}>
                   <span className="clx-person-photo">
                     {leader.photo_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={optimizedImage(leader.photo_url, { width: 320, height: 320, fit: "cover" })} alt={leader.name} loading="lazy" />
+                      <SmartImage src={leader.photo_url} alt={leader.name} transform={{ width: 320, height: 320, fit: "cover" }} label={(leader.name || "?").trim().slice(0, 1)} />
                     ) : (
                       <b aria-hidden>{(leader.name || "?").trim().slice(0, 1)}</b>
                     )}
@@ -422,8 +420,7 @@ export function ClubSiteView({ site, palette, themeCss = "", showBar = true, pre
                   </div>
                   {event.image_url ? (
                     <span className="clx-event-photo">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={optimizedImage(event.image_url, { width: 720, fit: "cover" })} alt={event.title} loading="lazy" />
+                      <SmartImage src={event.image_url} alt={event.title} transform={{ width: 720, fit: "cover" }} label={event.title} />
                     </span>
                   ) : null}
                 </li>
@@ -444,9 +441,8 @@ export function ClubSiteView({ site, palette, themeCss = "", showBar = true, pre
             {preview ? (
               <div className="clx-wall is-static">
                 {photos.slice(0, 9).map((item, index) => (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <figure key={`${item.url}-${index}`} className="clx-shot">
-                    <img src={optimizedImage(item.url, { width: 640, fit: "cover" })} alt={item.caption || ""} loading="lazy" />
+                    <SmartImage src={item.url} alt={item.caption || ""} transform={{ width: 640, fit: "cover" }} label={item.caption || ""} />
                   </figure>
                 ))}
               </div>
@@ -515,8 +511,7 @@ export function ClubSiteView({ site, palette, themeCss = "", showBar = true, pre
                   <a className="clx-post" key={post.id} href={`${clubPage}/posts/${post.slug}`}>
                     {post.image_url ? (
                       <span className="clx-post-photo">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={optimizedImage(post.image_url, { width: 640, height: 420, fit: "cover" })} alt="" loading="lazy" />
+                        <SmartImage src={post.image_url} alt={post.title} transform={{ width: 640, height: 420, fit: "cover" }} label={post.title} />
                       </span>
                     ) : (
                       <span className="clx-post-photo is-plain" aria-hidden><BookOpen size={22} /></span>
@@ -603,8 +598,7 @@ export function ClubSiteView({ site, palette, themeCss = "", showBar = true, pre
           <div className="clx-foot-brand">
             <span className="clx-foot-mark">
               {site.logo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={optimizedImage(site.logo_url, { width: 120 })} alt="" />
+                <SmartImage src={site.logo_url} alt={site.name} transform={{ width: 120 }} label={(site.short_code || site.slug).slice(0, 3)} />
               ) : (
                 <b>{(site.short_code || site.slug).slice(0, 3)}</b>
               )}

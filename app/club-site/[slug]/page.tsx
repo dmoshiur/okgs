@@ -7,6 +7,7 @@ import { clubSitePalette, clubThemeCss, loadClubSite } from "@/lib/club-sites";
 import { clubSiteSchema } from "@/lib/schema";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://okgs.info";
 

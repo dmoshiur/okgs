@@ -183,6 +183,11 @@ export function AdminStudio({ session, maintenanceEnabled = false }: { session: 
 
   const usesClubFilter = active !== "overview" && hasField(active, "club_slug");
   const reorderable = active !== "overview" && hasField(active, "sort_order");
+  // `settings` is the site's identity (name, logo, contact details). The API
+  // refuses writes from a plain admin, so the studio does not show the controls
+  // that would only ever answer 403.
+  const restricted = active === "settings";
+  const canWrite = !restricted || session.isSuperAdmin;
 
   function initialForm(resource: ResourceName, item?: Item) {
     const values: Record<string, any> = {};
@@ -491,9 +496,13 @@ export function AdminStudio({ session, maintenanceEnabled = false }: { session: 
                   <p className="heading-sub leading-relaxed">{resourceMeta[active].description}</p>
                 </div>
                 <div className="heading-buttons">
-                  <button className="admin-primary-button" onClick={() => openCreate(active)}>
-                    <Plus size={16} /> New {resourceMeta[active].singular.toLowerCase()}
-                  </button>
+                  {canWrite ? (
+                    <button className="admin-primary-button" onClick={() => openCreate(active)}>
+                      <Plus size={16} /> New {resourceMeta[active].singular.toLowerCase()}
+                    </button>
+                  ) : (
+                    <span className="heading-note">Read-only — only a SuperAdmin can change the site's settings.</span>
+                  )}
                 </div>
               </div>
 
@@ -536,6 +545,8 @@ export function AdminStudio({ session, maintenanceEnabled = false }: { session: 
                 busyRowId={busyRow}
                 reorderable={reorderable}
                 hasFilters={Boolean(search || clubFilter || statusFilter !== "all")}
+                canWrite={canWrite}
+                canDelete={canWrite}
                 onCreate={() => openCreate(active)}
                 onClearFilters={() => { setSearch(""); setClubFilter(""); setStatusFilter("all"); }}
                 onEdit={(item) => openEdit(active, item)}

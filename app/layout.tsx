@@ -36,7 +36,7 @@ import "@fontsource-variable/inter/wght.css";
 import "./globals.css";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getPublicContent } from "@/lib/db";
+import { loadContent, type PublicContent } from "@/lib/content";
 import { settingValue } from "@/lib/club-data";
 import { organizationSchema, siteUrl } from "@/lib/schema";
 import { siteIdentity } from "@/lib/site-settings";
@@ -65,7 +65,7 @@ export async function generateMetadata(): Promise<Metadata> {
   // OpenGraph siteName — bound to Site Settings, never a hardcoded literal.
   let siteName = "ওকেজিএস";
   try {
-    const content = await getPublicContent();
+    const content = await loadContent();
     // Every value below is editable from /admin/settings → Site Settings.
     const site = siteIdentity(content.settings);
     shortName = site.shortName || shortName;
@@ -112,9 +112,12 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  let content = null as Awaited<ReturnType<typeof getPublicContent>> | null;
+  // loadContent() is request-scoped: the layout, generateMetadata above and the
+  // page below share one database read, so the browser title, the header and the
+  // body can never describe different versions of the same row.
+  let content = null as PublicContent | null;
   try {
-    content = await getPublicContent();
+    content = await loadContent();
   } catch {
     content = null;
   }

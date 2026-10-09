@@ -8,6 +8,7 @@
  * values on their next render — no deploy, no code change.
  */
 import { useRouter } from "next/navigation";
+import { ThumbImage } from "@/components/public/Media";
 import { useMemo, useState } from "react";
 import { AlertCircle, Check, Globe2, Image as ImageIcon, Loader2, Phone, RotateCcw, Save, Sparkles } from "lucide-react";
 import { ImageField } from "@/components/admin/ImageField";
@@ -91,7 +92,7 @@ export function SiteSettingsForm({
           <b>{values.site_name || "Untitled site"}</b>
           <small>{values.site_title || values.tagline || "Add a browser title to complete the metadata"}</small>
         </div>
-        {values.logo_url ? <img src={values.logo_url} alt="" className="settings-preview-logo" /> : null}
+        <ThumbImage src={values.logo_url} alt="" className="settings-preview-logo" />
       </div>
 
       {groups.map(({ group, fields: groupFields }) => {

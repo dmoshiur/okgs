@@ -8,6 +8,7 @@ import { ContentSection, EmptyState, InternalPageHeader, InternalPageShell } fro
 import { SmartImage } from "@/components/public/Media";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "সংবাদ ও আপডেট",

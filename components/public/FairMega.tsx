@@ -1,6 +1,6 @@
 import { ArrowUpRight, CalendarDays, MapPin, Ticket, Users } from "lucide-react";
 import type { PublicContent } from "@/lib/types";
-import { readFlag, readSetting } from "@/lib/site";
+import { activeFair, readFlag, readSetting } from "@/lib/site";
 import { bn, formatDate } from "@/lib/format";
 import { Countdown } from "@/components/public/Countdown";
 import { SmartImage } from "@/components/public/Media";
@@ -17,8 +17,10 @@ export function FairMega({ content, fairHref }: { content: PublicContent; fairHr
   const enabled = readFlag(settings, "fair_banner_enabled", true);
   if (!enabled) return null;
 
-  const slug = readSetting(settings, "fair_mode_slug");
-  const fair = content.fairs.find((item) => item.slug === slug) || content.fairs.find((item) => item.is_featured) || content.fairs[0];
+  // Resolved through the same helper /fair and /fair/<slug> use, so the banner
+  // on the homepage can never point at a different fair than the fair site —
+  // the old lookup read one setting and silently fell back to `fairs[0]`.
+  const fair = activeFair(content, readSetting(settings, "fair_mode_slug"));
   if (!fair) return null;
 
   const href = fairHref || `/fair/${fair.slug}`;
