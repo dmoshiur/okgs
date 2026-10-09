@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   try {
     await ensurePortal();
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const email = String(body.email ?? "").trim();
+    const email = String(body.identifier ?? body.email ?? body.student_id ?? body.phone ?? "").trim();
 
     const limit = rateLimit(`forgot:${request.headers.get("x-forwarded-for") ?? "local"}`, { max: 6, windowMs: 15 * 60_000 });
     if (!limit.ok) {
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       message: result.message,
-      messageEn: "If an account exists for that address, a reset link is on its way. The link is valid for 60 minutes.",
+      messageEn: "If a matching account has a registered email, a reset link is on its way. The link is valid for 60 minutes.",
       // Only ever present when no mail provider is configured (see lib/mailer.ts).
       devLink: result.devLink,
     });

@@ -1,3 +1,5 @@
+import { assignPassword, passwordProblemEn, verifyPassword } from "@/lib/portal-auth";
+import { getUser } from "@/lib/portal-db";
 import { NextResponse } from "next/server";
 import { currentSession, fail, ok, str } from "@/lib/api";
 import {
@@ -12,6 +14,9 @@ import {
   listPasses,
   logActivity,
 } from "@/lib/portal-db";
+import { getPublicContent } from "@/lib/db";
+import { activeFair } from "@/lib/site";
+import { getStudentByCode, getPaymentStatus } from "@/lib/student-db";
 import { makePassToken } from "@/lib/qr";
 import { allocateGuestPasses, GuestPassLimitError, GuestPassStateError } from "@/lib/pass-guests";
 
@@ -23,6 +28,8 @@ export async function GET() {
   if (!session) return fail("লগইন প্রয়োজন।", 401);
 
   const { user, role } = session;
+  const roster = role === "student" && user.student_id ? await getStudentByCode(user.student_id) : null;
+  const fair = activeFair(await getPublicContent());
   const [dues, funds, passes] = await Promise.all([
     listDues({ user_id: user.id, limit: 100 }),
     listFunds({ user_id: user.id, limit: 50 }),
@@ -37,6 +44,8 @@ export async function GET() {
   return ok({
     user,
     role,
+    roster: roster ? { ...roster, payment_status: await getPaymentStatus(roster.id, fair?.slug ?? ""),
+      ticket_url: `/sf/print/ticket/${encodeURIComponent(roster.id)}?fair=${encodeURIComponent(fair?.slug ?? "")}&copies=1&auto=0` } : null,
     dues: mergedDues,
     funds,
     passes,
@@ -61,6 +70,17 @@ export async function POST(request: Request) {
   const action = str(body.action);
 
   const { user, role } = session;
+
+  if (action === "password") {
+    const current = String(body.current_password ?? "");
+    const next = String(body.new_password ?? "");
+    const problem = passwordProblemEn(next, "en");
+    if (problem) return fail(problem, 422);
+    const account = await getUser(user.id);
+    if (!account || !verifyPassword(current, account.password_hash, account.password_salt)) return fail("Current password is incorrect.", 401);
+    await assignPassword(account, next);
+    return ok({ message: "Password updated" });
+  }
 
   if (action === "fund") {
     const amount = Number(body.amount ?? 0);

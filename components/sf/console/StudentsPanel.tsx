@@ -61,7 +61,7 @@ function errorText(issue: unknown) {
 }
 
 /** Class-wise student roster, payment marking, Excel import, guest registration and ticket printing. */
-export function StudentsPanel({ fairSlug, fairName }: { fairSlug: string; fairName: string }) {
+export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fairSlug: string; fairName: string; canProvision?: boolean }) {
   // A link from the report page can open the panel already filtered — the URL is
   // the state, nothing is kept in the browser.
   const params = useSearchParams();
@@ -73,6 +73,7 @@ export function StudentsPanel({ fairSlug, fairName }: { fairSlug: string; fairNa
     }
     return initial;
   });
+  const [credentials, setCredentials] = useState<{ studentId: string; password: string } | null>(null);
   const [message, setMessage] = useState("");
   const [problem, setProblem] = useState("");
   const [busyId, setBusyId] = useState("");
@@ -103,6 +104,17 @@ export function StudentsPanel({ fairSlug, fairName }: { fairSlug: string; fairNa
 
   function update<K extends keyof typeof EMPTY_FILTERS>(key: K, value: string) {
     setFilters((state) => ({ ...state, [key]: value }));
+  }
+
+  async function createPortalAccount(student: StudentListRow) {
+    const email = prompt("Registered email for password resets (optional). No email? The office must handle recovery.", "");
+    if (email === null) return;
+    setBusyId(student.id); setProblem(""); setCredentials(null);
+    try {
+      const result = await postJson<{ temporaryPassword: string }>(`/api/staff/students/${student.id}/account`, { email });
+      setCredentials({ studentId: student.student_code, password: result.temporaryPassword });
+    } catch (issue) { setProblem(errorText(issue)); }
+    finally { setBusyId(""); }
   }
 
   async function reloadAll() {
@@ -200,6 +212,7 @@ export function StudentsPanel({ fairSlug, fairName }: { fairSlug: string; fairNa
 
   return (
     <div className="sf-stack">
+      {credentials ? <div className="no-print" role="status"><Notice>Student ID: <strong>{credentials.studentId}</strong> · Temporary password: <code>{credentials.password}</code>. Share securely. This password is shown only once; the student can change it in their portal.</Notice><button className="v2-btn v2-btn-sm v2-btn-ghost" type="button" onClick={() => setCredentials(null)}>Dismiss credentials</button></div> : null}
       {message ? <Notice>{message}</Notice> : null}
       {problem ? <Notice kind="bad">{problem}</Notice> : null}
 
@@ -365,6 +378,7 @@ export function StudentsPanel({ fairSlug, fairName }: { fairSlug: string; fairNa
                     <td>{student.entered_at ? <span className="sf-badge is-good">Entered</span> : <span className="v2-muted">Not yet</span>}</td>
                     <td>{student.guest_count ? en(student.guest_count) : "—"}</td>
                     <td className="sf-actions">
+                      {canProvision ? <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" disabled={busyId === student.id} onClick={() => void createPortalAccount(student)}><UserPlus size={14} /> Portal login</button> : null}
                       <button type="button" className="v2-btn v2-btn-sm" onClick={() => setPrintFor(student)}>
                         <Printer size={14} /> Print ticket
                       </button>

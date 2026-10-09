@@ -7,6 +7,7 @@
  * header, footer, metadata, favicon, JSON-LD card and QR passes all read the new
  * values on their next render — no deploy, no code change.
  */
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { AlertCircle, Check, Globe2, Image as ImageIcon, Loader2, Phone, RotateCcw, Save, Sparkles } from "lucide-react";
 import { ImageField } from "@/components/admin/ImageField";
@@ -25,6 +26,7 @@ export function SiteSettingsForm({
   fields: SiteSettingField[];
   initialValues: Record<string, string>;
 }) {
+  const router = useRouter();
   const [values, setValues] = useState<Record<string, string>>(initialValues);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -70,6 +72,7 @@ export function SiteSettingsForm({
       }
       if (data.values) setValues(data.values);
       setDirty(false);
+      router.refresh();
       setSaved("Saved — the public site is already using the new values.");
     } catch {
       setError("The server could not be reached. Please try again.");
@@ -175,6 +178,7 @@ export function SiteSettingsForm({
           onClick={() => {
             setValues(initialValues);
             setDirty(false);
+      router.refresh();
             setSaved("");
             setError("");
           }}

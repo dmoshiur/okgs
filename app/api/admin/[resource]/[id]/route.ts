@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { isSuperAdminRole } from "@/lib/roles";
@@ -101,7 +102,8 @@ export async function PATCH(
         notification = { attempted: 0, delivered: 0, failed: 0, configured: false, error: "MAIL_SEND_FAILED" };
       }
     }
-    return NextResponse.json({ item: result.row, notification });
+    if (["fairs", "settings", "themes"].includes(resource)) revalidatePath("/", "layout");
+    return NextResponse.json({ success: true, message: ["fairs", "settings", "themes"].includes(resource) ? "Settings updated" : "Entry updated", item: result.row, notification });
   } catch (error) {
     if (unauthorized(error)) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     console.error("[admin:update]", error);

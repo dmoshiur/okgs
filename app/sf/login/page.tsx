@@ -25,7 +25,7 @@ export default async function PortalLoginPage({ searchParams }: { searchParams: 
   // here. The office can override this line with a `portal_note_en` setting.
   const note =
     readSetting(content.settings, "portal_note_en") ||
-    "Sign in with your school ID or your email — the system recognises whether the account is a student, a teacher, a club admin or an administrator.";
+    "Sign in with your student ID, email or phone — the system recognises whether the account is a student, a teacher, a club admin or an administrator.";
   const logo = settingValue(content.settings, "logo_url");
 
   return (
@@ -63,7 +63,8 @@ export default async function PortalLoginPage({ searchParams }: { searchParams: 
       </aside>
 
       <main className="portal-auth-main">
-        <LoginForm note={note} next={next} fairName={fair?.name ?? ""} lang="en" />
+        <Link className="text-link" href="/student/login">Student login portal →</Link>
+          <LoginForm note={note} next={next} fairName={fair?.name ?? ""} lang="en" />
       </main>
     </div>
   );

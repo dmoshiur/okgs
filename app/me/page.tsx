@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 /** /me — student & alumni home (dues, contributions, QR pass). */
 export default async function StudentPage() {
   const session = await getPortalSession();
-  if (!session) redirect("/sf/login?next=/me");
+  if (!session) redirect("/student/login");
   if (isStaffRole(session.role)) redirect("/sf");
 
   const content = await getPublicContent();

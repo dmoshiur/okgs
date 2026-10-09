@@ -32,18 +32,19 @@ type Search = Promise<Record<string, string | string[] | undefined>>;
 export default async function StudentTicketPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Search }) {
   const session = await getPortalSession();
   if (!session) redirect("/sf/login");
-  if (!isStaffRole(session.role)) redirect("/me");
 
   const { id } = await params;
   const query = await searchParams;
   const student = await getStudentById(id);
   if (!student) notFound();
+  const isOwnTicket = session.role === "student" && session.user.student_id && session.user.student_id.toUpperCase() === student.student_code.toUpperCase();
+  if (!isStaffRole(session.role) && !isOwnTicket) notFound();
 
   const content = await getPublicContent();
   const mode = fairMode(content.settings);
   const fair = activeFair(content, String(query.fair ?? "") || mode.slug);
   const fairSlug = fair?.slug ?? String(query.fair ?? "");
-  const copies = Math.min(3, Math.max(1, Math.floor(Number(query.copies ?? 1)) || 1));
+  const copies = !isStaffRole(session.role) ? 1 : Math.min(3, Math.max(1, Math.floor(Number(query.copies ?? 1)) || 1));
 
   const guardians = await activeGuestsForStudent(id, fairSlug);
   const chosenId = String(query.guest ?? "");

@@ -65,20 +65,20 @@ export default function PortalForgotPasswordPage() {
             <p className="v2-chip v2-chip-accent">Password Reset</p>
             <h2 style={{ marginTop: 12 }}>Forgot password?</h2>
             <p className="v2-muted">
-              Enter your account email. A one-time link valid for 60 minutes will be sent.
+              Enter your student ID, email or phone. A one-time link valid for 60 minutes will be sent to your registered email. If no email is registered, contact the school office.
             </p>
             <form onSubmit={submit} style={{ display: "grid", gap: 14, marginTop: 18 }}>
               <div>
                 <label className="v2-label" htmlFor="email">
-                  <AtSign size={13} style={{ verticalAlign: -2 }} /> Email address
+                  <AtSign size={13} style={{ verticalAlign: -2 }} /> Student ID / email / phone
                 </label>
                 <input
                   id="email"
                   className="v2-input"
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="name@okgs.info"
+                  placeholder="202408127 / name@okgs.info / +88019…"
                   autoComplete="username"
                   required
                 />

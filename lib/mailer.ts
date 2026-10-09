@@ -40,7 +40,7 @@ export function mailConfigured() {
 }
 
 export async function mailAvailable() {
-  if (mailConfigured()) return true;
+  if (mailConfigured() || environmentSmtp()) return true;
   try {
     const smtp = await getSmtpSettings();
     return Boolean(smtp?.enabled && smtp.host && smtp.from_email && (!smtp.username || smtp.password_encrypted));
@@ -53,14 +53,31 @@ export function mailFrom() {
   return process.env.MAIL_FROM || "OKGS <no-reply@okgs.info>";
 }
 
+function environmentSmtp() {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_FROM_EMAIL || (process.env.SMTP_USER && !process.env.SMTP_PASSWORD)) return null;
+  return {
+    enabled: 1, host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: process.env.SMTP_SECURE === "true" || process.env.SMTP_SECURE === "1" ? 1 : 0,
+    username: process.env.SMTP_USER || "", password_encrypted: "",
+    from_email: process.env.SMTP_FROM_EMAIL, from_name: process.env.SMTP_FROM_NAME || "OKGS",
+    reply_to: process.env.SMTP_REPLY_TO || "",
+  };
+}
+
 async function smtpTransport() {
-  const settings = await getSmtpSettings();
+  const stored = await getSmtpSettings();
+  const useStored = Boolean(stored?.enabled);
+  const settings = useStored ? stored : environmentSmtp();
   if (!settings?.enabled || !settings.host || !settings.from_email) return null;
-  let password = "";
+  let password = useStored ? "" : process.env.SMTP_PASSWORD || "";
   if (settings.password_encrypted) password = decryptSmtpPassword(settings.password_encrypted);
-  const key = [settings.host, settings.port, settings.secure, settings.username, settings.password_encrypted].join("|");
+  const key = [settings.host, settings.port, settings.secure, settings.username, settings.password_encrypted, password].join("|");
   if (cachedSmtpTransport && cachedSmtpKey === key) return { transport: cachedSmtpTransport, settings };
+  cachedSmtpTransport?.close();
   cachedSmtpTransport = nodemailer.createTransport({
+    connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000,
+    requireTLS: !Boolean(Number(settings.secure)) && process.env.NODE_ENV === "production",
     host: settings.host,
     port: Number(settings.port) || 587,
     secure: Boolean(Number(settings.secure)),

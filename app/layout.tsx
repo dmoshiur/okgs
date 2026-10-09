@@ -46,6 +46,11 @@ import { JsonLd } from "@/components/public/JsonLd";
 import { VisualModeProvider } from "@/components/public/VisualModeProvider";
 import { ThemeModeProvider } from "@/components/public/ThemeModeProvider";
 import { activeTheme, readFlag, themeCss } from "@/lib/site";
+import { DesktopSidebar } from "@/components/sf/DesktopSidebar";
+import { getPortalSession } from "@/lib/portal-auth";
+import { isStaffRole } from "@/lib/roles";
+import { readFairPreference } from "@/lib/sf-preference";
+import { activeFair } from "@/lib/site";
 import { BottomNav } from "@/components/sf/BottomNav";
 import { COLOR_SCHEME_COOKIE } from "@/components/public/ThemeModeProvider";
 import { VISUAL_MODE_COOKIE, type VisualMode } from "@/lib/design-themes";
@@ -132,6 +137,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
      has to say so: it drives hyphenation, spell-check, screen-reader
      pronunciation and the font stack the browser reaches for.
      ------------------------------------------------------------------------- */
+  const staffSession = await getPortalSession();
+  const sidebarFair = content ? activeFair(content, await readFairPreference()) : null;
   const documentLang = /^\/(admin|sf)(\/|$)/.test(requestPath) ? "en" : "bn";
   if (!rewritten && requestPath && !isExemptPath(requestPath) && readFlag(settings, "maintenance_mode", false)) {
     if (!(await canBypassMaintenanceLock())) redirect("/maintenance");
@@ -169,6 +176,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           the ticket sheets), and it never has to be re-implemented per route.
         */}
         <BottomNav />
+        {staffSession && isStaffRole(staffSession.role) && content ? <DesktopSidebar
+          fairs={content.fairs.filter((fair) => fair.is_active !== false)} activeSlug={sidebarFair?.slug ?? ""}
+          logo={settingValue(settings, "logo_url")} schoolName={settingValue(settings, "site_name", "OKGS")}
+          userName={staffSession.user.name} role={staffSession.role}
+        /> : null}
       </body>
     </html>
   );

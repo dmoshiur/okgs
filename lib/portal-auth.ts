@@ -174,7 +174,7 @@ export async function loginWithPassword(identifier: string, password: string): P
   const user = await findUserByLogin(identifier);
   // Same wording for "no such account" and "wrong password" — the login form
   // must not become an account-enumeration oracle.
-  if (!user) return { ok: false, error: "ইমেইল/আইডি অথবা পাসওয়ার্ড ঠিক নয়।", errorEn: "That email or ID and password do not match." };
+  if (!user) return { ok: false, error: "ইমেইল/আইডি অথবা পাসওয়ার্ড ঠিক নয়।", errorEn: "That student ID, email or phone and password do not match." };
   if (!Number(user.is_active)) {
     return { ok: false, error: "অ্যাকাউন্টটি বন্ধ করা হয়েছে। অফিসে যোগাযোগ করুন।", errorEn: "This account is disabled. Please contact the school office." };
   }
@@ -186,7 +186,7 @@ export async function loginWithPassword(identifier: string, password: string): P
     };
   }
   if (!verifyPassword(password, user.password_hash, user.password_salt)) {
-    return { ok: false, error: "ইমেইল/আইডি অথবা পাসওয়ার্ড ঠিক নয়।", errorEn: "That email or ID and password do not match." };
+    return { ok: false, error: "ইমেইল/আইডি অথবা পাসওয়ার্ড ঠিক নয়।", errorEn: "That student ID, email or phone and password do not match." };
   }
   await touchLogin(user.id);
   const safe = publicUser(user);

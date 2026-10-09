@@ -12,6 +12,7 @@ import { PortalAnnouncements } from "@/components/portal/PortalAnnouncements";
 
 interface MeResponse {
   user: PublicUser;
+  roster?: { name: string; student_code: string; roll: string; class_name: string; section: string; shift: string; sms_contact: string; payment_status: "PAID" | "UNPAID"; ticket_url: string } | null;
   role: PortalRole;
   dues: DueRow[];
   funds: FundRow[];
@@ -26,6 +27,8 @@ const methods = ["বিকাশ", "নগদ (Nagad)", "রকেট", "নগ
 /** /me — the student & alumni home: dues, contributions and the QR pass. */
 export function StudentHome({ fair }: { fair: Fair | null }) {
   const { data, loading, error, reload } = useApi<MeResponse>("/api/portal/me");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState(methods[0]);
   const [trx, setTrx] = useState("");
@@ -139,6 +142,29 @@ export function StudentHome({ fair }: { fair: Fair | null }) {
         {message ? <Notice>{message}</Notice> : null}
         {problem ? <Notice kind="bad">{problem}</Notice> : null}
         <PortalAnnouncements />
+        <Panel title={user.must_change_password ? "Change your temporary password" : "Password security"}>
+          <form style={{ display: "grid", gap: 10 }} onSubmit={async (event) => {
+            event.preventDefault(); setBusy(true); setProblem("");
+            try {
+              await postJson("/api/portal/me", { action: "password", current_password: currentPassword, new_password: newPassword });
+              setCurrentPassword(""); setNewPassword(""); setMessage("Password updated."); await reload();
+            } catch (issue) { setProblem(issue instanceof Error ? issue.message : "Could not change password."); }
+            finally { setBusy(false); }
+          }}>
+            <label className="v2-label" htmlFor="current-password">Current password</label>
+            <input id="current-password" className="v2-input" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
+            <label className="v2-label" htmlFor="new-password">New password (8+ characters, letters and numbers)</label>
+            <input id="new-password" className="v2-input" type="password" autoComplete="new-password" minLength={8} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required />
+            <button className="v2-btn" disabled={busy} type="submit">Change password</button>
+          </form>
+        </Panel>
+        {data?.roster ? <Panel title="Student profile & fair ticket">
+          <p><strong>{data.roster.name}</strong> · ID {data.roster.student_code}</p>
+          <p>Class {data.roster.class_name} · Section {data.roster.section} · Roll {data.roster.roll} · {data.roster.shift}</p>
+          <p>Primary phone: {data.roster.sms_contact || user?.phone || "Not registered"}</p>
+          <p>Fair payment: <strong>{data.roster.payment_status}</strong></p>
+          <Link className="v2-btn" href={data.roster.ticket_url}><QrCode size={16} /> View / print my ticket</Link>
+        </Panel> : null}
 
         <div className="metric-grid" style={{ marginBottom: 16 }}>
           <div className="metric metric-accent">
