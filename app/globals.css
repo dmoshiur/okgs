@@ -1783,7 +1783,8 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 }
 .cs-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
 .cs-table { width: 100%; min-width: 520px; border-collapse: collapse; }
-.cs-table th, .cs-table td { padding: 14px 16px; border-bottom: 1px solid var(--line-2); font-size: 15px; text-align: left; }
+.cs-table th, .cs-table td { padding: 14px 16px; border-bottom: 1px solid var(--line-2); font-size: 15px; text-align: left; vertical-align: middle; white-space: nowrap; overflow-wrap: normal; word-break: keep-all; }
+.cs-table td.cs-wrap { white-space: normal; overflow-wrap: break-word; word-break: normal; vertical-align: top; }
 .cs-table th { background: var(--surface-alt); color: var(--muted); font-family: var(--font-ui); font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .cs-table tr:last-child td { border-bottom: 0; }
 .cs-foot { padding-block: clamp(32px, 4vw, 48px); background: var(--brand-deep); color: #fff; }
@@ -2160,9 +2161,13 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .panel-muted-icon { color: var(--muted); }
 .data-table { width: 100%; border-collapse: collapse; font-size: 15px; }
 .data-table th { padding: 12px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-align: left; text-transform: uppercase; white-space: nowrap; }
-.data-table td { padding: 14px 12px; border-bottom: 1px solid var(--line-2); vertical-align: middle; }
+/* Table cells default to single-line text so labels never split mid-word.
+   Use .table-scroll around the table for horizontal overflow, and add
+   .data-wrap to specific cells/columns that need multi-line prose. */
+.data-table td { padding: 14px 12px; border-bottom: 1px solid var(--line-2); vertical-align: middle; white-space: nowrap; overflow-wrap: normal; word-break: keep-all; }
+.data-table td.data-wrap { white-space: normal; overflow-wrap: break-word; word-break: normal; vertical-align: top; }
 .data-table tr:last-child td { border-bottom: 0; }
-.table-scroll { overflow-x: auto; }
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
 .bar-row { display: grid; grid-template-columns: minmax(90px, 150px) 1fr auto; gap: 12px; align-items: center; margin-bottom: 10px; font-size: 14px; }
 .bar-track { height: 10px; overflow: hidden; border-radius: var(--r-pill); background: var(--surface-alt); }
 .bar-fill { height: 100%; border-radius: var(--r-pill); background: var(--brand); }
@@ -6154,7 +6159,8 @@ html[data-color-scheme="dark"] .club-page-link { background: var(--surface-alt);
   box-shadow: var(--shadow-xs);
 }
 .clx-table { width: 100%; min-width: 560px; border-collapse: collapse; }
-.clx-table th, .clx-table td { padding: 14px 18px; border-bottom: 1px solid var(--line-2); font-size: 15px; text-align: left; }
+.clx-table th, .clx-table td { padding: 14px 18px; border-bottom: 1px solid var(--line-2); font-size: 15px; text-align: left; vertical-align: middle; white-space: nowrap; overflow-wrap: normal; word-break: keep-all; }
+.clx-table td.clx-wrap { white-space: normal; overflow-wrap: break-word; word-break: normal; vertical-align: top; }
 .clx-table th {
   background: color-mix(in srgb, var(--surface-alt) 88%, var(--club-accent) 5%);
   color: var(--muted);
@@ -7180,7 +7186,7 @@ html[data-color-scheme="dark"] .ticket-print-root {
 .sf-console .metric-accent { border-color: transparent; background-color: var(--sf-accent); background-image: linear-gradient(140deg, #10233c, var(--sf-accent)); color: #fff; }
 .sf-console .metric-accent span, .sf-console .metric-accent strong, .sf-console .metric-accent small { color: #fff; }
 .sf-console .metric-accent span { color: rgba(255, 255, 255, .84); }
-.sf-console .badge-soft { max-width: 100%; white-space: normal; overflow-wrap: anywhere; color: var(--sf-body); background: var(--sf-card-2); border-color: var(--sf-line); }
+.sf-console .badge-soft { display: inline-flex; align-items: center; flex-shrink: 0; max-width: 100%; padding: 5px 12px; white-space: nowrap; overflow-wrap: normal; word-break: keep-all; color: var(--sf-body); background: var(--sf-card-2); border-color: var(--sf-line); border-radius: var(--r-pill, 999px); font-weight: 600; font-size: 12px; line-height: 1.2; }
 .sf-console .pill-row, .sf-console .sf-chip-stack { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .sf-console .sf-chip-stack { margin-top: 12px; }
 .sf-console .pill { background: var(--sf-card-2); color: var(--sf-body); text-decoration: none; }
@@ -7205,15 +7211,31 @@ html[data-color-scheme="dark"] .ticket-print-root {
 .sf-console .sf-list-main { min-width: 0; display: grid; gap: 2px; overflow-wrap: anywhere; color: var(--sf-body); }
 .sf-console .sf-list-main strong { color: var(--sf-ink); }
 .sf-console .sf-list-main small, .sf-console .sf-list-main span { color: var(--sf-muted); }
-.sf-console .sf-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: var(--r-pill, 999px); font-size: 11.5px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; color: var(--sf-body); background: var(--sf-card-2); border: 1px solid var(--sf-line); }
+/* Status pill/badges: inline-flex + nowrap + flex-shrink:0 guarantees short
+   labels like "UNPAID", "PAID", "Entered", "Active", "Revoked" stay centered
+   on a single line and never compress to two lines inside a squeezed table cell. */
+.sf-console .sf-badge { display: inline-flex; align-items: center; justify-content: center; gap: 4px; flex-shrink: 0; padding: 4px 12px; min-width: fit-content; width: max-content; border-radius: var(--r-pill, 999px); font-size: 11.5px; font-weight: 700; line-height: 1.2; letter-spacing: .02em; white-space: nowrap; text-align: center; color: var(--sf-body); background: var(--sf-card-2); border: 1px solid var(--sf-line); }
 .sf-console .sf-badge.is-good, .sf-console .sf-stat-good { color: var(--sf-good); background: var(--sf-good-bg); border-color: var(--sf-good-line); }
 .sf-console .sf-badge.is-warn, .sf-console .sf-stat-warn { color: var(--sf-warn); background: var(--sf-warn-bg); border-color: var(--sf-warn-line); }
 .sf-console .sf-badge.is-bad, .sf-console .sf-stat-bad { color: var(--sf-bad); background: var(--sf-bad-bg); border-color: var(--sf-bad-line); }
 .sf-console .sf-badge.is-info { color: var(--sf-info); background: var(--sf-info-bg); border-color: var(--sf-info-line); }
 .sf-console .sf-table-wrap, .sf-console .table-scroll { width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; border: 1px solid var(--sf-line); border-radius: var(--r, 12px); background: var(--sf-card); }
 .sf-console .sf-table, .sf-console .data-table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 13.5px; color: var(--sf-body); }
-.sf-console .sf-table th, .sf-console .sf-table td, .sf-console .data-table th, .sf-console .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--sf-line-2); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+/* Table cells: prevent mid-word breaks. Text stays on a single line; the
+   wrapping .sf-table-wrap already provides horizontal scrolling when the row
+   is wider than the viewport, so narrow columns never squeeze "Morning" into
+   "Mornin g" or "UNPAID" into "UNPAI D" again. Long free-text cells (student
+   names with parent lines) opt back in via .sf-wrap-cell below. */
+.sf-console .sf-table th, .sf-console .sf-table td, .sf-console .data-table th, .sf-console .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--sf-line-2); text-align: left; vertical-align: middle; white-space: nowrap; overflow-wrap: normal; word-break: keep-all; }
 .sf-console .sf-table th, .sf-console .data-table th { background: var(--sf-card-2); color: var(--sf-muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+/* Opt-in class for cells that legitimately hold multi-line/long prose (e.g.
+   the student Name column that shows "Father: …" on a second line). Applying
+   it to just those cells keeps every short label (Shift, Section, Payment,
+   Badges, IDs, Roll counts) locked to a single line. */
+.sf-console .sf-table td.sf-wrap-cell,
+.sf-console .data-table td.sf-wrap-cell,
+.data-table td.sf-wrap-cell,
+.data-table td.data-wrap { white-space: normal; overflow-wrap: break-word; word-break: normal; vertical-align: top; }
 .sf-console .sf-table td strong { color: var(--sf-ink); }
 .sf-console .sf-table tbody tr:hover td { background: var(--sf-card-2); }
 .sf-console .sf-progress { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px; min-width: 92px; }
@@ -7247,7 +7269,9 @@ html[data-color-scheme="dark"] .ticket-print-root {
 .sf-console .sf-stat b { color: var(--sf-ink); font-size: 15px; }
 .sf-console .sf-stat-action { cursor: pointer; }
 .sf-console .sf-stat-action:hover { border-color: var(--sf-accent); color: var(--sf-ink); }
-.sf-console .sf-pay { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--r-pill, 999px); border: 1px solid var(--sf-line); background: var(--sf-card-2); color: var(--sf-body); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+/* Payment toggle (PAID / UNPAID pill-button): same contract as sf-badge so the
+   label cannot be broken into "UNPAI D" when the column is tight. */
+.sf-console .sf-pay { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0; padding: 5px 14px; min-width: fit-content; width: max-content; border-radius: var(--r-pill, 999px); border: 1px solid var(--sf-line); background: var(--sf-card-2); color: var(--sf-body); font: inherit; font-size: 12px; font-weight: 700; line-height: 1.2; white-space: nowrap; text-align: center; cursor: pointer; }
 .sf-console .sf-pay:hover { border-color: var(--sf-accent); }
 .sf-console .sf-pay.is-paid { color: var(--sf-good); background: var(--sf-good-bg); border-color: var(--sf-good-line); }
 .sf-console .sf-pay.is-unpaid { color: var(--sf-bad); background: var(--sf-bad-bg); border-color: var(--sf-bad-line); }

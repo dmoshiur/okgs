@@ -356,7 +356,7 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
                   <tr key={student.id}>
                     <td>{student.roll || "—"}</td>
                     <td className="sf-nowrap">{student.student_code}</td>
-                    <td>
+                    <td className="sf-wrap-cell">
                       <strong>{student.name}</strong>
                       {student.father_name ? <small className="v2-muted sf-block">Father: {student.father_name}</small> : null}
                     </td>
@@ -415,9 +415,9 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
             <tbody>
               {allGuests.map((guest) => (
                 <tr key={guest.id}>
-                  <td><strong>{guest.name}</strong><small className="v2-muted sf-block">Registered {formatDateTimeEn(guest.created_at)}</small></td>
+                  <td className="sf-wrap-cell"><strong>{guest.name}</strong><small className="v2-muted sf-block">Registered {formatDateTimeEn(guest.created_at)}</small></td>
                   <td>{guest.relation}</td>
-                  <td>
+                  <td className="sf-wrap-cell">
                     {guest.related_student_name || "—"}
                     <small className="v2-muted sf-block">{[guest.related_student_code, guest.related_student_class, guest.related_student_section].filter(Boolean).join(" · ")}</small>
                   </td>
