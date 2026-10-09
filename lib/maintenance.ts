@@ -32,6 +32,8 @@ const EXEMPT_PREFIXES = [
   // locked `/sf` would stop the gate scanner mid-event, and `/sf` is behind its
   // own staff sign-in, so no visitor gets in by this exemption.
   "/sf",
+  "/student",
+  "/me",
   "/api",
   "/maintenance",
   "/_next",

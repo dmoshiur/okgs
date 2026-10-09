@@ -129,3 +129,67 @@ CLOUDINARY_MAX_BYTES=12582912         # ঐচ্ছিক, ক্লায়�
 সম্পূর্ণ আলাদা ডোমেইনে নিতে চাইলে স্টুডিওর “নিজস্ব ওয়েব ঠিকানা” ঘরে সেটি বসালে সব বাটন সেদিকেই যাবে
 (`NEXT_PUBLIC_CLUB_SITE_DOMAIN` শুধু ফলব্যাক ডোমেইন ঠিক করে)। ডেভে পরীক্ষা: `curl -H 'Host: alssm.localhost:3000' http://localhost:3000/`।
 সাইট সম্পূর্ণ রানটাইম-ডাইনামিক (`force-dynamic`), তাই অ্যাডমিনে সংরক্ষণ করলেই পাবলিক পেজ নতুন তথ্য দেখায়।
+
+## Ticket printing, fair settings and student access
+
+- **Print fix:** ticket pages explicitly restore print visibility/opacity, reset
+  collapsing root styles, and use A4 landscape with 0.5-inch margins. Copies stay
+  in document flow (one per page), so they cannot overlap. Ticket headers/footers
+  are retained; application navigation and toolbars are hidden. Auto-print waits
+  for fonts and ticket images, with an eight-second fallback.
+- **Fair settings:** Admins and SuperAdmins can rename a fair in `/sf/settings`.
+  `POST /api/staff/settings` accepts `{ action: "fair-name", slug, name }` and
+  returns `{ ok: true, success: true, message: "Settings updated", applied }`.
+  The fair's stable slug is unchanged, preserving payment and ticket references.
+  Saving invalidates the Next layout and refreshes the current client view. Fair
+  names are read from live database rows, not duplicated in session cookies.
+  Selecting an active fair also updates the requesting administrator's preference
+  cookie. Other open tabs show the latest values on refresh/navigation.
+- **Navigation:** at widths ≥768px the fair panel and scanner use a fixed,
+  collapsible sidebar; smaller screens retain the bottom navigation and More
+  drawer. Print and login pages have no desktop sidebar.
+- **Student portal:** `/student/login` accepts student ID, email or primary phone
+  plus password and redirects students to `/me`. Bangladesh numbers such as
+  `01912345678` and `+8801912345678` are equivalent. Shared/ambiguous phone numbers
+  require a student ID or email. Roles always come from the database.
+- **Roster accounts:** roster import does **not** automatically make public
+  credentials. In `/sf/students`, an Admin/SuperAdmin can use **Portal login** to
+  provision a student with an optional registered email and a random temporary
+  password (shown once). Existing accounts are managed in Users. Matching the
+  account's student ID to the roster ID enables the real per-fair payment status
+  and its signed ticket in `/me`; students can access only their own roster
+  ticket. Students can change their temporary password directly in `/me`.
+
+### Password reset email
+
+Configure SMTP in **SuperAdmin → SMTP Settings**, or set the SMTP variables in
+`.env.example` when no enabled database SMTP configuration exists. Gmail uses
+`smtp.gmail.com`, port `465`, `SMTP_SECURE=true`, and an app password; SendGrid
+uses `smtp.sendgrid.net`, port `587`, `SMTP_SECURE=false`, username `apikey`, and
+its API key as the SMTP password. Production port-587 transports require
+STARTTLS. Set `NEXT_PUBLIC_SITE_URL` to your canonical HTTPS origin so reset links
+point to the correct deployment. Keep credentials in deployment secrets, not Git.
+
+Forgot Password accepts email, student ID or phone and emails a 60-minute,
+single-use secure token link **to the registered email**. Only the token hash is
+stored; password replacement and token consumption are transactional. Revoked
+links remain in rate-limit history. Responses do not expose account existence or
+reset links in production. Accounts without an email must contact the office;
+**SMTP cannot deliver SMS and no SMS provider is configured**.
+
+### Verification
+
+```sh
+npm run typecheck
+npm run smoke
+npm run test:portal
+npm run build
+```
+
+`test:portal` uses an isolated temporary SQLite database and local SMTP sink. It
+checks multi-identifier authentication, shared-phone rejection, roster payment
+and fair-name persistence, actual Nodemailer delivery, token expiry, replay and
+concurrent-consumption rejection, and production reset-link secrecy. No external
+SMTP credentials or deployment database are used. Manual Chromium checks should
+also verify desktop/mobile navigation, settings save-and-reload, student-owned
+ticket access, and Ctrl+P / Save as PDF with 1–3 ticket copies in light/dark modes.

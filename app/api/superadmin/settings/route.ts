@@ -8,6 +8,7 @@
  * fully dynamic), saving here changes the header, the footer, the metadata, the
  * favicon and the JSON-LD card sitewide — with no redeploy and no code edit.
  */
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/auth";
 import { loadSiteSettings, saveSiteIdentity, siteSettingFields } from "@/lib/site-settings";
@@ -85,8 +86,9 @@ export async function PUT(request: Request) {
       detail: `updated: ${written.join(", ")}`,
     });
 
+    revalidatePath("/", "layout");
     const { values: fresh } = await loadSiteSettings();
-    return NextResponse.json({ ok: true, saved: written, values: fresh, message: "Saved — the site picked the change up immediately." });
+    return NextResponse.json({ ok: true, success: true, saved: written, values: fresh, message: "Settings updated" });
   } catch (error) {
     const problem = authProblem(error);
     if (problem) return problem;

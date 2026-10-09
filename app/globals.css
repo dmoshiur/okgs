@@ -7499,3 +7499,71 @@ html[data-color-scheme="dark"] .ticket-print-root {
   .sf-console .app-body { padding-bottom: 0 !important; }
   body:has(.sf-bottom-nav) { padding-bottom: 0 !important; }
 }
+
+/* One desktop navigation surface; mobile retains its bottom bar and More sheet. */
+.sf-desktop-sidebar { display: none; }
+@media screen and (min-width: 768px) {
+  body:has(.sf-desktop-sidebar) { --sf-sidebar-width: 248px; --sf-nav-space: 0px; padding-left: var(--sf-sidebar-width); padding-bottom: 0; }
+  body:has(.sf-desktop-sidebar.is-collapsed) { --sf-sidebar-width: 76px; }
+  body:has(.sf-desktop-sidebar) .app-top,
+  body:has(.sf-desktop-sidebar) .sf-bottom-nav,
+  body:has(.sf-desktop-sidebar) .sf-more-root { display: none !important; }
+  .sf-desktop-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 100; width: var(--sf-sidebar-width); display: flex; flex-direction: column; padding: 18px 12px; background: #101e32; color: #edf3fb; border-right: 1px solid #29384d; box-shadow: 4px 0 24px #0001; font-family: var(--font-inter, "Inter"), var(--font-hind-siliguri, "Hind Siliguri"), sans-serif; }
+  .sf-sidebar-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+  .sf-sidebar-brand img { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; }
+  .sf-sidebar-brand strong { font-size: 14px; overflow-wrap: anywhere; }
+  .sf-desktop-sidebar { box-sizing: border-box; }
+  .sf-desktop-sidebar button { display: flex; align-items: center; gap: 10px; padding: 8px; border: 0; border-radius: 8px; background: #22334c; color: inherit; cursor: pointer; }
+  .sf-sidebar-brand button { margin-left: auto; }
+  .sf-sidebar-fair { margin-bottom: 18px; }
+  .sf-sidebar-fair label { display: block; margin-bottom: 6px; font-size: 11px; color: #a8b9cf; text-transform: uppercase; letter-spacing: .08em; }
+  .sf-sidebar-fair select { width: 100%; padding: 9px; border: 1px solid #40516b; border-radius: 8px; background: #1b2b43; color: #fff; }
+  .sf-desktop-sidebar nav { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+  .sf-desktop-sidebar nav a { display: flex; align-items: center; gap: 12px; min-height: 42px; padding: 9px 12px; border-radius: 9px; color: #bccbdf; text-decoration: none; font-size: 13px; }
+  .sf-desktop-sidebar nav a svg { flex-shrink: 0; }
+  .sf-desktop-sidebar nav a:hover { color: #fff; background: #21324b; }
+  .sf-desktop-sidebar nav a[aria-current="page"] { color: #fff; background: #28634e; }
+  .sf-desktop-sidebar :focus-visible { outline: 2px solid #8edabb; outline-offset: 2px; }
+  .sf-sidebar-profile { display: grid; gap: 10px; padding-top: 15px; margin-top: 12px; border-top: 1px solid #29384d; }
+  .sf-sidebar-profile strong, .sf-sidebar-profile small { display: block; font-size: 12px; overflow-wrap: anywhere; }
+  .sf-sidebar-profile small { color: #a8b9cf; text-transform: capitalize; margin-top: 3px; }
+  .is-collapsed .sf-sidebar-copy { display: none; }
+  .is-collapsed .sf-sidebar-brand { flex-direction: column; gap: 8px; }
+  .is-collapsed .sf-sidebar-brand button { margin: 0; }
+  .is-collapsed nav a { justify-content: center; }
+  .is-collapsed .sf-sidebar-profile button { justify-content: center; }
+}
+
+/* Final print contract: undo the generic body * visibility reset for tickets.
+   Keep tickets in normal flow so copies paginate rather than overlap. Internal
+   grids/tables retain their display types; forcing every descendant to block
+   would destroy QR/profile alignment and report table semantics. */
+@media print {
+  @page { size: A4 landscape; margin: 0.5in; }
+  @page ticket-landscape { size: A4 landscape; margin: 0.5in; }
+  html, body, #app, #root, .print-wrapper, .ticket-print-root, .ticket-sheets {
+    display: block !important; height: auto !important; min-height: 0 !important;
+    max-height: none !important; overflow: visible !important; transform: none !important;
+    opacity: 1 !important; margin: 0 !important; padding: 0 !important;
+    color: #000 !important; background: #fff !important;
+  }
+  .ticket-print-root, .ticket-sheets, .printable-ticket, .printable-ticket *, .ticket-sheet, .ticket-sheet * {
+    visibility: visible !important; opacity: 1 !important; color: #000 !important;
+    background: #fff !important; transform: none !important;
+  }
+  .printable-ticket, .ticket-sheet {
+    display: block !important; position: relative !important; inset: auto !important;
+    width: 100% !important; max-width: none !important; height: 184mm !important;
+    overflow: visible !important; margin: 0 !important; box-shadow: none !important;
+    break-inside: avoid !important; break-after: page !important; page-break-after: always !important;
+  }
+  .printable-ticket:last-child, .ticket-sheet:last-child { break-after: auto !important; page-break-after: auto !important; }
+  .ticket-frame { padding: 6mm 8mm !important; border: 1mm solid #000 !important; }
+  .ticket-head { display: flex !important; }
+  .ticket-body { display: grid !important; grid-template-columns: 20% minmax(0, 1fr) 22% !important; }
+  .ticket-sheet img { visibility: visible !important; opacity: 1 !important; }
+  .no-print, nav, .sidebar, .top-nav, .app-top, .sf-bottom-nav, .sf-more-root, .ticket-toolbar { display: none !important; }
+  /* Only application chrome is removed: ticket headers/footers contain data. */
+  body > header, body > footer { display: none !important; }
+  .app-shell, .app-body { transform: none !important; overflow: visible !important; height: auto !important; min-height: 0 !important; margin-left: 0 !important; }
+}

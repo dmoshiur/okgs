@@ -1,3 +1,4 @@
+import { normalizePhone } from "@/lib/login-identifier";
 /**
  * Portal data layer — the *transactional* half of OKGS.
  *
@@ -64,7 +65,7 @@ export interface PortalUser {
 export type PublicUser = Omit<PortalUser, "password_hash" | "password_salt">;
 
 export function publicUser(user: PortalUser): PublicUser {
-  const { password_hash: _hash, password_salt: _salt, ...rest } = user;
+  const { password_hash: _hash, password_salt: _salt, login_phone: _phone, ...rest } = user as PortalUser & { login_phone?: string };
   return rest;
 }
 
@@ -489,6 +490,7 @@ const schema = [
 ];
 
 const portalMigrations: Record<string, Record<string, string>> = {
+  users: { login_phone: "TEXT NOT NULL DEFAULT ''" },
   classes: {
     fee_amount: "REAL NOT NULL DEFAULT 0",
     fee_title: "TEXT NOT NULL DEFAULT 'শ্রেণি ফি'",
@@ -515,6 +517,7 @@ const portalMigrations: Record<string, Record<string, string>> = {
 };
 
 const portalIndexes = [
+  `CREATE INDEX IF NOT EXISTS users_login_phone_idx ON users(login_phone)`,
   `CREATE INDEX IF NOT EXISTS funds_due_idx ON funds(due_id, status)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS funds_receipt_no_idx ON funds(receipt_no) WHERE receipt_no <> ''`,
   `CREATE UNIQUE INDEX IF NOT EXISTS expenses_memo_no_idx ON expenses(memo_no) WHERE memo_no <> ''`,
@@ -557,6 +560,11 @@ async function migratePortalColumns() {
     for (const [name, declaration] of Object.entries(columns)) {
       if (!present.has(name)) await db.execute(`ALTER TABLE "${table}" ADD COLUMN "${name}" ${declaration}`);
     }
+  }
+  const contacts = await db.execute(`SELECT id, phone, login_phone FROM users`);
+  for (const row of contacts.rows) {
+    const phone = normalizePhone(String(row.phone ?? ""));
+    if (phone !== String(row.login_phone ?? "")) await db.execute({ sql: `UPDATE users SET login_phone = ? WHERE id = ?`, args: [phone, String(row.id)] });
   }
   await repairLegacyUniqueRows();
   for (const statement of portalIndexes) await db.execute(statement);
@@ -737,11 +745,14 @@ export async function getUser(id: string) {
 export async function findUserByLogin(identifier: string) {
   const value = identifier.trim();
   if (!value) return null;
+  const phone = normalizePhone(value);
   const rows = await query<PortalUser>(
-    `SELECT * FROM users WHERE (lower(email) = lower(?) OR upper(student_id) = upper(?)) LIMIT 1`,
-    [value, value],
+    `SELECT * FROM users WHERE id = ? OR lower(email) = lower(?) OR upper(student_id) = upper(?) OR (login_phone <> '' AND login_phone = ?)`,
+    [value, value, value, phone],
   );
-  return rows[0] ?? null;
+  // Phone contacts are not guaranteed unique (siblings may share a guardian).
+  // Never choose an arbitrary account when an identifier is ambiguous.
+  return rows.length === 1 ? rows[0] : null;
 }
 
 export async function findUserByEmail(email: string) {
@@ -762,6 +773,7 @@ export async function createUser(values: Partial<PortalUser> & { name: string; r
     section: values.section ?? "",
     roll: values.roll ?? "",
     phone: values.phone ?? "",
+    login_phone: normalizePhone(values.phone ?? ""),
     photo_url: values.photo_url ?? "",
     club_slug: values.club_slug ?? "",
     designation: values.designation ?? "",
@@ -788,6 +800,7 @@ export async function updateUser(id: string, values: Partial<PortalUser>) {
     if (key in values && values[key] !== undefined) clean[key] = values[key] as string | number;
   }
   if (!Object.keys(clean).length) return getUser(id);
+  if ("phone" in clean) clean.login_phone = normalizePhone(String(clean.phone));
   clean.updated_at = nowIso();
   const statement = updateStatement("users", id, clean);
   await run(statement.sql, statement.args as (string | number)[]);
@@ -890,7 +903,8 @@ export async function createPasswordReset(values: {
 }) {
   const ttl = Math.max(5, Math.min(24 * 60, values.ttlMinutes ?? 60));
   // One live token per account and purpose — older links stop working.
-  await run(`DELETE FROM password_resets WHERE user_id = ? AND purpose = ? AND used_at = ''`, [
+  await run(`UPDATE password_resets SET used_at = ? WHERE user_id = ? AND purpose = ? AND used_at = ''`, [
+    nowIso(),
     values.userId,
     values.purpose ?? "reset",
   ]);

@@ -58,7 +58,7 @@ export default function AdminLoginPage() {
         warning?: string;
       };
       if (!response.ok || !data.ok) {
-        setError(data.errorEn || data.error || "That email and password combination is not correct.");
+        setError(data.errorEn || data.error || "That identifier and password combination is not correct.");
         return;
       }
       setNotice(data.warning ? `${data.warning} Signing you in…` : "Signed in — opening your dashboard…");
@@ -75,7 +75,7 @@ export default function AdminLoginPage() {
     <AdminAuthShell
       kicker="Secure workspace"
       title="Welcome back."
-      subtitle="Sign in with the email address on your account. The system detects your role automatically."
+      subtitle="Sign in with your student ID, email or primary phone. The system detects your role automatically."
       brandNote="Accounts live in the school database. Site settings and the maintenance switch belong to SuperAdmins only."
       footer={
         <div className="login-note">
@@ -89,14 +89,14 @@ export default function AdminLoginPage() {
     >
       <form className="login-form" onSubmit={submit}>
         <label>
-          Email address
+          Student ID / email / phone
           <div className="icon-input">
             <AtSign size={16} aria-hidden="true" />
             <input
-              type="email"
+              type="text"
               name="email"
               autoComplete="username"
-              inputMode="email"
+              inputMode="text"
               placeholder="you@okgs.info"
               value={email}
               onChange={(event) => setEmail(event.target.value)}

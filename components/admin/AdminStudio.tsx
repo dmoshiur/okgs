@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight,
@@ -78,6 +79,7 @@ export interface StudioSession {
 }
 
 export function AdminStudio({ session, maintenanceEnabled = false }: { session: StudioSession; maintenanceEnabled?: boolean }) {
+  const router = useRouter();
   const [data, setData] = useState<DataMap>(emptyData);
   const [active, setActive] = useState<ResourceName | "overview">("overview");
   const [loading, setLoading] = useState(true);
@@ -276,6 +278,7 @@ export function AdminStudio({ session, maintenanceEnabled = false }: { session: 
       }
       if (!response.ok) throw new Error(result.error || "Could not save.");
       mergeItem(resource, result.item as Item);
+      if (["fairs", "settings", "themes"].includes(resource)) router.refresh();
       closeModal();
       notify("success", mode === "edit" ? "Changes saved." : "New entry added — it is live on the site.");
     } catch (error) {

@@ -75,7 +75,7 @@ export function TicketSheet(props: TicketSheetProps) {
   const spare = listed.length < 2 ? ["Name", "Relation"] : [];
 
   return (
-    <section className={`ticket-sheet ${isGuest ? "is-guest" : ""}`} aria-label={`${isGuest ? "Guest pass" : "Student ticket"} ${props.copyIndex} of ${props.copyCount}`}>
+    <section className={`ticket-sheet printable-ticket ${isGuest ? "is-guest" : ""}`} aria-label={`${isGuest ? "Guest pass" : "Student ticket"} ${props.copyIndex} of ${props.copyCount}`}>
       <div className="ticket-frame">
         <header className="ticket-head">
           <div className="ticket-school">

@@ -1,7 +1,7 @@
 /**
  * POST /api/auth/login — the single sign-in endpoint for the whole application.
  *
- * The client sends **email + password only**. The role is looked up in the
+ * The client sends **student ID, email or phone + password**. The role is looked up in the
  * database and the response tells the browser where that role belongs, so the
  * login page never renders a role picker and can never be tricked into opening
  * a dashboard the account does not own.
@@ -9,6 +9,7 @@
 import { NextResponse } from "next/server";
 import { loginWithPassword } from "@/lib/portal-auth";
 import { LEGACY_ADMIN_COOKIE, PORTAL_COOKIE, SESSION_MAX_AGE, verifyPortalSession } from "@/lib/session";
+import { loginIdentifierKey } from "@/lib/login-identifier";
 import { rateLimit } from "@/lib/rate-limit";
 import { ensureDatabase } from "@/lib/db";
 import { ensurePortal } from "@/lib/portal-db";
@@ -23,20 +24,20 @@ export async function POST(request: Request) {
     await ensurePortal();
 
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const email = String(body.email ?? body.identifier ?? "").trim().toLowerCase();
+    const email = String(body.identifier ?? body.email ?? body.student_id ?? body.phone ?? "").trim().toLowerCase();
     const password = String(body.password ?? "");
 
     if (!email || !password) {
       return NextResponse.json(
         {
           error: "ইমেইল ও পাসওয়ার্ড দুটোই দিন।",
-          errorEn: "Enter both your email address and your password.",
+          errorEn: "Enter your student ID, email or phone and your password.",
         },
         { status: 422 },
       );
     }
 
-    const limit = rateLimit(`login:${email}`, { max: 8, windowMs: 10 * 60_000 });
+    const limit = rateLimit(`login:${loginIdentifierKey(email)}`, { max: 8, windowMs: 10 * 60_000 });
     if (!limit.ok) {
       return NextResponse.json(
         {
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
         {
           error: result.error ?? "লগইন করা যায়নি।",
           errorEn: /ঠিক নয়|wrong/i.test(result.error ?? "")
-            ? "That email and password combination is not correct."
+            ? "That identifier and password combination is not correct."
             : "Unable to sign in right now.",
         },
         { status: 401 },

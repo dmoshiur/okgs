@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CheckCircle2, Eye, FileCode2, FlaskConical, Palette, School, Sparkles } from "lucide-react";
 import type { Fair, SiteTheme } from "@/lib/types";
@@ -18,6 +19,8 @@ interface SettingsPanelProps {
 
 /** Site-wide switches: fair mode, which fair is live, banners and templates. */
 export function SettingsPanel({ fairs, themes, activeFairSlug, mode, bannerEnabled, registrationOpen, isAdmin }: SettingsPanelProps) {
+  const router = useRouter();
+  const [fairName, setFairName] = useState(fairs.find((fair) => fair.slug === activeFairSlug)?.name ?? "");
   const [current, setCurrent] = useState({ mode, slug: activeFairSlug, banner: bannerEnabled, registration: registrationOpen });
   const [localThemes, setLocalThemes] = useState(themes);
   const [css, setCss] = useState("");
@@ -25,6 +28,12 @@ export function SettingsPanel({ fairs, themes, activeFairSlug, mode, bannerEnabl
   const [message, setMessage] = useState("");
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setCurrent({ mode, slug: activeFairSlug, banner: bannerEnabled, registration: registrationOpen });
+    setLocalThemes(themes);
+  }, [mode, activeFairSlug, bannerEnabled, registrationOpen, themes]);
+  useEffect(() => { setFairName(fairs.find((fair) => fair.slug === current.slug)?.name ?? ""); }, [fairs, current.slug]);
 
   const selected = localThemes.find((theme) => theme.id === cssTheme) ?? localThemes[0];
 
@@ -39,25 +48,29 @@ export function SettingsPanel({ fairs, themes, activeFairSlug, mode, bannerEnabl
     try {
       await postJson("/api/staff/settings", body);
       setMessage(note);
+      router.refresh();
+      return true;
     } catch (issue) {
       setProblem(issue instanceof Error ? issue.message : "Could not change.");
+      return false;
     } finally {
       setBusy(false);
     }
   }
 
   async function setMode(next: "school" | "fair") {
-    setCurrent({ ...current, mode: next });
     await call({ action: "fair-mode", mode: next, slug: current.slug }, next === "fair" ? "The whole site is now the Science Fair site — you can switch back at any time." : "The site has been switched back to school mode.");
   }
 
   async function activateTheme(theme: SiteTheme) {
-    setLocalThemes((list) => list.map((item) => ({ ...item, is_default: item.id === theme.id })));
     await call({ action: "theme", id: theme.id, key: theme.key }, `${theme.name} theme is now active.`);
   }
 
   return (
     <div className="v2-grid" style={{ gap: 16 }}>
+      {message ? <Notice>{message}</Notice> : null}
+      {problem ? <Notice kind="bad">{problem}</Notice> : null}
+      {!isAdmin ? <Notice>Only administrators can change site settings.</Notice> : null}
       <div className="v2-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
         <Panel title="Site mode">
           <p className="v2-muted" style={{ marginTop: 0 }}>
@@ -67,7 +80,7 @@ export function SettingsPanel({ fairs, themes, activeFairSlug, mode, bannerEnabl
             <button
               type="button"
               className={`v2-btn ${current.mode === "school" ? "" : "v2-btn-ghost"}`}
-              disabled={busy}
+              disabled={busy || !isAdmin}
               onClick={() => setMode("school")}
             >
               <School size={16} /> School site
@@ -75,7 +88,7 @@ export function SettingsPanel({ fairs, themes, activeFairSlug, mode, bannerEnabl
             <button
               type="button"
               className={`v2-btn ${current.mode === "fair" ? "" : "v2-btn-ghost"}`}
-              disabled={busy}
+              disabled={busy || !isAdmin}
               onClick={() => setMode("fair")}
             >
               <FlaskConical size={16} /> Fair mode
@@ -94,9 +107,12 @@ export function SettingsPanel({ fairs, themes, activeFairSlug, mode, bannerEnabl
                 <option key={fair.slug} value={fair.slug}>{fair.name}{fair.starts_on ? ` · ${fair.starts_on}` : ""}</option>
               ))}
             </select>
-            <button className="v2-btn" type="button" disabled={busy} onClick={() => call({ action: "fair-slug", slug: current.slug }, "Active fair changed.")}>
+            <button className="v2-btn" type="button" disabled={busy || !isAdmin} onClick={() => call({ action: "fair-slug", slug: current.slug }, "Active fair changed.")}>
               Activate
             </button>
+            <label className="v2-label" htmlFor="fair-name">Fair name</label>
+            <input id="fair-name" className="v2-input" value={fairName} maxLength={160} onChange={(event) => setFairName(event.target.value)} disabled={!isAdmin || busy} />
+            <button className="v2-btn" type="button" disabled={!isAdmin || busy || !fairName.trim()} onClick={() => call({ action: "fair-name", slug: current.slug, name: fairName }, "Fair name updated.")}>Save fair name</button>
             <a className="v2-btn v2-btn-ghost" href={`/fair/${current.slug}`} target="_blank" rel="noreferrer">View fair site</a>
           </div>
         </Panel>
@@ -106,9 +122,9 @@ export function SettingsPanel({ fairs, themes, activeFairSlug, mode, bannerEnabl
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input
                 type="checkbox"
+                disabled={busy || !isAdmin}
                 checked={current.banner}
                 onChange={async (e) => {
-                  setCurrent({ ...current, banner: e.target.checked });
                   await call({ action: "banner", enabled: e.target.checked }, e.target.checked ? "Large fair banner is on." : "Banner hidden.");
                 }}
               />
@@ -117,16 +133,16 @@ export function SettingsPanel({ fairs, themes, activeFairSlug, mode, bannerEnabl
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input
                 type="checkbox"
+                disabled={busy || !isAdmin}
                 checked={current.registration}
                 onChange={async (e) => {
-                  setCurrent({ ...current, registration: e.target.checked });
                   await call({ action: "registration", enabled: e.target.checked }, e.target.checked ? "Registration is open." : "Registration is closed.");
                 }}
               />
               Registration open
             </label>
             <p className="v2-muted" style={{ margin: 0, fontSize: 13 }}>
-              To change the fair name, dates, logo, poster, schedule or categories, go to Admin Studio → the “Science Fair 2026” group.
+              To change dates, logo, poster, schedule or categories, go to Admin Studio → the “Science Fair 2026” group.
             </p>
           </div>
         </Panel>
@@ -136,8 +152,6 @@ export function SettingsPanel({ fairs, themes, activeFairSlug, mode, bannerEnabl
         title="Template themes & custom CSS"
         action={<span className="badge-soft"><Palette size={13} /> {en(localThemes.length)} themes</span>}
       >
-        {message ? <Notice>{message}</Notice> : null}
-        {problem ? <Notice kind="bad">{problem}</Notice> : null}
 
         <div className="v2-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", marginBottom: 18 }}>
           {localThemes.map((theme) => (

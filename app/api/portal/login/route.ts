@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { fail, str } from "@/lib/api";
 import { ensurePortal } from "@/lib/portal-db";
 import { clearPortalCookieHeader, loginWithPassword, PORTAL_COOKIE, SESSION_MAX_AGE, setPortalCookieHeader } from "@/lib/portal-auth";
+import { loginIdentifierKey } from "@/lib/login-identifier";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   try {
     await ensurePortal();
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const identifier = str(body.identifier || body.email || body.student_id);
+    const identifier = str(body.identifier || body.email || body.student_id || body.phone);
     const password = String(body.password ?? "");
 
     if (!identifier || !password) {
@@ -29,13 +30,13 @@ export async function POST(request: Request) {
           ok: false,
           code: "missing_fields",
           error: "আইডি/ইমেইল আর পাসওয়ার্ড দুটোই দিন।",
-          errorEn: "Enter both your school ID (or email) and your password.",
+          errorEn: "Enter your student ID, email or phone and your password.",
         },
         { status: 422 },
       );
     }
 
-    const limit = rateLimit(`portal-login:${identifier.toLowerCase()}`, { max: 8, windowMs: 10 * 60_000 });
+    const limit = rateLimit(`login:${loginIdentifierKey(identifier)}`, { max: 8, windowMs: 10 * 60_000 });
     if (!limit.ok) {
       return NextResponse.json(
         {

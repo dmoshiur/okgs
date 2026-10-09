@@ -9,7 +9,7 @@
  * preference cookie (never localStorage) and the router is refreshed, which is
  * also why the selection survives a trip to the gate scanner.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -119,6 +119,7 @@ export function FairConsole({
   // The route owns the section, so no tab state is kept here — that is what keeps
   // the mobile bottom bar in sync with what is on screen.
   const [fairSlug, setFairSlug] = useState(activeFairSlug);
+  useEffect(() => { setFairSlug(activeFairSlug); }, [activeFairSlug]);
   const isAdmin = isAdminRole(role);
   const wantsStats = tab === "dashboard";
   const { data, loading, error, reload } = useApi<Stats>(wantsStats ? `/api/staff/stats?fair=${encodeURIComponent(fairSlug)}` : null, [fairSlug]);
@@ -132,12 +133,12 @@ export function FairConsole({
   const activeLabel = sfConsoleSections.find((item) => item.id === tab)?.label ?? "Dashboard";
 
   async function chooseFair(slug: string) {
-    setFairSlug(slug);
     setProblem("");
     try {
       // Written to a cookie the server reads back, so every section (and the
       // scanner) opens the same fair after a reload or a route change.
       await postJson("/api/staff/fair-preference", { slug });
+      setFairSlug(slug);
       router.refresh();
     } catch (issue) {
       setProblem(issue instanceof Error ? issue.message : "The fair selection could not be saved.");
@@ -336,7 +337,7 @@ export function FairConsole({
           </div>
         ) : null}
 
-        {tab === "students" ? <StudentsPanel fairSlug={fairSlug} fairName={fair?.name ?? fairName} /> : null}
+        {tab === "students" ? <StudentsPanel fairSlug={fairSlug} fairName={fair?.name ?? fairName} canProvision={isAdmin} /> : null}
         {tab === "funds" ? <FundsPanel fairSlug={fairSlug} /> : null}
         {tab === "dues" ? <DuesPanel fairSlug={fairSlug} /> : null}
         {tab === "expenses" ? (

@@ -20,9 +20,9 @@ const copy: Record<LoginLang, Record<string, string>> = {
   en: {
     chip: "OKGS portal",
     heading: "Sign in",
-    lead: "Your email or school ID — either one works. The system recognises your role (student, teacher, admin) by itself.",
-    identifier: "Email / school ID",
-    identifierPlaceholder: "e.g. 2026-0012 or name@okgs.info",
+    lead: "Your student ID, email or phone — any one works. The system recognises your role (student, teacher, admin) by itself.",
+    identifier: "Student ID / email / phone",
+    identifierPlaceholder: "e.g. 202408127, name@okgs.info or +88019…",
     password: "Password",
     show: "Show password",
     hide: "Hide password",
@@ -38,8 +38,8 @@ const copy: Record<LoginLang, Record<string, string>> = {
   bn: {
     chip: "OKGS পোর্টাল",
     heading: "লগইন করুন",
-    lead: "ইমেইল অথবা স্কুল আইডি নম্বর — যে কোনো একটি দিন। ভূমিকা (শিক্ষক/অ্যাডমিন/শিক্ষার্থী) সিস্টেম নিজেই বুঝে নেবে।",
-    identifier: "ইমেইল / স্কুল আইডি",
+    lead: "ইমেইল, স্কুল আইডি অথবা ফোন নম্বর — যে কোনো একটি দিন। ভূমিকা (শিক্ষক/অ্যাডমিন/শিক্ষার্থী) সিস্টেম নিজেই বুঝে নেবে।",
+    identifier: "শিক্ষার্থী আইডি / ইমেইল / ফোন",
     identifierPlaceholder: "যেমন: 2026-0012 অথবা name@okgs.info",
     password: "পাসওয়ার্ড",
     show: "পাসওয়ার্ড দেখুন",
@@ -91,7 +91,7 @@ export function LoginForm({ note, next, fairName, lang = "bn" }: { note: string;
       }
       const warning = lang === "en" ? data.warningEn : data.warning;
       setMessage(warning ? `${text.success} ${warning}` : text.success);
-      router.push(next || data.redirect || "/sf");
+      router.push(data.role === "student" || data.role === "alumni" ? "/me" : next?.startsWith("/") && !next.startsWith("//") ? next : data.redirect || "/sf");
       router.refresh();
     } catch {
       setError(text.network);
