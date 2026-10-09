@@ -108,12 +108,12 @@ export function CollectionsPanel({ fairSlug, categories, clubs }: { fairSlug: st
             <tbody>
               {visible.map((item) => (
                 <tr key={item.id}>
-                  <td>
+                  <td className="sf-wrap-cell">
                     <strong>{item.title}</strong>
                     <div className="v2-muted" style={{ fontSize: 12 }}>{item.student_name || "—"}{item.team_members ? ` · ${item.team_members}` : ""}</div>
                   </td>
                   <td>{item.class_level || "—"}{item.section ? ` · ${item.section}` : ""}</td>
-                  <td>{item.project_type}<div className="v2-muted" style={{ fontSize: 12 }}>{item.category}</div></td>
+                  <td className="sf-wrap-cell">{item.project_type}<div className="v2-muted" style={{ fontSize: 12 }}>{item.category}</div></td>
                   <td>
                     <select className="v2-select" style={{ minWidth: 120 }} value={item.status} onChange={(e) => update(item, { status: e.target.value })}>
                       {statusOptions.map((option) => <option key={option}>{option}</option>)}

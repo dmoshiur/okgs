@@ -271,13 +271,13 @@ export function UsersPanel({ canManageAdmins, canManageSuperAdmins = false, fair
             <tbody>
               {users.map((user) => (
                 <tr key={user.id}>
-                  <td>
+                  <td className="sf-wrap-cell">
                     <strong>{user.name}</strong>
                     <div className="v2-muted" style={{ fontSize: 12 }}>{user.designation || user.club_slug || user.guardian_name || "—"}</div>
                   </td>
                   <td>{roleLabels[user.role] ?? user.role}</td>
                   <td>{user.class_level || "—"}{user.section ? ` · ${user.section}` : ""}</td>
-                  <td>
+                  <td className="sf-wrap-cell">
                     <div style={{ fontSize: 12 }}>{user.email || "—"}</div>
                     <div className="v2-muted" style={{ fontSize: 12 }}>{user.student_id || ""}</div>
                   </td>
@@ -579,7 +579,7 @@ export function PassesPanel({ fairSlug, fairName }: { fairSlug: string; fairName
             <tbody>
               {passes.map((pass) => (
                 <tr key={pass.id}>
-                  <td><strong>{pass.holder_name}</strong><div className="v2-muted" style={{ fontSize: 12 }}>{pass.parent_pass_id ? `Guest pass #${en(pass.guest_index)}` : pass.guest_limit ? `${en(pass.guest_limit)}guest passes allocated` : roleLabels[pass.holder_role as PortalRole] || pass.holder_role}{pass.student_id ? ` · ${pass.student_id}` : ""}</div></td>
+                  <td className="sf-wrap-cell"><strong>{pass.holder_name}</strong><div className="v2-muted" style={{ fontSize: 12 }}>{pass.parent_pass_id ? `Guest pass #${en(pass.guest_index)}` : pass.guest_limit ? `${en(pass.guest_limit)}guest passes allocated` : roleLabels[pass.holder_role as PortalRole] || pass.holder_role}{pass.student_id ? ` · ${pass.student_id}` : ""}</div></td>
                   <td>{pass.class_level}{pass.section ? ` · ${pass.section}` : ""}</td>
                   <td className={pass.status === "active" ? "status-ok" : pass.status === "used" ? "status-pending" : "status-bad"}>
                     {pass.status === "active" ? "Active" : pass.status === "used" ? "Used" : "Cancelled"}

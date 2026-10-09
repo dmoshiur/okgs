@@ -107,7 +107,7 @@ export function SettlementsPanel({ fairSlug, canDelete }: { fairSlug: string; ca
             <tbody>
               {settlements.map((row) => (
                 <tr key={row.id}>
-                  <td>
+                  <td className="sf-wrap-cell">
                     <strong>{row.payee_name}</strong>
                     <div className="v2-muted" style={{ fontSize: 12 }}>{row.payee_role ? roleLabels[row.payee_role as PortalRole] ?? row.payee_role : "—"}</div>
                   </td>

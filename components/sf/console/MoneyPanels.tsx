@@ -130,13 +130,13 @@ export function FundsPanel({ fairSlug }: { fairSlug: string }) {
             <tbody>
               {funds.map((fund) => (
                 <tr key={fund.id}>
-                  <td>
+                  <td className="sf-wrap-cell">
                     <strong>{fund.payer_name}</strong>
                     <div className="v2-muted" style={{ fontSize: 12 }}>{fund.student_id || fund.phone || "—"}</div>
                   </td>
                   <td>{fund.class_level || "—"}{fund.section ? ` · ${fund.section}` : ""}</td>
-                  <td>{fund.purpose}<div className="v2-muted" style={{ fontSize: 12 }}>Receipt {fund.receipt_no} · {formatDateEn(fund.created_at)}</div></td>
-                  <td>{fund.method}{fund.trx_id ? <div className="v2-muted" style={{ fontSize: 12 }}>{fund.trx_id}</div> : null}</td>
+                  <td className="sf-wrap-cell">{fund.purpose}<div className="v2-muted" style={{ fontSize: 12 }}>Receipt {fund.receipt_no} · {formatDateEn(fund.created_at)}</div></td>
+                  <td className="sf-wrap-cell">{fund.method}{fund.trx_id ? <div className="v2-muted" style={{ fontSize: 12 }}>{fund.trx_id}</div> : null}</td>
                   <td><strong>{money(fund.amount)}</strong></td>
                   <td className={fund.status === "verified" ? "status-ok" : fund.status === "pending" ? "status-pending" : "status-bad"}>{fund.status === "verified" ? "Verified" : fund.status === "pending" ? "Pending" : "Cancelled"}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
@@ -370,9 +370,9 @@ export function DuesPanel({ fairSlug }: { fairSlug: string }) {
             <tbody>
               {dues.map((due) => (
                 <tr key={due.id}>
-                  <td><strong>{due.student_name}</strong><div className="v2-muted" style={{ fontSize: 12 }}>{due.student_id}</div></td>
+                  <td className="sf-wrap-cell"><strong>{due.student_name}</strong><div className="v2-muted" style={{ fontSize: 12 }}>{due.student_id}</div></td>
                   <td>{due.class_level}{due.section ? ` · ${due.section}` : ""}</td>
-                  <td>{due.title}<div className="v2-muted" style={{ fontSize: 12 }}>{due.due_date ? formatDateEn(due.due_date) : ""}</div></td>
+                  <td className="sf-wrap-cell">{due.title}<div className="v2-muted" style={{ fontSize: 12 }}>{due.due_date ? formatDateEn(due.due_date) : ""}</div></td>
                   <td>{money(due.amount)}</td>
                   <td>{money(due.paid_amount)}</td>
                   <td className={due.status === "paid" ? "status-ok" : due.status === "partial" ? "status-pending" : "status-bad"}>
@@ -546,7 +546,7 @@ export function ExpensesPanel({ fairSlug }: { fairSlug: string }) {
             <tbody>
               {expenses.map((item) => (
                 <tr key={item.id}>
-                  <td><strong>{item.title}</strong>{item.note ? <div className="v2-muted" style={{ fontSize: 12 }}>{item.note}</div> : null}</td>
+                  <td className="sf-wrap-cell"><strong>{item.title}</strong>{item.note ? <div className="v2-muted" style={{ fontSize: 12 }}>{item.note}</div> : null}</td>
                   <td>{item.category}</td>
                   <td>{item.paid_to || "—"}</td>
                   <td>{item.paid_at ? formatDateEn(item.paid_at) : "—"}</td>
