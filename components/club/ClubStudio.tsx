@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 
 import { ClubSiteView } from "@/components/club/ClubSiteView";
+import { ThumbImage } from "@/components/public/Media";
 import {
   ColorField,
   ImagePicker,
@@ -528,12 +529,11 @@ export function ClubStudio({
       <header className="cst-top">
         <div className="cst-top-brand">
           <span className="cst-top-logo">
-            {draft.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={draft.logo_url} alt="" />
-            ) : (
-              <b>{(site.short_code || slug).slice(0, 3)}</b>
-            )}
+            <ThumbImage
+              src={draft.logo_url}
+              alt=""
+              fallback={<b>{(site.short_code || slug).slice(0, 3)}</b>}
+            />
           </span>
           <div>
             <p className="cst-top-eyebrow">ক্লাব স্টুডিও</p>
@@ -915,8 +915,11 @@ export function ClubStudio({
                   {draft.gallery.map((photo, index) => (
                     <figure key={`${photo.url}-${index}`} className="cst-shot">
                       <span className="cst-shot-frame">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={photo.url} alt="" />
+                        <ThumbImage
+                          src={photo.url}
+                          alt=""
+                          fallback={<span className="cst-shot-missing"><ImageIcon size={18} aria-hidden /> ছবি পাওয়া যায়নি</span>}
+                        />
                       </span>
                       <input
                         placeholder="ক্যাপশন (ঐচ্ছিক)"

@@ -393,8 +393,8 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   font-family: var(--font-ui); font-size: 13px;
 }
 .topline-inner {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: var(--sp-4); min-height: 40px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 6px var(--sp-4); min-height: 40px;
 }
 .topline-inner > span, .topline-inner a { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
 .topline-inner a { color: rgba(255, 255, 255, .92); }
@@ -619,6 +619,10 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   font-family: var(--font-display); font-size: 20px; font-weight: 700;
 }
 .hero-visual { position: relative; min-width: 0; animation: rise-in .7s ease both; }
+/* The stage's positioning context. The badge is absolute inside *this* box, so
+   it floats over the photograph and the carousel controls — which live outside
+   it — keep their own row instead of sitting underneath the badge. */
+.hero-frame { position: relative; z-index: 0; min-width: 0; }
 .hero-stage {
   position: relative;
   aspect-ratio: 16 / 10;
@@ -644,23 +648,30 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   pointer-events: none;
 }
 .hero-badge {
-  position: absolute; z-index: 2; left: 18px; bottom: 18px; right: 18px;
+  position: absolute; z-index: 2; left: 18px; bottom: 18px; right: auto;
   display: flex; flex-direction: column; gap: 2px;
-  max-width: 260px; padding: 14px 18px;
+  /* max-width is capped against the frame, so a long place name wraps inside
+     the card instead of stretching it across the photograph. */
+  width: auto; max-width: min(260px, calc(100% - 36px));
+  min-width: 0; padding: 14px 18px;
   border-radius: var(--r-lg);
   background: rgba(255, 255, 255, .95);
   box-shadow: var(--shadow-md);
   backdrop-filter: blur(8px);
+  pointer-events: none;
 }
 .hero-badge span { color: var(--muted); font-family: var(--font-ui); font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
-.hero-badge strong { color: var(--brand); font-family: var(--font-display); font-size: 26px; font-weight: 700; line-height: 1.2; }
+.hero-badge strong { color: var(--brand); font-family: var(--font-display); font-size: 26px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
 .hero-badge i { display: none; }
-.hero-badge small { color: var(--body); font-size: 13.5px; }
+.hero-badge small { color: var(--body); font-size: 13.5px; overflow-wrap: anywhere; }
 .hero-controls {
+  /* Own stacking context and its own flow row: never underneath the badge. */
+  position: relative; z-index: 1;
   display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
-  gap: 14px; margin-top: 18px;
+  gap: 14px; margin-top: 18px; min-width: 0;
 }
-.hero-control-group { display: flex; align-items: center; gap: 8px; }
+.hero-control-group { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.hero-progress { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
 .circle-control {
   display: grid; place-items: center;
   width: 42px; height: 42px; padding: 0;
@@ -676,7 +687,6 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   font-family: var(--font-ui); font-size: 13px; font-weight: 600;
 }
 .pause-control:hover { color: var(--brand); border-color: var(--brand-mid); }
-.hero-progress { display: flex; align-items: center; gap: 12px; }
 .progress-item {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 6px 0; border: 0; background: transparent; cursor: pointer;
@@ -773,15 +783,16 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 }
 .stats-grid > div {
   display: grid; gap: 8px; align-content: center;
-  min-height: 148px; padding: clamp(24px, 3vw, 36px);
+  min-width: 0; min-height: 148px; padding: clamp(24px, 3vw, 36px);
   background: var(--surface);
 }
 .stats-grid strong {
   color: var(--brand);
   font-family: var(--font-display); font-size: clamp(2rem, 3.2vw, 2.75rem);
-  font-weight: 700; line-height: 1;
+  font-weight: 700; line-height: 1.12;
+  min-width: 0; overflow-wrap: anywhere;
 }
-.stats-grid span { color: var(--body); font-size: 15px; line-height: 1.6; }
+.stats-grid span { color: var(--body); font-size: 15px; line-height: 1.6; min-width: 0; overflow-wrap: anywhere; }
 
 /* ==================================================== club directory ==== */
 .clubs-section { padding-block: var(--section-y); }
@@ -994,7 +1005,8 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 }
 .showcase-tab:hover { border-color: var(--brand-mid); color: var(--brand); }
 .showcase-tab.is-on { background: var(--brand); border-color: var(--brand); color: #fff; }
-.showcase-tab img { width: 20px; height: 20px; border-radius: 50%; object-fit: contain; background: #fff; padding: 2px; }
+.showcase-tab img, .showcase-tab .smart-image, .showcase-tab .media-fallback { width: 20px; height: 20px; flex: 0 0 20px; min-height: 0; padding: 2px; border-radius: 50%; object-fit: contain; background: #fff; }
+.showcase-tab .media-fallback { font-size: 9px; }
 .showcase-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -1286,7 +1298,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .gallery-tile img, .gallery-tile .smart-image, .gallery-tile .media-fallback {
   width: 100%; height: 100%; object-fit: cover; transition: transform .5s ease;
 }
-.gallery-tile:hover img { transform: scale(1.05); }
+.gallery-tile:hover img, .gallery-tile:hover .smart-image { transform: scale(1.05); }
 .gallery-tile-caption {
   position: absolute; inset: auto 0 0 0;
   display: grid; gap: 2px;
@@ -1311,7 +1323,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   animation: fade-in .2s ease both;
 }
 .lightbox-figure { max-width: min(1100px, 100%); margin: 0; }
-.lightbox-figure img { width: 100%; max-height: 76vh; object-fit: contain; border-radius: var(--r-lg); }
+.lightbox-figure img, .lightbox-figure .smart-image, .lightbox-figure .media-fallback { width: 100%; max-height: 76vh; min-height: 160px; object-fit: contain; border-radius: var(--r-lg); }
 .lightbox-figure figcaption {
   display: grid; gap: 4px; margin-top: 16px;
   color: rgba(255, 255, 255, .84); font-size: 14px; text-align: center;
@@ -1373,6 +1385,9 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 }
 .media-fallback-label { font-size: 13px; font-weight: 600; letter-spacing: .01em; }
 .has-image .media-fallback { display: none; }
+/* Public project-verification page: the photo keeps its frame whether it is a
+   real image or the labelled fallback. */
+.entry-image { width: 100%; height: auto; border-radius: 18px; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -1895,6 +1910,11 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .journal-aside { display: flex; flex-wrap: wrap; gap: 8px; }
 .post-meta span { padding: 5px 12px; border-radius: var(--r-pill); background: var(--surface-alt); color: var(--body); font-size: 12px; font-weight: 600; }
 .heading-buttons { display: flex; flex-wrap: wrap; gap: 12px; }
+.heading-note {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 14px; border: 1px dashed var(--line); border-radius: var(--r-pill);
+  color: var(--muted); font-size: 13px; font-weight: 600; line-height: 1.5;
+}
 .heading-sub { max-width: 74ch; margin: 6px 0 0; color: var(--body); font-size: 15.5px; line-height: 1.85; }
 .heading-dot { display: inline-block; width: 5px; height: 5px; margin-inline: 6px; border-radius: 50%; background: currentColor; opacity: .5; }
 
@@ -1923,8 +1943,10 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
   gap: clamp(32px, 5vw, 64px); align-items: center;
 }
+.fair-mega-inner > * { position: relative; z-index: 1; min-width: 0; }
 .fair-mega-kicker {
   display: inline-flex; align-items: center; gap: 8px;
+  max-width: 100%; min-width: 0;
   margin: 0 0 var(--sp-4); padding: 8px 18px;
   border: 1px solid rgba(255, 255, 255, .2); border-radius: var(--r-pill);
   background: rgba(255, 255, 255, .1);
@@ -1932,7 +1954,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
   font-family: var(--font-ui); font-size: 13px; font-weight: 600;
   backdrop-filter: blur(8px);
 }
-.fair-mega-title { margin: 0 0 var(--sp-4); color: #fff; font-size: clamp(1.875rem, 4.2vw, 3.5rem); line-height: 1.22; }
+.fair-mega-title { margin: 0 0 var(--sp-4); color: #fff; font-size: clamp(1.875rem, 4.2vw, 3.5rem); line-height: 1.22; overflow-wrap: anywhere; }
 .fair-mega-title span {
   display: block; margin-top: 14px;
   color: rgba(255, 255, 255, .84);
@@ -1956,15 +1978,16 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 }
 .fair-register-copy, .fair-register-actions { min-width: 0; }
 .fair-register-actions { display: grid; gap: 10px; }
-.fair-mega-facts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: var(--sp-5); }
+.fair-mega-facts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: var(--sp-5); min-width: 0; }
 .fair-mega-facts span {
   display: inline-flex; align-items: center; gap: 7px;
+  max-width: 100%; min-width: 0;
   padding: 8px 16px;
   border: 1px solid rgba(255, 255, 255, .18); border-radius: var(--r-pill);
   background: rgba(255, 255, 255, .08);
   color: #fff; font-family: var(--font-ui); font-size: 12.5px; font-weight: 500;
 }
-.fair-mega-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: var(--sp-6); }
+.fair-mega-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: var(--sp-6); min-width: 0; }
 .fair-mega-logo {
   width: 84px; height: 84px; padding: 12px;
   border: 1px solid rgba(255, 255, 255, .24); border-radius: var(--r-lg);
@@ -2337,17 +2360,18 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .sidebar-bottom svg { flex: 0 0 auto; }
 .sidebar-bottom button:hover { background: rgba(255, 99, 99, .16); color: #fff; }
 .admin-main { display: flex; flex-direction: column; min-width: 0; height: 100%; min-height: 0; overflow: hidden; }
-.admin-topbar { display: flex; align-items: center; gap: 16px; flex: 0 0 auto; min-height: 68px; padding: 12px 32px; background: #fff; border-bottom: 1px solid var(--line); }
+.admin-topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; flex: 0 0 auto; min-height: 68px; padding: 12px 32px; background: #fff; border-bottom: 1px solid var(--line); }
 .admin-menu-button { display: none; flex: 0 0 auto; border: 1px solid var(--line); border-radius: var(--r); background: #fff; padding: 8px; color: var(--ink); cursor: pointer; }
 /* Breadcrumb — single line, ellipsised, never wraps or pushes actions off-canvas. */
-.admin-breadcrumb { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; color: var(--muted); font-size: 14px; line-height: 1.5; white-space: nowrap; overflow: hidden; }
+.admin-breadcrumb { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 220px; color: var(--muted); font-size: 14px; line-height: 1.5; white-space: nowrap; overflow: hidden; }
 .admin-breadcrumb > * { flex: 0 0 auto; }
 .admin-breadcrumb strong { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
 .admin-breadcrumb svg { color: var(--line); }
-.topbar-preview { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border: 1px solid var(--line); border-radius: var(--r-pill); background: #fff; color: var(--body); font-size: 13px; font-weight: 600; line-height: 1.4; white-space: nowrap; cursor: pointer; transition: border-color .18s ease, color .18s ease, background-color .18s ease; }
+.topbar-preview { display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto; max-width: 100%; padding: 7px 13px; border: 1px solid var(--line); border-radius: var(--r-pill); background: #fff; color: var(--body); font-size: 13px; font-weight: 600; line-height: 1.4; white-space: nowrap; cursor: pointer; transition: border-color .18s ease, color .18s ease, background-color .18s ease; }
 .topbar-preview:hover { border-color: var(--brand); color: var(--brand); background: var(--surface-alt); }
 .topbar-preview span { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, .18); }
-.admin-top-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; margin-left: auto; }
+.admin-top-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; flex: 0 0 auto; margin-left: auto; }
+.admin-top-actions > * { flex: 0 0 auto; }
 .admin-content { flex: 1 1 auto; width: min(1400px, 100%); margin-inline: auto; padding: 36px 32px 72px; min-width: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(15, 30, 54, .22) transparent; }
 .admin-page-heading { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 28px; min-width: 0; }
 /* line-height 1.14 clipped Bengali matras on large display sizes — relaxed to 1.25. */
@@ -2387,8 +2411,11 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .content-panel { overflow: hidden; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-xs); }
 .content-table { width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
 .content-table-head, .content-row {
-  display: grid; grid-template-columns: minmax(260px, 1.6fr) minmax(120px, .8fr) 96px 128px 76px;
-  gap: 16px; align-items: center; padding: 0 22px; min-width: 840px;
+  /* The last track is sized for the *whole* action group: up to six 32px
+     buttons plus gaps. At 76px the group was squeezed by flex-shrink and the
+     icons landed on top of each other. */
+  display: grid; grid-template-columns: minmax(240px, 1.6fr) minmax(110px, .8fr) 112px 118px 208px;
+  gap: 14px; align-items: center; padding: 0 22px; min-width: 900px;
 }
 .content-table-head { height: 46px; border-bottom: 1px solid var(--line); background: var(--surface-alt); color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .02em; line-height: 1.5; text-transform: none; white-space: nowrap; }
 .content-table-head span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2404,11 +2431,26 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 .row-details { display: block; overflow: hidden; color: var(--muted); font-size: 13px; line-height: 1.55; text-overflow: ellipsis; white-space: nowrap; }
 .row-date { color: var(--muted); font-size: 13px; line-height: 1.5; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .status-pill { flex: 0 0 auto; }
-.row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; flex: 0 0 auto; }
-.row-actions button { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: var(--r); background: transparent; color: var(--muted); cursor: pointer; opacity: .55; transition: opacity .2s ease, background-color .2s ease; }
-.content-row:hover .row-actions button { opacity: 1; }
-.row-actions button:hover { background: var(--surface-alt); color: var(--ink); }
-.row-actions button:last-child:hover { background: #fef2f2; color: #b91c1c; }
+/* Action group: one flex line, never shrunk, never overlapping the title. */
+.row-actions {
+  display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-end;
+  gap: 4px; flex: 0 0 auto; min-width: 0;
+}
+.row-actions > button, .row-actions > a {
+  /* flex:0 0 auto is the fix — without it the browser shrank every button to
+     ~12px inside the old 76px track and the glyphs collided. */
+  flex: 0 0 auto;
+  display: grid; place-items: center; width: 32px; height: 32px;
+  border: 0; border-radius: var(--r); background: transparent; color: var(--muted);
+  cursor: pointer; text-decoration: none;
+  opacity: .55; transition: opacity .2s ease, background-color .2s ease, color .2s ease;
+}
+.row-actions > a { color: var(--muted); }
+.content-row:hover .row-actions > button, .content-row:hover .row-actions > a { opacity: 1; }
+.row-actions > button:hover, .row-actions > a:hover { background: var(--surface-alt); color: var(--ink); }
+.row-actions > button:last-child:hover, .row-actions > a:last-child:hover { background: #fef2f2; color: #b91c1c; }
+.row-actions > button:disabled { opacity: .3; cursor: not-allowed; }
+.row-actions > button:focus-visible, .row-actions > a:focus-visible { opacity: 1; outline: 2px solid var(--brand-mid); outline-offset: 1px; }
 .content-empty { display: grid; place-items: center; gap: 12px; min-height: 320px; padding: 32px; text-align: center; }
 .table-loading { display: flex; flex-direction: column; justify-content: center; gap: 14px; min-height: 320px; padding: 0 24px; }
 .table-loading span { display: block; height: 14px; border-radius: var(--r-pill); background: linear-gradient(90deg, var(--surface-alt), #fbfdfc, var(--surface-alt)); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
@@ -2782,7 +2824,7 @@ html[data-color-scheme="dark"] .image-msg.is-error { color: #fca5a5; }
   .clubs-grid, .showcase-grid, .directory-grid, .facility-grid, .teacher-grid,
   .journal-index-grid, .club-pulse-grid { grid-template-columns: 1fr; }
   .hero-stage { aspect-ratio: 4 / 3; }
-  .hero-badge { left: 14px; bottom: 14px; right: auto; min-width: 200px; }
+  .hero-badge { left: 14px; bottom: 14px; right: auto; min-width: 0; max-width: min(230px, calc(100% - 28px)); padding: 12px 15px; }
   .about-meta { grid-template-columns: 1fr; gap: 18px; }
   .topline-inner { flex-wrap: wrap; justify-content: center; gap: 6px 16px; padding-block: 8px; }
   .topline-contact { justify-content: center; }
@@ -3676,7 +3718,7 @@ body[data-visual-mode="science-fair"] .fair-mega::before {
   .hero-actions .button { min-height: 48px; }
   .hero-facts { gap: 8px 16px; margin-top: 22px; padding-top: 16px; }
   .hero-stage { aspect-ratio: 4 / 3; border-radius: 19px; box-shadow: var(--shadow-lg); }
-  .hero-badge { left: 12px; bottom: 12px; right: 12px; max-width: 230px; min-width: 0; padding: 10px 13px; }
+  .hero-badge { left: 12px; bottom: 12px; right: auto; min-width: 0; max-width: min(210px, calc(100% - 24px)); padding: 10px 13px; }
   .hero-badge strong { font-size: 23px; }
   .hero-badge small { font-size: 12.5px; }
   .hero-controls { margin-top: 13px; gap: 10px; }
@@ -3798,6 +3840,8 @@ body[data-visual-mode="science-fair"] .fair-mega::before {
     overflow: hidden;
     color: inherit;
     font-size: 10.5px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     font-weight: 600;
     line-height: 1.45;
     text-overflow: ellipsis;
@@ -5303,7 +5347,7 @@ html[data-color-scheme="dark"] .metric-card.metric-peach .metric-icon { backgrou
   background: rgba(255, 255, 255, .96);
   box-shadow: 0 10px 24px -12px rgba(6, 21, 35, .6);
 }
-.club-badge img { width: 100%; height: 100%; object-fit: contain; }
+.club-badge img, .club-badge .smart-image, .club-badge .media-fallback { width: 100%; height: 100%; min-height: 0; padding: 4px; object-fit: contain; }
 .club-badge .club-icon { position: static; width: auto; height: auto; background: none; box-shadow: none; }
 .club-open {
   position: absolute; z-index: 2; right: 12px; bottom: 12px; left: auto;
@@ -5524,7 +5568,7 @@ html[data-color-scheme="dark"] .club-page-link { background: var(--surface-alt);
   cursor: pointer;
   transition: background-color .18s ease, border-color .18s ease, color .18s ease;
 }
-.hub-pill img { width: 22px; height: 22px; border-radius: 7px; object-fit: contain; background: var(--surface-alt); }
+.hub-pill img, .hub-pill .smart-image, .hub-pill .media-fallback { width: 22px; height: 22px; flex: 0 0 22px; min-height: 0; padding: 0; border-radius: 7px; object-fit: contain; background: var(--surface-alt); }
 .hub-pill-code {
   padding: 2px 7px; border-radius: 6px;
   background: color-mix(in srgb, var(--mint) 16%, var(--surface));
@@ -5641,7 +5685,7 @@ html[data-color-scheme="dark"] .club-page-link { background: var(--surface-alt);
   background: rgba(255, 255, 255, .94);
   color: var(--club-brand-deep, var(--brand));
 }
-.clx-brand-mark img { width: 100%; height: 100%; object-fit: contain; }
+.clx-brand-mark img, .clx-brand-mark .smart-image, .clx-brand-mark .media-fallback { width: 100%; height: 100%; min-height: 0; padding: 4px; object-fit: contain; }
 .clx-brand-mark b { font-family: var(--font-ui); font-size: 12.5px; font-weight: 800; letter-spacing: .04em; }
 .clx-brand-copy { display: grid; gap: 1px; min-width: 0; }
 .clx-brand-copy strong {
@@ -5807,7 +5851,7 @@ html[data-color-scheme="dark"] .club-page-link { background: var(--surface-alt);
   background: rgba(255, 255, 255, .96);
   box-shadow: 0 22px 44px -24px rgba(0, 0, 0, .85);
 }
-.clx-hero-logo img { width: 100%; height: 100%; object-fit: contain; }
+.clx-hero-logo img, .clx-hero-logo .smart-image, .clx-hero-logo .media-fallback { width: 100%; height: 100%; min-height: 0; padding: 10px; object-fit: contain; }
 .clx-hero-logo b { color: var(--club-brand-deep, var(--brand)); font-family: var(--font-display); font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 800; }
 .clx-hero-panel-host {
   display: inline-flex; align-items: center; gap: 7px;
@@ -6019,7 +6063,7 @@ html[data-color-scheme="dark"] .club-page-link { background: var(--surface-alt);
   background: var(--club-accent-wash, var(--surface-alt));
   color: var(--club-accent, var(--brand-mid));
 }
-.clx-person-photo img { width: 100%; height: 100%; object-fit: cover; }
+.clx-person-photo img, .clx-person-photo .smart-image, .clx-person-photo .media-fallback { width: 100%; height: 100%; min-height: 0; padding: 8px; object-fit: cover; }
 .clx-person-photo b { font-family: var(--font-display); font-size: 2.5rem; font-weight: 800; }
 .clx-person-copy { display: grid; gap: 4px; }
 .clx-person-copy em {
@@ -6080,7 +6124,7 @@ html[data-color-scheme="dark"] .club-page-link { background: var(--surface-alt);
 .clx-event p { margin: 0; color: var(--body); font-size: 15.5px; line-height: 1.85; }
 .clx-event-venue { display: inline-flex; align-items: center; gap: 6px; color: var(--muted) !important; font-size: 13px !important; }
 .clx-event-photo { display: block; overflow: hidden; border-radius: var(--r-lg); border: 1px solid var(--line); }
-.clx-event-photo img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.clx-event-photo img, .clx-event-photo .smart-image, .clx-event-photo .media-fallback { display: block; width: 100%; aspect-ratio: 4 / 3; min-height: 0; object-fit: cover; }
 
 .clx-wall { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .clx-shot {
@@ -6092,8 +6136,8 @@ html[data-color-scheme="dark"] .club-page-link { background: var(--surface-alt);
 }
 .clx-shot:nth-child(7n + 1) { grid-column: span 2; grid-row: span 2; aspect-ratio: 1 / 1; }
 .clx-shot:nth-child(11n + 6) { grid-column: span 2; aspect-ratio: 8 / 3; }
-.clx-shot img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s ease; }
-.clx-shot:hover img { transform: scale(1.05); }
+.clx-shot img, .clx-shot .smart-image, .clx-shot .media-fallback { width: 100%; height: 100%; min-height: 0; padding: 10px; object-fit: cover; transition: transform .6s ease; }
+.clx-shot:hover img, .clx-shot:hover .smart-image { transform: scale(1.05); }
 .clx-shot-veil {
   position: absolute; inset: 0;
   background: linear-gradient(180deg, transparent 40%, rgba(6, 21, 35, .74) 100%);
@@ -6122,7 +6166,7 @@ html[data-color-scheme="dark"] .club-page-link { background: var(--surface-alt);
 .clx-shot:hover .clx-shot-zoom, .clx-shot:focus-visible .clx-shot-zoom { opacity: 1; }
 .clx-wall.is-static .clx-shot { cursor: default; }
 .clx-wall figure.clx-shot { margin: 0; }
-.clx-wall figure.clx-shot img { opacity: .96; }
+.clx-wall figure.clx-shot img, .clx-wall figure.clx-shot .smart-image { opacity: .96; }
 
 .clx-lightbox {
   position: fixed; z-index: 120; inset: 0;
@@ -6192,7 +6236,7 @@ html[data-color-scheme="dark"] .club-page-link { background: var(--surface-alt);
 }
 .clx-post:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--club-accent-line, var(--line)); }
 .clx-post-photo { display: block; aspect-ratio: 16 / 10; background: var(--surface-alt-2); }
-.clx-post-photo img { width: 100%; height: 100%; object-fit: cover; }
+.clx-post-photo img, .clx-post-photo .smart-image, .clx-post-photo .media-fallback { width: 100%; height: 100%; min-height: 0; padding: 10px; object-fit: cover; }
 .clx-post-photo.is-plain { display: grid; place-items: center; background: var(--club-accent-wash, var(--surface-alt)); color: var(--club-accent, var(--brand-mid)); }
 .clx-post-copy { display: grid; gap: 7px; align-content: start; padding: 18px 20px 20px; }
 .clx-post-copy small { color: var(--muted); font-family: var(--font-ui); font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
@@ -6268,7 +6312,7 @@ html[data-color-scheme="dark"] .club-page-link { background: var(--surface-alt);
   background: rgba(255, 255, 255, .94);
   color: var(--club-brand-deep, var(--brand));
 }
-.clx-foot-mark img { width: 100%; height: 100%; object-fit: contain; }
+.clx-foot-mark img, .clx-foot-mark .smart-image, .clx-foot-mark .media-fallback { width: 100%; height: 100%; min-height: 0; padding: 4px; object-fit: contain; }
 .clx-foot-mark b { font-family: var(--font-ui); font-size: 14px; font-weight: 800; }
 .clx-foot-brand strong { font-size: 16px; }
 .clx-foot-brand p { margin: 2px 0 0; color: rgba(255, 255, 255, .7); font-size: 13px; }
@@ -6479,9 +6523,10 @@ html[data-color-scheme="dark"] .cst-note.is-ok { color: #7ddba8; }
   font-family: var(--font-body); font-size: 15px; line-height: 1.7;
   resize: vertical;
 }
-.cst-lines-tools { display: flex; flex-direction: column; gap: 4px; padding-top: 6px; }
+.cst-lines-tools { display: flex; flex-direction: column; gap: 4px; padding-top: 6px; flex: 0 0 auto; }
 .cst-lines-tools button, .cst-row-tools button, .cst-shot-tools button {
   display: grid; place-items: center;
+  flex: 0 0 auto;
   width: 28px; height: 28px;
   border: 1px solid var(--line); border-radius: 8px;
   background: var(--surface); color: var(--muted);
@@ -6494,7 +6539,7 @@ html[data-color-scheme="dark"] .cst-note.is-ok { color: #7ddba8; }
 .cst-rows { display: grid; gap: 14px; }
 .cst-row { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface-alt); overflow: hidden; }
 .cst-row-head {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px;
   padding: 11px 14px;
   border-bottom: 1px solid var(--line-2);
   background: var(--surface);
@@ -6506,10 +6551,10 @@ html[data-color-scheme="dark"] .cst-note.is-ok { color: #7ddba8; }
   background: var(--brand); color: #fff;
   font-family: var(--font-ui); font-size: 11.5px; font-weight: 800;
 }
-.cst-row-title { display: grid; gap: 1px; flex: 1 1 auto; min-width: 0; }
+.cst-row-title { display: grid; gap: 1px; flex: 1 1 160px; min-width: 0; }
 .cst-row-title strong { font-size: 14.5px; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .cst-row-title small { color: var(--muted); font-size: 12px; }
-.cst-row-tools { display: flex; gap: 5px; }
+.cst-row-tools { display: flex; flex-wrap: nowrap; gap: 5px; flex: 0 0 auto; margin-left: auto; }
 .cst-row-body { display: grid; gap: 14px; padding: 16px; }
 
 .cst-shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 14px; }
@@ -6517,7 +6562,15 @@ html[data-color-scheme="dark"] .cst-note.is-ok { color: #7ddba8; }
 .cst-shot-frame { display: block; overflow: hidden; aspect-ratio: 4 / 3; border-radius: 10px; background: var(--surface-alt-2); }
 .cst-shot-frame img { width: 100%; height: 100%; object-fit: cover; }
 .cst-shot input { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font-size: 13.5px; }
-.cst-shot-tools { display: flex; justify-content: flex-end; gap: 5px; }
+.cst-shot-tools { display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 5px; flex: 0 0 auto; }
+/* Gallery tile whose Cloudinary asset is gone — a labelled placeholder, not a
+   broken-image glyph overlapping the caption field below it. */
+.cst-shot-missing {
+  display: grid; place-items: center; gap: 5px;
+  width: 100%; height: 100%; padding: 10px;
+  background: var(--surface-alt-2); color: var(--muted);
+  font-size: 11.5px; line-height: 1.5; text-align: center;
+}
 
 .cst-palette {
   display: grid; gap: 14px;

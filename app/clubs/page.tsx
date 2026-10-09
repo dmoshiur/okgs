@@ -3,12 +3,14 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight, CalendarClock, Compass, MapPin, Sparkles, Trophy } from "lucide-react";
 
 import { ClubDirectory } from "@/components/public/ClubDirectory";
+import { SmartImage } from "@/components/public/Media";
 import { PublicChrome } from "@/components/public/Chrome";
 import { settingValue, summarizeAll } from "@/lib/club-data";
 import { getPublicContent } from "@/lib/db";
 import { bn, formatDate, isUpcoming, relativeDay } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://okgs.info";
 
@@ -71,8 +73,7 @@ export default async function ClubsPage() {
                     <a href={summary.siteUrl} target="_blank" rel="noreferrer noopener">
                       <span className="hub-hero-domain-mark">
                         {summary.club.logo_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={summary.club.logo_url} alt="" loading="lazy" />
+                          <SmartImage src={summary.club.logo_url} alt="" transform={{ width: 120 }} label={(summary.club.short_code || summary.club.slug).slice(0, 3)} />
                         ) : (
                           <b>{(summary.club.short_code || summary.club.slug).slice(0, 3)}</b>
                         )}

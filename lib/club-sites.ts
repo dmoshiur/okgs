@@ -233,7 +233,22 @@ function cleanList(value: unknown, fallback: string[]): string[] {
   return list.length ? list : fallback;
 }
 
-/** Merges file defaults → DB row → admin override (last wins). */
+/**
+ * Picks the list a club site should render: an admin's saved override wins,
+ * then what the database holds, and only then the checked-in `club.json` seed.
+ *
+ * `clubs/<slug>/club.json` is a **first-run seed**, not live content. The old
+ * rule used the file whenever no override existed, so a club whose events had
+ * been edited in the content studio kept showing the seed event names next to
+ * the real ones — and a club admin could never delete them from the studio they
+ * had access to. Database rows now displace the seed entirely.
+ */
+function pickList<T>(override: T[] | undefined, fromDatabase: T[], seed: T[]): T[] {
+  if (override !== undefined) return override;
+  return fromDatabase.length ? fromDatabase : seed;
+}
+
+/** Merges seed → DB row → admin override, with the database ahead of the seed. */
 export async function loadClubSite(slug: string): Promise<ClubSite | null> {
   const file = await readClubFile(slug);
   const content = await getPublicContent();
@@ -274,8 +289,23 @@ export async function loadClubSite(slug: string): Promise<ClubSite | null> {
 
   const override = readOverride(content.settings, slug);
 
-  const recordMission = cleanList(toLines(record?.mission), base.mission);
-  const recordObjectives = cleanList(toLines(record?.objectives), base.objectives);
+  // Database rows for the same club — compiled first so the merge below can
+  // prefer them over `club.json` instead of only ever appending to it.
+  const members = content.club_members.filter((member) => member.club_slug === slug);
+  const clubEvents = content.club_events.filter((event) => event.club_slug === slug);
+  const dbEvents: ClubEventItem[] = clubEvents.map((event) => ({
+    title: String(event.title || "").trim(),
+    date: String(event.event_date || "").trim(),
+    description: String(event.description || "").trim(),
+    image_url: String(event.image_url || "").trim(),
+  }));
+  const dbGallery: ClubGalleryItem[] = content.club_gallery
+    .filter((item) => item.club_slug === slug)
+    .map((item) => ({ url: String(item.image_url || "").trim(), caption: String(item.caption || "") }));
+
+  // Empty strings are dropped so a row with no image does not render a broken tile.
+  const dbMission = cleanList(toLines(record?.mission), []);
+  const dbObjectives = cleanList(toLines(record?.objectives), []);
   const merged: ClubFile = {
     ...base,
     name: override.name ?? record?.name ?? base.name,
@@ -295,32 +325,35 @@ export async function loadClubSite(slug: string): Promise<ClubSite | null> {
     logo_url: override.logo_url !== undefined ? override.logo_url : record?.logo_url || base.logo_url,
     cover_image_url: override.cover_image_url !== undefined ? override.cover_image_url : record?.cover_image_url || record?.image_url || base.cover_image_url,
     about: override.about !== undefined ? override.about : record?.description || base.about || "",
-    mission: override.mission !== undefined ? override.mission : recordMission,
-    objectives: override.objectives !== undefined ? override.objectives : recordObjectives,
+    mission: pickList(override.mission, dbMission, base.mission),
+    objectives: pickList(override.objectives, dbObjectives, base.objectives),
     notice: override.notice ?? base.notice,
     contact: { ...base.contact, ...(override.contact || {}) },
     meeting: { ...base.meeting, ...(override.meeting || {}) },
-    // An explicitly saved empty list is a deliberate clear; only an absent
-    // override falls back to the club.json defaults.
-    leaders: override.leaders !== undefined ? override.leaders : base.leaders,
-    events: override.events !== undefined ? override.events : base.events,
-    gallery: override.gallery !== undefined ? override.gallery : base.gallery,
+    // An explicitly saved empty list is a deliberate clear and wins. Otherwise
+    // the database leads and `club.json` only seeds a club that has no rows yet.
+    leaders: pickList(override.leaders, [], base.leaders),
+    events: pickList(override.events, dbEvents, base.events),
+    gallery: pickList(override.gallery, dbGallery, base.gallery),
   };
 
-  const members = content.club_members.filter((member) => member.club_slug === slug);
   // Built once here, so the page, the API and the studio preview all show the
   // same leadership strip.
   const customized = Boolean(override.updated_at || Object.keys(override).length);
   const leaders = buildLeadershipCards({ customized, leaders: merged.leaders, members });
 
-  const clubEvents = content.club_events.filter((event) => event.club_slug === slug);
   const posts = content.club_posts.filter((post) => post.club_slug === slug);
 
-  const dbGallery: ClubGalleryItem[] = content.club_gallery
-    .filter((item) => item.club_slug === slug)
-    .map((item) => ({ url: item.image_url, caption: item.caption }));
-
-  const galleryItems = [...merged.gallery, ...dbGallery].filter((item) => item?.url);
+  // `merged.gallery` already carries the database photos (or the seed), so the
+  // list is de-duplicated by URL rather than blindly concatenated.
+  const galleryItems: ClubGalleryItem[] = [];
+  const seenUrls = new Set<string>();
+  for (const item of [...merged.gallery, ...dbGallery]) {
+    const url = String(item?.url || "").trim();
+    if (!url || seenUrls.has(url)) continue;
+    seenUrls.add(url);
+    galleryItems.push({ url, caption: item?.caption || "" });
+  }
 
   return {
     ...merged,

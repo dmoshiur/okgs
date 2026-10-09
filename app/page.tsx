@@ -2,10 +2,11 @@ import { getPublicContent } from "@/lib/db";
 import { PublicHome } from "@/components/public/PublicHome";
 import { PublicChrome } from "@/components/public/Chrome";
 import { FairSite } from "@/components/public/FairSite";
-import { activeFair, fairMode, readFlag } from "@/lib/site";
+import { activeFair, fairMode } from "@/lib/site";
 import { listTickers } from "@/lib/portal-db";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 /**
  * The homepage is either the school site or — with one switch in the console —
@@ -46,9 +47,7 @@ export default async function HomePage() {
     );
   }
 
-  if (readFlag(content.settings, "fair_banner_enabled", true) === false && mode.enabled) {
-    return <PublicHome content={content} />;
-  }
-
+  // Fair mode off → the school homepage. `FairMega` inside PublicHome reads the
+  // `fair_banner_enabled` setting itself, so there is only one switch to turn.
   return <PublicHome content={content} />;
 }

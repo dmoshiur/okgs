@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { optimizedImage } from "@/lib/cloudinary";
+import { SmartImage } from "@/components/public/Media";
 import { bn } from "@/lib/format";
 import { EmptyState } from "@/components/public/InternalPage";
 
@@ -64,7 +65,7 @@ export function GalleryViewer({
             style={{ "--club-accent": accent } as React.CSSProperties}
             aria-label={item.caption || `ছবি ${index + 1} দেখুন`}
           >
-            <img src={optimizedImage(item.src, { width: 620, fit: "cover" })} alt={item.caption || ""} loading="lazy" decoding="async" />
+            <SmartImage src={item.src} alt={item.caption || ""} transform={{ width: 620, fit: "cover" }} label={item.caption || "ছবি"} />
             {item.caption ? (
               <span className="gallery-tile-caption">
                 <strong>{item.caption}</strong>
@@ -85,7 +86,7 @@ export function GalleryViewer({
             </>
           ) : null}
           <figure className="lightbox-figure">
-            <img src={optimizedImage(active.src, { width: 1600 })} alt={active.caption || ""} />
+            <SmartImage src={active.src} alt={active.caption || ""} transform={{ width: 1600 }} label={active.caption || "ছবি"} />
             <figcaption>
               {active.caption ? <strong>{active.caption}</strong> : null}
               {active.meta ? <span>{active.meta}</span> : null}

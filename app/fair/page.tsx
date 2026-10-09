@@ -3,6 +3,7 @@ import { getPublicContent } from "@/lib/db";
 import { activeFair } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 /** /fair always lands on whichever fair is currently switched on. */
 export default async function FairIndexPage() {

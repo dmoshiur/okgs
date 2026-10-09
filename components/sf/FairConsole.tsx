@@ -31,6 +31,7 @@ import { en, formatDateEn } from "@/lib/format";
 import { isAdminRole, roleLabelsEn } from "@/lib/roles";
 import { sfConsoleSections, sfContentStudio, sfScanSection, type SfSectionId } from "@/components/sf/sections";
 import { GATE_RESULT_LABEL, gateResultClass } from "@/components/sf/gate-status";
+import { ThumbImage } from "@/components/public/Media";
 import { Bars, Empty, Metric, Notice, Panel, money, postJson, useApi } from "@/components/sf/console/ui";
 import { DuesPanel, ExpensesPanel, FundsPanel } from "@/components/sf/console/MoneyPanels";
 import { ClassesPanel, PassesPanel, UsersPanel } from "@/components/sf/console/PeoplePanels";
@@ -166,7 +167,7 @@ export function FairConsole({
       <header className="app-top">
         <div className="v2-wrap app-top-inner">
           <div className="brand">
-            {logo ? <img className="official-logo" src={logo} alt="" /> : null}
+            <ThumbImage src={logo} alt="" className="official-logo" />
             <div className="brand-copy">
               <strong>{fair?.name ?? fairName}</strong>
               <small>

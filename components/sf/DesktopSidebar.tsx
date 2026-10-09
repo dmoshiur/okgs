@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, LogOut, School } from "lucide-react";
 import { sfSections, sfContentStudio, sfSectionForPath, isSfPanelPath } from "./sections";
 import type { Fair } from "@/lib/types";
+import { ThumbImage } from "@/components/public/Media";
 
 export function DesktopSidebar({ fairs, activeSlug, logo, schoolName, userName, role }: {
   fairs: Fair[]; activeSlug: string; logo: string; schoolName: string; userName: string; role: string;
@@ -28,7 +29,7 @@ export function DesktopSidebar({ fairs, activeSlug, logo, schoolName, userName, 
   }
   return <aside className={`sf-desktop-sidebar sidebar no-print${collapsed ? " is-collapsed" : ""}`}>
     <div className="sf-sidebar-brand">
-      {logo ? <img src={logo} alt={schoolName} /> : <School size={30} />}
+      <ThumbImage src={logo} alt={schoolName} fallback={<School size={30} />} />
       <strong className="sf-sidebar-copy">{schoolName}</strong>
       <button type="button" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed}>
         {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}

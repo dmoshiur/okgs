@@ -23,6 +23,7 @@ import {
   Users,
 } from "lucide-react";
 import { resourceMeta } from "@/lib/content-config";
+import { ThumbImage } from "@/components/public/Media";
 import type { ResourceName } from "@/lib/types";
 import { iconFor } from "@/lib/icons";
 import { en, formatDateEn, plural } from "@/lib/format";
@@ -167,11 +168,12 @@ export function RecentActivityList({ items, onOpen }: { items: OverviewItem[]; o
       <ul className="recent-list space-y-3">
         {items.map(({ key, resource, item }) => {
           const thumb = String(item.image_url || item.cover_image_url || item.photo_url || item.certificate_url || "");
+          const Icon = iconFor(resourceMeta[resource].icon);
           return (
             <li key={key}>
               <button className="recent-row" onClick={() => onOpen(resource)}>
                 <span className="recent-thumb" aria-hidden="true">
-                  {thumb ? <img src={thumb} alt="" loading="lazy" /> : (() => { const Icon = iconFor(resourceMeta[resource].icon); return <Icon size={15} />; })()}
+                  <ThumbImage src={thumb} alt="" fallback={<Icon size={15} />} />
                 </span>
                 <span className="recent-copy min-w-0">
                   {/* line-clamp-1 + break-words: DB titles never collide with the meta line. */}
