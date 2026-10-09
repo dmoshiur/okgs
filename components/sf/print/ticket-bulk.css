@@ -1,0 +1,472 @@
+/* ==========================================================================
+   Bulk student tickets — A4 portrait, exactly 4 tickets per page (2 × 2).
+
+   One stylesheet for the whole bulk print surface: the screen preview (an A4
+   page on a dark desk, like a print preview) and the print contract itself.
+
+   Geometry is written in millimetres, not percentages, so what is measured on
+   screen is what the printer lays down:
+
+     page box      210 × 297 mm   (@page ticket-compact, margin 0)
+     safe padding     7 mm        (inside the sheet, keeps printers' dead edge)
+     grid          2 × 2, 3 mm gap → each ticket 96.5 × 138 mm
+     break         page break after every page box, i.e. after every 4 tickets
+
+   Nothing in the app chrome (top bar, bottom bar, sidebar, toolbar) may reach
+   the paper — see the `@media print` block at the bottom.
+   ========================================================================== */
+
+@page ticket-compact {
+  size: A4 portrait;
+  margin: 0;
+}
+
+/* ---------- Screen preview ------------------------------------------------ */
+.ticket-bulk-root {
+  --bulk-ink: #0f172a;
+  --bulk-soft: #475569;
+  --bulk-faint: #64748b;
+  --bulk-accent: #12355c;
+  --bulk-gold: #8a6414;
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  min-height: 100dvh;
+  padding: 16px 12px 40px;
+  background: #101a2b;
+  color: #f1f5fb;
+  font-family: var(--font-inter, "Inter"), var(--font-hind-siliguri, "Hind Siliguri"), system-ui, sans-serif;
+}
+
+/* Bangla sheets use the Bangla UI face for labels and the display serif for the
+   name, so a Bangla ticket is not set in a Latin font with fallbacks. */
+.ticket-bulk-root [data-lang="bn"],
+.ticket-bulk-root [data-lang="both"] {
+  font-family: var(--font-hind-siliguri, "Hind Siliguri"), var(--font-inter, "Inter"), sans-serif;
+}
+.ticket-bulk-root [data-lang="bn"] .ticket-card-name,
+.ticket-bulk-root [data-lang="both"] .ticket-card-name {
+  font-family: var(--font-noto-serif-bengali, "Noto Serif Bengali"), var(--font-hind-siliguri, "Hind Siliguri"), serif;
+}
+
+/* ---------- The A4 page box ---------------------------------------------- */
+.ticket-bulk-page {
+  position: relative;
+  page: ticket-compact;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 3mm;
+  width: 210mm;
+  height: 297mm;
+  padding: 7mm;
+  background: #fff;
+  color: var(--bulk-ink);
+  border-radius: 4px;
+  box-shadow: 0 14px 44px rgba(0, 0, 0, .45);
+  overflow: hidden;
+  break-after: page;
+  page-break-after: always;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.ticket-bulk-page:last-child {
+  break-after: auto;
+  page-break-after: auto;
+}
+/* Phones cannot show 210 mm; `zoom` keeps the whole page visible without
+   breaking the millimetre geometry the printer needs. */
+@media screen and (max-width: 900px) {
+  .ticket-bulk-page { zoom: .58; }
+}
+@media screen and (min-width: 901px) and (max-width: 1180px) {
+  .ticket-bulk-page { zoom: .82; }
+}
+
+/* Empty slots keep the grid 2 × 2 when the last page holds 1–3 tickets. */
+.ticket-bulk-slot-empty {
+  display: grid;
+  place-items: center;
+  border: 1px dashed #cbd5e1;
+  border-radius: 3mm;
+  color: #94a3b8;
+  font-size: 8pt;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+/* ---------- One ticket --------------------------------------------------- */
+.ticket-card {
+  --card-accent: var(--bulk-accent);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1.2pt solid var(--card-accent);
+  border-radius: 3mm;
+  background: #fff;
+  box-shadow: inset 0 0 0 .4mm #f6f8fc;
+}
+
+/* Header band: logo, school, event title, ticket kind. */
+.ticket-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2mm;
+  min-width: 0;
+  padding: 2mm 2.4mm;
+  background: linear-gradient(135deg, #12355c 0%, #1d4f91 60%, #25609f 100%);
+  color: #fff;
+}
+.ticket-card-school {
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+  min-width: 0;
+}
+.ticket-card-logo {
+  width: 9mm;
+  height: 9mm;
+  flex: 0 0 auto;
+  object-fit: contain;
+  border-radius: 1.2mm;
+  background: #fff;
+}
+.ticket-card-logo.is-fallback {
+  display: grid;
+  place-items: center;
+  color: #12355c;
+  font-size: 8pt;
+  font-weight: 800;
+}
+.ticket-card-school-copy { min-width: 0; }
+.ticket-card-school-copy strong {
+  display: block;
+  overflow: hidden;
+  font-size: 9.5pt;
+  line-height: 1.15;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ticket-card-school-copy small {
+  display: block;
+  overflow: hidden;
+  color: #d7e5fa;
+  font-size: 6.5pt;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ticket-card-kind {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: end;
+  padding: .8mm 2mm;
+  border: .4mm solid rgba(255, 255, 255, .55);
+  border-radius: 999px;
+  font-size: 6pt;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ticket-card-kind i {
+  font-size: 5.5pt;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: none;
+  opacity: .9;
+}
+
+/* Body: photo (3:4, left) · details · QR. */
+.ticket-card-body {
+  display: grid;
+  grid-template-columns: 25mm minmax(0, 1fr) 25mm;
+  gap: 2.4mm;
+  align-items: start;
+  min-width: 0;
+  min-height: 0;
+  padding: 2.4mm;
+}
+.ticket-card-photo {
+  display: grid;
+  place-items: center;
+  margin: 0;
+  width: 25mm;
+  height: 33.33mm; /* exactly 3:4 */
+  overflow: hidden;
+  border: .5mm solid #b9c4d2;
+  border-radius: 2mm;
+  background: repeating-linear-gradient(45deg, #f8fafc 0 3mm, #eef2f7 3mm 6mm);
+}
+.ticket-card-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.ticket-card-photo span {
+  color: #64748b;
+  font-size: 12pt;
+  font-weight: 800;
+}
+.ticket-card-info {
+  display: grid;
+  grid-auto-rows: min-content;
+  align-content: start;
+  gap: 1.4mm;
+  min-width: 0;
+}
+.ticket-card-name {
+  margin: 0;
+  font-size: 13pt;
+  line-height: 1.1;
+  font-weight: 700;
+  color: var(--bulk-ink);
+  overflow-wrap: anywhere;
+}
+.ticket-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2mm 2mm;
+  margin: 0;
+  min-width: 0;
+}
+.ticket-card-field { min-width: 0; }
+.ticket-card-field dt {
+  display: block;
+  color: var(--bulk-faint);
+  font-size: 5.6pt;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.ticket-card-field dt em {
+  display: block;
+  font-size: 5pt;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: .04em;
+  opacity: .85;
+}
+.ticket-card-field dd {
+  display: block;
+  margin: 0;
+  color: var(--bulk-ink);
+  font-size: 8.5pt;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.ticket-card-badge {
+  justify-self: start;
+  margin-top: .6mm;
+  padding: .8mm 2.2mm;
+  border: .4mm solid #0b6b43;
+  border-radius: 999px;
+  background: #d9f5e6;
+  color: #08553a;
+  font-size: 6.5pt;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ticket-card-qr {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 1mm;
+  min-width: 0;
+  text-align: center;
+}
+.ticket-card-qr img {
+  width: 24mm;
+  height: 24mm;
+  padding: .8mm;
+  background: #fff;
+  border: .5mm solid var(--bulk-ink);
+  border-radius: 1.5mm;
+}
+.ticket-card-qr small {
+  color: var(--bulk-soft);
+  font-size: 5.4pt;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.ticket-card-qr small em {
+  display: block;
+  font-style: normal;
+  font-weight: 600;
+  text-transform: none;
+}
+
+/* Footer: the human-readable code the gate can type when the scan fails. */
+.ticket-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2mm;
+  min-width: 0;
+  padding: 1.4mm 2.4mm;
+  border-top: .4mm solid #cbd5e1;
+  background: #f6f8fc;
+  color: var(--bulk-soft);
+  font-size: 5.8pt;
+}
+.ticket-card-foot code {
+  overflow: hidden;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 6pt;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ticket-card-foot span { white-space: nowrap; }
+.ticket-card-slot { color: var(--bulk-faint); font-weight: 700; }
+
+/* ---------- Toolbar (screen only) ---------------------------------------- */
+@media screen {
+  .ticket-bulk-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    width: min(100%, calc(100vw - 24px));
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, .82);
+    color: #f1f5fb;
+  }
+  .ticket-bulk-toolbar > * { flex: 0 0 auto; }
+  .ticket-bulk-hint {
+    flex: 1 1 220px;
+    min-width: 0;
+    color: #cbd5e1;
+    font-size: 12.5px;
+    line-height: 1.4;
+  }
+  .ticket-bulk-toolbar button,
+  .ticket-bulk-toolbar a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 11px;
+    border: 1px solid rgba(241, 245, 251, .32);
+    border-radius: 9px;
+    background: rgba(241, 245, 251, .08);
+    color: #f1f5fb;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ticket-bulk-toolbar button:hover:not(:disabled),
+  .ticket-bulk-toolbar a:hover { background: rgba(241, 245, 251, .18); color: #fff; }
+  .ticket-bulk-toolbar button:disabled { opacity: .45; cursor: not-allowed; }
+  .ticket-bulk-toolbar button.is-active,
+  .ticket-bulk-toolbar .ticket-bulk-print { background: #f8fafc; color: #0f1e36; border-color: transparent; }
+  .ticket-bulk-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding-right: 6px;
+    border-right: 1px solid rgba(241, 245, 251, .2);
+  }
+  .ticket-bulk-label {
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .ticket-bulk-warning {
+    flex: 1 1 100%;
+    margin: 0;
+    color: #ffe9b8;
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+}
+
+/* ---------- Print contract ------------------------------------------------
+   Exactly 4 tickets per A4 page, page break after every page box, and none of
+   the application chrome on the paper.
+   -------------------------------------------------------------------------- */
+@media print {
+  /* App chrome never reaches the printer. */
+  .no-print,
+  .ticket-bulk-toolbar,
+  .ticket-toolbar,
+  .app-top,
+  .app-tabs,
+  .sf-bottom-nav,
+  .sf-more-root,
+  .sf-desktop-sidebar,
+  .sidebar,
+  .top-nav,
+  nav,
+  body > header,
+  body > footer {
+    display: none !important;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  .ticket-bulk-root {
+    display: block;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    background: #fff;
+    color: #0f172a;
+  }
+
+  .ticket-bulk-page {
+    zoom: 1;
+    width: 210mm;
+    height: 297mm;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+    break-after: page;
+    page-break-after: always;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .ticket-bulk-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  /* Tickets keep their own colours (navy band, green fee badge, gold rule). */
+  .ticket-bulk-page,
+  .ticket-bulk-page * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .ticket-card,
+  .ticket-card-photo,
+  .ticket-card-qr img {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .ticket-bulk-slot-empty { border-color: #e2e8f0; }
+}

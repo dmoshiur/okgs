@@ -8,7 +8,7 @@ import { settingValue } from "@/lib/club-data";
 import { qrDataUrl } from "@/lib/qr";
 import { makeTicketToken, ticketExpiry } from "@/lib/ticket-token";
 import { activeGuestsForStudent, getGuestById, getPaymentStatus, getStudentById, lastAdmission } from "@/lib/student-db";
-import { formatDateEn } from "@/lib/format";
+import { ticketDate, ticketNumber, ticketText, parseTicketLang } from "@/lib/ticket-locale";
 import { TicketSheet } from "@/components/sf/print/TicketSheet";
 import { TicketToolbar } from "@/components/sf/print/TicketToolbar";
 import { AutoPrint } from "@/components/print/AutoPrint";
@@ -19,11 +19,14 @@ export const metadata: Metadata = { title: "Student ticket", robots: { index: fa
 type Search = Promise<Record<string, string | string[] | undefined>>;
 
 /**
- * /sf/print/ticket/:id?fair=&copies=1..3&guest=<guestId>&auto=0|1
+ * /sf/print/ticket/:id?fair=&copies=1..3&guest=<guestId>&lang=en|bn|both&auto=0|1
  *
  * Full-screen landscape preview of the A4-landscape ticket, one sheet per copy.
  * The page is rendered on the server and prints as-is — no client fetch, so the
  * QR on paper is always the QR the backend signed.
+ *
+ * `lang` picks the sheet's language: `en` (default), `bn` or `both`. Every label,
+ * badge and footer note follows it, so a sheet is never half-translated.
  *
  * Copy 1 is the student copy; from copy 2 the family block (father, mother and
  * every approved external guardian) is printed, which is what the gate checks
@@ -45,6 +48,8 @@ export default async function StudentTicketPage({ params, searchParams }: { para
   const fair = activeFair(content, String(query.fair ?? "") || mode.slug);
   const fairSlug = fair?.slug ?? String(query.fair ?? "");
   const copies = !isStaffRole(session.role) ? 1 : Math.min(3, Math.max(1, Math.floor(Number(query.copies ?? 1)) || 1));
+  const lang = parseTicketLang(query.lang);
+  const text = ticketText(lang);
 
   const guardians = await activeGuestsForStudent(id, fairSlug);
   const chosenId = String(query.guest ?? "");
@@ -62,14 +67,15 @@ export default async function StudentTicketPage({ params, searchParams }: { para
   const schoolName = settingValue(content.settings, "site_name", "OKGS");
   const logo = readSetting(content.settings, "logo_url");
   const fairName = fair?.name ?? "Science Fair";
-  const validUntil = formatDateEn(new Date(expiresAt * 1000).toISOString(), "long");
-  const issuedAt = formatDateEn(new Date().toISOString(), "long");
-  const copyLabels = ["Student copy", "Parent copy", "School copy"];
-  const ticketCode = `${student.student_code} · Roll ${student.roll || "—"}`;
+  const validUntil = ticketDate(new Date(expiresAt * 1000).toISOString(), lang, "long");
+  const issuedAt = ticketDate(new Date().toISOString(), lang, "long");
+  const copyLabels = text.titles.copies.map((copy) => copy.primary);
+  const ticketCode = `${student.student_code} · ${text.labels.roll.primary} ${ticketNumber(student.roll, lang) || "—"}`;
   const autoPrint = String(query.auto ?? "1") !== "0";
 
   const sheetProps = {
     kind: "student" as const,
+    lang,
     schoolName,
     fairName,
     logo,
@@ -99,12 +105,13 @@ export default async function StudentTicketPage({ params, searchParams }: { para
   };
 
   return (
-    <main className="ticket-print-root v2">
+    <main className="ticket-print-root v2" data-lang={lang}>
       <TicketToolbar
         copies={copies}
         fairSlug={fairSlug}
         guestId={guardian?.id}
         auto={autoPrint}
+        lang={lang}
         total={copyLabels}
         hint={`${schoolName} · ${fairName} — printed on A4 landscape, ${copies} ${copies === 1 ? "sheet" : "sheets"}. Nothing is saved in the browser; this page is the record.`}
       />

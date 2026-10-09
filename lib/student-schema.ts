@@ -33,6 +33,10 @@ export const studentSchema = [
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS students_code_idx ON students(student_code)`,
   `CREATE INDEX IF NOT EXISTS students_class_idx ON students(class_name, section, shift, roll)`,
+  /* Roll lookups: the photo-import sheet may key rows by roll instead of ID. */
+  `CREATE INDEX IF NOT EXISTS students_roll_idx ON students(roll)`,
+  /* Class-wise roster pages and the bulk ticket sheet both filter class first. */
+  `CREATE INDEX IF NOT EXISTS students_class_section_idx ON students(class_name, section)`,
 
   /* Payment status per student per fair. PAID / UNPAID, saved immediately. */
   `CREATE TABLE IF NOT EXISTS payments (
@@ -48,6 +52,11 @@ export const studentSchema = [
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS payments_student_fair_idx ON payments(fair_slug, student_id)`,
   `CREATE INDEX IF NOT EXISTS payments_status_idx ON payments(fair_slug, status)`,
+  /* One student's status without scanning the fair (the ticket page). */
+  `CREATE INDEX IF NOT EXISTS payments_student_idx ON payments(student_id)`,
+  /* Covering index for "every PAID student of this fair" — the roster table,
+     the class summary and the bulk ticket sheet all read through it. */
+  `CREATE INDEX IF NOT EXISTS payments_fair_status_student_idx ON payments(fair_slug, status, student_id)`,
 
   /* External guests / guardians (Mama, Fufa, Chacha, …) linked to a student. */
   `CREATE TABLE IF NOT EXISTS guests (
@@ -64,6 +73,8 @@ export const studentSchema = [
     updated_at TEXT NOT NULL DEFAULT ''
   )`,
   `CREATE INDEX IF NOT EXISTS guests_student_idx ON guests(related_student_id, fair_slug)`,
+  /* guest_count on the roster is filtered by fair + status first. */
+  `CREATE INDEX IF NOT EXISTS guests_fair_status_idx ON guests(fair_slug, status, related_student_id)`,
 
   /* Every ticket/manual scan, including rejected ones. entry_time is when the
      person was admitted (or the original admission for a duplicate); scanned_at
@@ -85,6 +96,8 @@ export const studentSchema = [
   )`,
   `CREATE INDEX IF NOT EXISTS scan_logs_subject_idx ON scan_logs(fair_slug, subject_type, subject_id, result)`,
   `CREATE INDEX IF NOT EXISTS scan_logs_time_idx ON scan_logs(fair_slug, scanned_at)`,
+  /* "When was this person admitted" — subject first, then the fair and result. */
+  `CREATE INDEX IF NOT EXISTS scan_logs_admission_idx ON scan_logs(subject_type, subject_id, fair_slug, result, entry_time)`,
 
   /* Each time a ticket is sent to print (copies, optional guardian). */
   `CREATE TABLE IF NOT EXISTS ticket_prints (
@@ -98,6 +111,8 @@ export const studentSchema = [
     printed_at TEXT NOT NULL DEFAULT ''
   )`,
   `CREATE INDEX IF NOT EXISTS ticket_prints_student_idx ON ticket_prints(student_id, fair_slug)`,
+  /* print_count per student of one fair, and the fair-wide print summary. */
+  `CREATE INDEX IF NOT EXISTS ticket_prints_fair_idx ON ticket_prints(fair_slug, student_id)`,
 ];
 
 /** Relations accepted for external guests. Stored as the English label. */

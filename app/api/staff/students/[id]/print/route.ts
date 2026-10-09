@@ -39,7 +39,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     printed_by_name: session.user.name,
   });
 
+  // `lang` chooses the sheet's language: en (default), bn or both.
+  const lang = ["bn", "both"].includes(str(body.lang).toLowerCase()) ? str(body.lang).toLowerCase() : "";
+
   const params = new URLSearchParams({ fair, copies: String(copies) });
   if (guestId) params.set("guest", guestId);
-  return ok({ url: `/sf/print/ticket/${id}?${params.toString()}`, copies });
+  if (lang) params.set("lang", lang);
+  return ok({ url: `/sf/print/ticket/${id}?${params.toString()}`, copies, lang: lang || "en" });
 }

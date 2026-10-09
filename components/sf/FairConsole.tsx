@@ -10,6 +10,7 @@
  * also why the selection survives a trip to the gate scanner.
  */
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -33,17 +34,34 @@ import { sfConsoleSections, sfContentStudio, sfScanSection, type SfSectionId } f
 import { GATE_RESULT_LABEL, gateResultClass } from "@/components/sf/gate-status";
 import { ThumbImage } from "@/components/public/Media";
 import { Bars, Empty, Metric, Notice, Panel, money, postJson, useApi } from "@/components/sf/console/ui";
-import { DuesPanel, ExpensesPanel, FundsPanel } from "@/components/sf/console/MoneyPanels";
-import { ClassesPanel, PassesPanel, UsersPanel } from "@/components/sf/console/PeoplePanels";
-import { CollectionsPanel } from "@/components/sf/console/CollectionsPanel";
-import { SettingsPanel } from "@/components/sf/console/SettingsPanel";
-import { SettlementsPanel } from "@/components/sf/console/SettlementsPanel";
-import { TickerPanel } from "@/components/sf/console/TickerPanel";
-import { MemoPanel } from "@/components/sf/console/MemoPanel";
-import { CSVImportPanel } from "@/components/sf/console/CSVImportPanel";
-import { StudentsPanel } from "@/components/sf/console/StudentsPanel";
-import { ReportsPanel } from "@/components/sf/console/ReportsPanel";
 import { PortalAnnouncements } from "@/components/portal/PortalAnnouncements";
+
+/* -------------------------------------------------------------------------
+   Every console section is code-split and loaded on demand.
+
+   The console used to ship all fourteen panels in one bundle, so opening the
+   panel meant downloading the roster table, the memo ledger, the SMTP form and
+   the report charts before the first tab could paint. `next/dynamic` with
+   `ssr: false` keeps each section in its own chunk (the data is fetched on the
+   client anyway), and the shared skeleton means a section switch shows structure
+   immediately instead of a blank area.
+   ------------------------------------------------------------------------- */
+const panelLoading = (label: string) => () => <Empty>Loading {label}…</Empty>;
+
+const FundsPanel = dynamic(() => import("@/components/sf/console/MoneyPanels").then((module) => module.FundsPanel), { ssr: false, loading: panelLoading("funds") });
+const DuesPanel = dynamic(() => import("@/components/sf/console/MoneyPanels").then((module) => module.DuesPanel), { ssr: false, loading: panelLoading("dues") });
+const ExpensesPanel = dynamic(() => import("@/components/sf/console/MoneyPanels").then((module) => module.ExpensesPanel), { ssr: false, loading: panelLoading("expenses") });
+const ClassesPanel = dynamic(() => import("@/components/sf/console/PeoplePanels").then((module) => module.ClassesPanel), { ssr: false, loading: panelLoading("classes") });
+const PassesPanel = dynamic(() => import("@/components/sf/console/PeoplePanels").then((module) => module.PassesPanel), { ssr: false, loading: panelLoading("passes") });
+const UsersPanel = dynamic(() => import("@/components/sf/console/PeoplePanels").then((module) => module.UsersPanel), { ssr: false, loading: panelLoading("users") });
+const CollectionsPanel = dynamic(() => import("@/components/sf/console/CollectionsPanel").then((module) => module.CollectionsPanel), { ssr: false, loading: panelLoading("collections") });
+const SettingsPanel = dynamic(() => import("@/components/sf/console/SettingsPanel").then((module) => module.SettingsPanel), { ssr: false, loading: panelLoading("settings") });
+const SettlementsPanel = dynamic(() => import("@/components/sf/console/SettlementsPanel").then((module) => module.SettlementsPanel), { ssr: false, loading: panelLoading("settlements") });
+const TickerPanel = dynamic(() => import("@/components/sf/console/TickerPanel").then((module) => module.TickerPanel), { ssr: false, loading: panelLoading("ticker") });
+const MemoPanel = dynamic(() => import("@/components/sf/console/MemoPanel").then((module) => module.MemoPanel), { ssr: false, loading: panelLoading("memos") });
+const CSVImportPanel = dynamic(() => import("@/components/sf/console/CSVImportPanel").then((module) => module.CSVImportPanel), { ssr: false, loading: panelLoading("imports") });
+const StudentsPanel = dynamic(() => import("@/components/sf/console/StudentsPanel").then((module) => module.StudentsPanel), { ssr: false, loading: panelLoading("students") });
+const ReportsPanel = dynamic(() => import("@/components/sf/console/ReportsPanel").then((module) => module.ReportsPanel), { ssr: false, loading: panelLoading("reports") });
 
 interface TicketScanRow {
   id: string;
@@ -198,7 +216,7 @@ export function FairConsole({
 
         <nav className="v2-wrap app-tabs" aria-label="Console sections">
           {sfConsoleSections.map((item) => (
-            <Link key={item.id} href={item.href} className={`app-tab${tab === item.id ? " is-on" : ""}`} aria-current={tab === item.id ? "page" : undefined}>
+            <Link key={item.id} href={item.href} prefetch className={`app-tab${tab === item.id ? " is-on" : ""}`} aria-current={tab === item.id ? "page" : undefined}>
               <item.icon size={15} />
               {item.label}
             </Link>

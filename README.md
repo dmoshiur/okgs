@@ -26,6 +26,8 @@
 - **`/sf`** — ফেয়ার কনসোল (মোবাইল-ফার্স্ট, নিচে ট্যাব বার): ড্যাশবোর্ড (মোট ফান্ড, শ্রেণি+শাখা অনুযায়ী ছাত্রসংখ্যা, খরচ, বকেয়া), ফান্ড, পাওনা, খরচ, সংগ্রহ (প্রকল্প), QR পাস, **টিকার**, ইউজার, শ্রেণি, সেটিং।
   খরচ ট্যাবে **মাসিক সমন্বয় খাতা** — মাস বেছে সংগ্রহ বনাম খরচ বনাম বেতনের হিসাব, শিক্ষক/স্টাফ/অ্যাডমিন অ্যাকাউন্টে মাসিক বেতনের লেজার এন্ট্রি এবং এক ক্লিকে মাসের অবশিষ্ট ব্যালেন্স সমন্বয়; প্রতিটি এন্ট্রির স্বয়ংক্রিয় খরচ-মেমো (`/sf/print/memo/<id>`) তৈরি হয়।
 - **`/sf/scan`** — ক্যামেরা দিয়ে QR স্ক্যান (jsQR) + ম্যানুয়াল টোকেন; লগইন করা শিক্ষক/অ্যাডমিনের ক্যামেরা দিয়েই যাচাই। প্রতিটি **পাস** ও প্রতিটি **প্রকল্প-লেবেল** স্ক্যান করে যাচাই করা যায় (প্রকল্পের QR: কনসোল → সংগ্রহ → QR আইকন → `/api/qr?entry=<id>`)।
+- **টিকিট ও বাল্ক প্রিন্ট** — প্রতিটি টিকিট **এক ভাষায়**: টুলবারে `English · বাংলা · বাংলা + English` (`?lang=`), সব লেবেল, ব্যাজ ও ফুটার নোট সেই ভাষায় (বাংলা টিকিটে সংখ্যাও বাংলায়)। ছবি ৩:৪ ফ্রেমে বাঁ দিকে, সাথে লোগো, আইডি/রোল/শ্রেণি/শাখা/শিফট, ফি-ব্যাজ ও স্বাক্ষরিত QR। শিক্ষার্থী ট্যাবের **Print bulk tickets** বাটনে A4 পোর্ট্রেট শিটে **প্রতি পাতায় ৪টি টিকিট** (২×২ গ্রিড), প্রতি ৪টির পর পেজ ব্রেক — এবং **শুধু ফি-পরিশোধিত** শিক্ষার্থীদের টিকিট ছাপা হয় (বাকিরা SQL ফিল্টারেই বাদ পড়ে, UI থেকে বদলানো যায় না)।
+- **ছবি ব্যবস্থাপনা** — CSV/Excel শিটে `student_id` (বা `roll`) + `photo_url` (Cloudinary লিংক) আপলোড করলে পুরো রোস্টারের ছবি একসাথে বসে যায়; “Check without saving” আগে দেখিয়ে দেয় কোন সারি কার সাথে মিলবে আর কোনগুলো মেলেনি। অথবা প্রতি শিক্ষার্থীর **Edit** মডাল থেকে সরাসরি Cloudinary-তে ছবি আপলোড (সাথে সাথে প্রিভিউ) ও নাম/রোল/শ্রেণি/শাখা/শিফট/পেমেন্ট স্ট্যাটাস সম্পাদনা। বিস্তারিত: `CHANGES_SF_TICKETS.md`।
 - **`/me`** — শিক্ষার্থী/প্রাক্তন শিক্ষার্থীর ড্যাশবোর্ড: পাওনা পরিশোধ, ফান্ড জমা, QR পাস তৈরি, ইতিহাস।
 - **`/pass/<token>`** — প্রিন্টযোগ্য QR কার্ড; **`/entry/<token>`** — প্রকল্প যাচাই পাতা।
 - **এক ক্লিকে পুরো সাইট মেলা-সাইট** — সেটিং ট্যাব → “মেলা মোড চালু”; যেকোনো সময় ফিরিয়ে আনা যায়।
@@ -190,6 +192,15 @@ npm run build
 checks multi-identifier authentication, shared-phone rejection, roster payment
 and fair-name persistence, actual Nodemailer delivery, token expiry, replay and
 concurrent-consumption rejection, and production reset-link secrecy. No external
-SMTP credentials or deployment database are used. Manual Chromium checks should
-also verify desktop/mobile navigation, settings save-and-reload, student-owned
-ticket access, and Ctrl+P / Save as PDF with 1–3 ticket copies in light/dark modes.
+SMTP credentials or deployment database are used.
+
+`smoke` includes `scripts/student-ticket-smoke.tsx`, which renders the ticket in
+all three languages (proving a sheet is never half-translated), asserts the 3:4
+photo crop and the A4 portrait 2 × 2 bulk grid, parses a photo-mapping sheet, and
+re-checks the PAID-only print rule, roster paging and the batch photo write
+**against a live libSQL database** in a temporary directory.
+
+Manual Chromium checks should also verify desktop/mobile navigation, settings
+save-and-reload, student-owned ticket access, the bulk A4 sheet at 4 tickets per
+page in the browser's own print preview, and Ctrl+P / Save as PDF with 1–3 ticket
+copies in light/dark modes.
