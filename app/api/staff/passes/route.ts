@@ -12,6 +12,7 @@ import {
 } from "@/lib/portal-db";
 import { makePassToken } from "@/lib/qr";
 import { allocateGuestPasses, GuestPassLimitError, GuestPassStateError } from "@/lib/pass-guests";
+import { paidStudentCodes } from "@/lib/student-pass";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +52,9 @@ export async function POST(request: Request) {
   const targets: { id?: string; name: string; role: string; student_id: string; class_level: string; section: string; email: string; phone: string }[] = [];
 
   if (body.all) {
+    // paid_only: the sweep that issues passes to students the office has marked PAID.
+    const paidOnly = body.paid_only === true;
+    const paidCodes = paidOnly ? new Set((await paidStudentCodes(fairSlug)).map((code) => code.toUpperCase())) : null;
     const users = await listUsers({
       class_level: str(body.class_level) || undefined,
       section: str(body.section) || undefined,
@@ -58,6 +62,7 @@ export async function POST(request: Request) {
     });
     for (const user of users) {
       if (user.role !== "student" || Number(user.is_active) !== 1) continue;
+      if (paidCodes && !paidCodes.has(String(user.student_id ?? "").toUpperCase())) continue;
       targets.push({
         id: user.id,
         name: user.name,

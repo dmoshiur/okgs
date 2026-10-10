@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getPublicContent } from "@/lib/db";
 import { getPortalSession } from "@/lib/portal-auth";
@@ -48,7 +49,10 @@ export default async function StudentTicketPage({ params, searchParams }: { para
   const mode = fairMode(content.settings);
   const fair = activeFair(content, String(query.fair ?? "") || mode.slug);
   const fairSlug = fair?.slug ?? String(query.fair ?? "");
-  const copies = !isStaffRole(session.role) ? 1 : Math.min(3, Math.max(1, Math.floor(Number(query.copies ?? 1)) || 1));
+  // Printing is an office action. A student who opens their own ticket sees a
+  // view-only sheet: no print toolbar, no copy count, no automatic print dialog.
+  const canPrint = isStaffRole(session.role);
+  const copies = !canPrint ? 1 : Math.min(3, Math.max(1, Math.floor(Number(query.copies ?? 1)) || 1));
   const lang = parseTicketLang(query.lang);
 
   const expiresAt = ticketExpiry(fair?.ends_on);
@@ -60,7 +64,7 @@ export default async function StudentTicketPage({ params, searchParams }: { para
   const fairName = ticketFairName(fair);
   const validUntil = ticketValidUntil(lang);
   const issuedAt = ticketDate(new Date().toISOString(), lang, "long");
-  const autoPrint = String(query.auto ?? "1") !== "0";
+  const autoPrint = canPrint && String(query.auto ?? "1") !== "0";
 
   const sheetProps = {
     kind: "student" as const,
@@ -89,19 +93,26 @@ export default async function StudentTicketPage({ params, searchParams }: { para
 
   return (
     <main className="ticket-print-root v2" data-lang={lang}>
-      <TicketToolbar
-        copies={copies}
-        fairSlug={fairSlug}
-        auto={autoPrint}
-        lang={lang}
-        hint={`${schoolName} · ${fairName} — 95 × 137 mm card on A6 paper with 5 mm safe margins. Print at 100% / Actual size, ${copies} ${copies === 1 ? "card" : "cards"}. Nothing is saved in the browser; this page is the record.`}
-      />
+      {canPrint ? (
+        <TicketToolbar
+          copies={copies}
+          fairSlug={fairSlug}
+          auto={autoPrint}
+          lang={lang}
+          hint={`${schoolName} · ${fairName} — 95 × 137 mm card on A6 paper with 5 mm safe margins. Print at 100% / Actual size, ${copies} ${copies === 1 ? "card" : "cards"}. Nothing is saved in the browser; this page is the record.`}
+        />
+      ) : (
+        <div className="ticket-toolbar no-print">
+          <span className="ticket-hint">{`${schoolName} · ${fairName} — your official entry ticket. View only; printing is handled by the school office.`}</span>
+          <Link className="ticket-print-now" href="/me">Back to my dashboard</Link>
+        </div>
+      )}
       <div className="ticket-sheets">
         {Array.from({ length: copies }, (_, index) => (
           <TicketSheet key={index} {...sheetProps} />
         ))}
       </div>
-      {autoPrint ? <AutoPrint /> : null}
+      {autoPrint && canPrint ? <AutoPrint /> : null}
     </main>
   );
 }

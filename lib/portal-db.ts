@@ -545,6 +545,17 @@ const portalIndexes = [
   `CREATE INDEX IF NOT EXISTS tickers_window_idx ON tickers(is_active, starts_at, ends_at)`,
 ];
 
+/* Per-person read state for the notices feed. One row per (person, item), so the
+   unread badge follows the account across devices instead of living in a browser. */
+const announcementSchema = [
+  `CREATE TABLE IF NOT EXISTS announcement_reads (
+    user_id TEXT NOT NULL,
+    item_key TEXT NOT NULL,
+    read_at TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (user_id, item_key)
+  )`,
+];
+
 async function repairLegacyUniqueRows() {
   const duplicateDues = await db.execute(`SELECT class_fee_id, user_id, MIN(id) AS keep_id FROM dues WHERE class_fee_id <> '' GROUP BY class_fee_id, user_id HAVING COUNT(*) > 1`);
   for (const row of duplicateDues.rows) {
@@ -600,7 +611,7 @@ export function ensurePortal() {
       bootstrapping = true;
       try {
         await ensureDatabase();
-        for (const statement of [...schema, ...studentSchema]) await db.execute(statement);
+        for (const statement of [...schema, ...studentSchema, ...announcementSchema]) await db.execute(statement);
         await migratePortalColumns();
         await seedPortal();
       } finally {
@@ -1198,7 +1209,7 @@ export async function getFundById(id: string) {
   return rows[0] ?? null;
 }
 
-export async function listFunds(filter: { fair_slug?: string; status?: string; class_level?: string; user_id?: string; limit?: number } = {}) {
+export async function listFunds(filter: { fair_slug?: string; status?: string; class_level?: string; user_id?: string; student_id?: string; limit?: number } = {}) {
   const clauses: string[] = [];
   const args: string[] = [];
   if (filter.fair_slug) {
@@ -1216,6 +1227,10 @@ export async function listFunds(filter: { fair_slug?: string; status?: string; c
   if (filter.user_id) {
     clauses.push("user_id = ?");
     args.push(filter.user_id);
+  }
+  if (filter.student_id) {
+    clauses.push("upper(student_id) = upper(?)");
+    args.push(filter.student_id);
   }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const limit = Math.max(1, Math.min(2000, Math.floor(filter.limit ?? 400)));
@@ -1418,6 +1433,58 @@ export async function listDues(filter: { fair_slug?: string; class_level?: strin
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const limit = Math.max(1, Math.min(3000, Math.floor(filter.limit ?? 500)));
   return query<DueRow>(`SELECT dues.*, COALESCE((SELECT SUM(funds.amount) FROM funds WHERE funds.due_id = dues.id AND funds.status = 'pending'),0) as pending_amount FROM dues ${where} ORDER BY due_date DESC, created_at DESC LIMIT ${limit}`, args);
+}
+
+/**
+ * Every due that belongs to one student: linked to the account, or to the school
+ * ID (dues created from the class roster may carry only the ID).
+ *
+ * `paid_amount` and `pending_amount` are recomputed from the receipts on every
+ * read. The stored `paid_amount` is only a cache, so a receipt that was verified
+ * a moment ago always counts, even before anything re-syncs the due row.
+ */
+export async function listStudentDues(userId: string, studentCode: string, limit = 200) {
+  const rows = await query<DueRow & { verified_amount: number }>(
+    `SELECT dues.*,
+       COALESCE((SELECT SUM(f.amount) FROM funds f WHERE f.due_id = dues.id AND f.status = 'verified'),0) AS verified_amount,
+       COALESCE((SELECT SUM(f.amount) FROM funds f WHERE f.due_id = dues.id AND f.status = 'pending'),0) AS pending_amount
+     FROM dues
+     WHERE (? <> '' AND user_id = ?) OR (? <> '' AND upper(student_id) = upper(?))
+     ORDER BY due_date DESC, created_at DESC
+     LIMIT ${Math.max(1, Math.min(500, Math.floor(limit)))}`,
+    [userId, userId, studentCode, studentCode],
+  );
+  return rows.map((row) => {
+    const verified = Math.max(0, Number(row.verified_amount ?? 0));
+    const amount = Number(row.amount ?? 0);
+    const status = verified >= amount && amount > 0 ? "paid" : verified > 0 ? "partial" : "due";
+    const { verified_amount: _verified, ...due } = row;
+    void _verified;
+    return { ...due, paid_amount: verified, status };
+  });
+}
+
+/**
+ * Money a student has actually paid in: every verified receipt linked to their
+ * account or to their school ID, counted once even when both match.
+ */
+export async function studentVerifiedTotal(userId: string, studentCode: string) {
+  const rows = await query<{ total: number }>(
+    `SELECT COALESCE(SUM(amount),0) AS total FROM funds
+     WHERE status = 'verified' AND ((? <> '' AND user_id = ?) OR (? <> '' AND upper(student_id) = upper(?)))`,
+    [userId, userId, studentCode, studentCode],
+  );
+  return Number(rows[0]?.total ?? 0);
+}
+
+/** A student's receipts (any status), by account or school ID, newest first. */
+export async function listStudentFunds(userId: string, studentCode: string, limit = 100) {
+  return query<FundRow>(
+    `SELECT * FROM funds
+     WHERE (? <> '' AND user_id = ?) OR (? <> '' AND upper(student_id) = upper(?))
+     ORDER BY created_at DESC LIMIT ${Math.max(1, Math.min(500, Math.floor(limit)))}`,
+    [userId, userId, studentCode, studentCode],
+  );
 }
 
 export async function createDue(values: Partial<DueRow>) {
@@ -1815,6 +1882,27 @@ export async function listPasses(filter: { fair_slug?: string; status?: string; 
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const limit = Math.max(1, Math.min(5000, Math.floor(filter.limit ?? 500)));
   return query<PassRow>(`SELECT * FROM passes ${where} ORDER BY created_at DESC LIMIT ${limit}`, args);
+}
+
+/** Item keys ("notice:<id>") this person has already opened. */
+export async function listReadAnnouncementKeys(userId: string) {
+  const rows = await query<{ item_key: string }>(`SELECT item_key FROM announcement_reads WHERE user_id = ?`, [userId]);
+  return new Set(rows.map((row) => String(row.item_key)));
+}
+
+/** Idempotent: marking an item read twice keeps the first timestamp. */
+export async function markAnnouncementsRead(userId: string, keys: string[]) {
+  const unique = Array.from(new Set(keys.filter((key) => /^[a-z_]{2,20}:[A-Za-z0-9_-]{1,80}$/.test(key)))).slice(0, 500);
+  if (!unique.length) return 0;
+  const stamp = nowIso();
+  await db.batch(
+    unique.map((key) => ({
+      sql: `INSERT INTO announcement_reads (user_id, item_key, read_at) VALUES (?, ?, ?) ON CONFLICT(user_id, item_key) DO NOTHING`,
+      args: [userId, key, stamp],
+    })),
+    "write",
+  );
+  return unique.length;
 }
 
 export async function getPassById(id: string) {

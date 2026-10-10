@@ -1,0 +1,273 @@
+/* Notices & updates feed (student dashboard + fair console).
+   Namespaced `ann-*` so nothing here leaks into the older panel styles. */
+
+.ann {
+  --ann-ink: var(--ink, #111827);
+  --ann-muted: var(--muted, #6b7280);
+  --ann-line: var(--line, #e6e0d5);
+  --ann-card: var(--surface, #fff);
+  --ann-soft: var(--surface-alt-2, #f9f7f2);
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  scroll-margin-top: 96px;
+  padding: clamp(18px, 2.4vw, 26px);
+  border: 1px solid var(--ann-line);
+  border-radius: var(--r-xl, 24px);
+  background: var(--ann-card);
+  box-shadow: var(--shadow-xs);
+  color: var(--ann-ink);
+}
+
+.ann-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; }
+.ann-title-wrap { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.ann-title-wrap h2 { margin: 0; font-size: clamp(18px, 2vw, 21px); line-height: 1.25; letter-spacing: -.01em; }
+.ann-title-wrap p { margin: 3px 0 0; color: var(--ann-muted); font-size: 13.5px; line-height: 1.5; }
+
+.ann-bell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--navy-gradient, linear-gradient(140deg, #061523, #17395c));
+  color: #fff;
+}
+.ann-bell-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--ann-card);
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ann-markall {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--ann-line);
+  border-radius: 12px;
+  background: var(--ann-soft);
+  color: var(--ann-ink);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.ann-markall:hover:not(:disabled) { border-color: #93c5fd; background: #eff6ff; }
+.ann-markall:disabled { opacity: .6; cursor: progress; }
+
+/* Category tabs — horizontally scrollable on phones, wrapping on desktop. */
+.ann-filters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.ann-filters::-webkit-scrollbar { display: none; }
+.ann-filter {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--ann-line);
+  border-radius: 999px;
+  background: var(--ann-card);
+  color: var(--ann-muted);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+.ann-filter:hover { border-color: #cbd5e1; color: var(--ann-ink); }
+.ann-filter.is-active { background: #172554; border-color: #172554; color: #fff; }
+.ann-filter .ann-count { font-variant-numeric: tabular-nums; opacity: .75; font-size: 12px; }
+.ann-filter .ann-unread-dot {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+.ann-filter.cat-science_fair.is-active { background: #92400e; border-color: #92400e; }
+.ann-filter.cat-notice.is-active { background: #1d4ed8; border-color: #1d4ed8; }
+.ann-filter.cat-update.is-active { background: #047857; border-color: #047857; }
+
+.ann-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+
+.ann-item {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--ann-line);
+  border-radius: 16px;
+  background: var(--ann-card);
+  overflow: hidden;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.ann-item:hover { border-color: #cbd5e1; box-shadow: var(--shadow-sm); }
+.ann-item.is-unread { background: linear-gradient(90deg, #f0f7ff 0%, var(--ann-card) 38%); border-color: #bfdbfe; }
+.ann-item.is-urgent { border-color: #fecaca; }
+.ann-item.is-urgent.is-unread { background: linear-gradient(90deg, #fef2f2 0%, var(--ann-card) 38%); }
+
+.ann-item-toggle {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 4px minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 14px;
+  padding: 0 14px 0 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ann-stripe { width: 4px; background: var(--stripe, #94a3b8); }
+.cat-science_fair .ann-stripe, .ann-item.cat-science_fair .ann-stripe { --stripe: #d97706; }
+.ann-item.cat-notice .ann-stripe { --stripe: #2563eb; }
+.ann-item.cat-update .ann-stripe { --stripe: #059669; }
+.ann-item.is-urgent .ann-stripe { --stripe: #dc2626; }
+.ann-item-main { display: grid; gap: 5px; min-width: 0; padding: 14px 0; }
+.ann-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ann-cat, .ann-urgent, .ann-new {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+.ann-cat.cat-science_fair { background: #fef3c7; color: #92400e; }
+.ann-cat.cat-notice { background: #dbeafe; color: #1e40af; }
+.ann-cat.cat-update { background: #d1fae5; color: #065f46; }
+.ann-urgent { background: #fee2e2; color: #b91c1c; }
+.ann-new { background: #2563eb; color: #fff; letter-spacing: .02em; }
+.ann-item-title {
+  font-size: 15.5px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+.ann-item.is-read .ann-item-title { font-weight: 600; color: #334155; }
+.ann-item-meta { color: var(--ann-muted); font-size: 12.5px; line-height: 1.4; }
+.ann-preview {
+  color: #475569;
+  font-size: 13.5px;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.ann-chevron { align-self: center; color: var(--ann-muted); transition: transform .2s ease; }
+.ann-chevron.is-open { transform: rotate(180deg); }
+
+.ann-body {
+  padding: 0 18px 18px 22px;
+  border-top: 1px dashed var(--ann-line);
+  margin-top: 0;
+  padding-top: 14px;
+  animation: ann-in .18s ease;
+}
+@keyframes ann-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.ann-collapse {
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #2563eb;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ann-empty {
+  margin: 0;
+  padding: 22px 16px;
+  border: 1px dashed var(--ann-line);
+  border-radius: 14px;
+  color: var(--ann-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Rich text inside a notice body. */
+.rich-text { display: grid; gap: 10px; min-width: 0; color: #334155; font-size: 14.5px; line-height: 1.75; overflow-wrap: anywhere; }
+.rich-text p { margin: 0; }
+.rich-text ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.rich-text h4 { margin: 4px 0 0; font-size: 15px; font-weight: 800; color: var(--ann-ink); }
+.rich-text strong { color: var(--ann-ink); }
+.rich-text a { color: #1d4ed8; text-decoration: underline; text-underline-offset: 2px; word-break: break-word; }
+
+@media (max-width: 560px) {
+  .ann-item-toggle { grid-template-columns: 4px minmax(0, 1fr) auto; gap: 10px; padding-right: 10px; }
+  .ann-item-main { padding: 12px 0; }
+  .ann-body { padding: 12px 14px 16px 16px; }
+  .ann-title-wrap p { font-size: 12.5px; }
+}
+
+html[data-color-scheme="dark"] .ann-item.is-unread,
+body[data-theme-mode="dark"] .ann-item.is-unread { background: linear-gradient(90deg, rgba(37, 99, 235, .14) 0%, var(--surface) 40%); border-color: #1e3a8a; }
+html[data-color-scheme="dark"] .ann-item.is-read .ann-item-title,
+body[data-theme-mode="dark"] .ann-item.is-read .ann-item-title { color: #cbd5e1; }
+html[data-color-scheme="dark"] .ann-preview,
+html[data-color-scheme="dark"] .rich-text,
+body[data-theme-mode="dark"] .rich-text,
+body[data-theme-mode="dark"] .ann-preview { color: #cbd5e1; }
+html[data-color-scheme="dark"] .ann-filter.is-active,
+body[data-theme-mode="dark"] .ann-filter.is-active { background: #e2e8f0; border-color: #e2e8f0; color: #0f172a; }
+html[data-color-scheme="dark"] .ann-cat.cat-science_fair,
+body[data-theme-mode="dark"] .ann-cat.cat-science_fair { background: rgba(245, 158, 11, .18); color: #fcd34d; }
+html[data-color-scheme="dark"] .ann-cat.cat-notice,
+body[data-theme-mode="dark"] .ann-cat.cat-notice { background: rgba(59, 130, 246, .2); color: #93c5fd; }
+html[data-color-scheme="dark"] .ann-cat.cat-update,
+body[data-theme-mode="dark"] .ann-cat.cat-update { background: rgba(16, 185, 129, .18); color: #6ee7b7; }
+
+.ann-more {
+  justify-self: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--ann-line);
+  border-radius: 999px;
+  background: var(--ann-soft);
+  color: var(--ann-ink);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ann-more:hover { border-color: #93c5fd; }

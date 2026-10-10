@@ -538,7 +538,7 @@ export function PassesPanel({ fairSlug, fairName }: { fairSlug: string; fairName
     !search ? false : `${user.name} ${user.student_id} ${user.class_level}`.toLowerCase().includes(search.toLowerCase()),
   ).slice(0, 8);
 
-  async function issue(target: Partial<typeof form> & { all?: boolean }) {
+  async function issue(target: Partial<typeof form> & { all?: boolean; paid_only?: boolean }) {
     setBusy(true);
     setProblem("");
     setMessage("");
@@ -665,11 +665,11 @@ export function PassesPanel({ fairSlug, fairName }: { fairSlug: string; fairName
             <button className="v2-btn" type="button" onClick={() => issue({})} disabled={busy || !form.holder_name}>
               <QrCode size={16} /> Issue main pass / guest passes
             </button>
-            <button className="v2-btn v2-btn-ghost" type="button" onClick={() => issue({ all: true, class_level: form.class_level })} disabled={busy}>
-              <Copy size={16} /> {form.class_level ? `${form.class_level} — ` : "all students'"} passes
+            <button className="v2-btn v2-btn-ghost" type="button" onClick={() => issue({ all: true, paid_only: true, class_level: form.class_level })} disabled={busy}>
+              <Copy size={16} /> {form.class_level ? `${form.class_level} — ` : ""}issue passes to paid students
             </button>
             <p className="v2-muted" style={{ margin: 0, fontSize: 12.5 }}>
-              {fairName} — Pass QR cards can be verified with the scanner; a /pass/&lt;token&gt; page is available for printing.
+              {fairName} — Students receive their QR pass automatically when marked PAID. Students cannot create passes themselves; this button issues any missing passes to paid students.
             </p>
           </div>
         </Panel>

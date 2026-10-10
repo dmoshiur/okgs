@@ -1,67 +1,85 @@
 import { assignPassword, passwordProblemEn, verifyPassword } from "@/lib/portal-auth";
 import { getUser } from "@/lib/portal-db";
-import { NextResponse } from "next/server";
 import { currentSession, fail, ok, str } from "@/lib/api";
 import {
-  createDue,
   createFund,
-  createPass,
-  dueTotals,
   dueReceiptTotals,
-  findPassForUser,
-  listDues,
-  listFunds,
   listPasses,
+  listStudentDues,
+  listStudentFunds,
   logActivity,
+  studentVerifiedTotal,
 } from "@/lib/portal-db";
 import { getPublicContent } from "@/lib/db";
 import { activeFair } from "@/lib/site";
 import { getStudentByCode, getPaymentStatus } from "@/lib/student-db";
-import { makePassToken } from "@/lib/qr";
-import { allocateGuestPasses, GuestPassLimitError, GuestPassStateError } from "@/lib/pass-guests";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/portal/me — my profile, my dues, my contributions, my pass. */
+/**
+ * GET /api/portal/me — my roster row, my dues and receipts (live from the
+ * ledger), my contribution totals and my QR pass(es).
+ *
+ * Totals are computed here on every request:
+ *   contributed = verified receipts linked to me (by account or school ID)
+ *   outstanding = Σ max(0, due − verified receipts linked to that due)
+ * Pending receipts are reported separately and are never counted as paid.
+ */
 export async function GET() {
   const session = await currentSession();
   if (!session) return fail("লগইন প্রয়োজন।", 401);
 
   const { user, role } = session;
-  const roster = role === "student" && user.student_id ? await getStudentByCode(user.student_id) : null;
+  const studentCode = user.student_id ?? "";
+  const roster = role === "student" && studentCode ? await getStudentByCode(studentCode) : null;
   const fair = activeFair(await getPublicContent());
-  const [dues, funds, passes] = await Promise.all([
-    listDues({ user_id: user.id, limit: 100 }),
-    listFunds({ user_id: user.id, limit: 50 }),
+  const [dues, funds, passes, contributed] = await Promise.all([
+    listStudentDues(user.id, studentCode, 200),
+    listStudentFunds(user.id, studentCode, 100),
     listPasses({ user_id: user.id, limit: 20 }),
+    studentVerifiedTotal(user.id, studentCode),
   ]);
-  const byStudentId = user.student_id ? await listDues({ student_id: user.student_id, limit: 100 }) : [];
-  const mergedDues = [...dues, ...byStudentId.filter((row) => !dues.some((due) => due.id === row.id))];
-  const parentPass = passes.find((pass) => !pass.parent_pass_id);
-  const guestPasses = parentPass ? await listPasses({ parent_pass_id: parentPass.id, limit: 4 }) : [];
-  const totals = await dueTotals();
+
+  // Main pass first; guest passes are read-only children of it.
+  const mainPass = passes.find((pass) => !pass.parent_pass_id) ?? null;
+  const guestPasses = mainPass ? passes.filter((pass) => pass.parent_pass_id === mainPass.id) : [];
+  const dueRows = dues.map((due) => {
+    const balance = Math.max(0, Number(due.amount) - Number(due.paid_amount));
+    const pending = Number(due.pending_amount ?? 0);
+    return { ...due, balance, payable: Math.max(0, balance - pending) };
+  });
+  const outstanding = dueRows.reduce((sum, due) => sum + due.balance, 0);
+  const pendingReceipts = funds.filter((fund) => fund.status === "pending").reduce((sum, fund) => sum + Number(fund.amount), 0);
 
   return ok({
     user,
     role,
-    roster: roster ? { ...roster, payment_status: await getPaymentStatus(roster.id, fair?.slug ?? ""),
-      ticket_url: `/sf/print/ticket/${encodeURIComponent(roster.id)}?fair=${encodeURIComponent(fair?.slug ?? "")}&copies=1&auto=0` } : null,
-    dues: mergedDues,
+    roster: roster
+      ? {
+          ...roster,
+          payment_status: await getPaymentStatus(roster.id, fair?.slug ?? ""),
+          ticket_url: `/sf/print/ticket/${encodeURIComponent(roster.id)}?fair=${encodeURIComponent(fair?.slug ?? "")}`,
+        }
+      : null,
+    dues: dueRows,
     funds,
-    passes,
+    passes: mainPass ? [mainPass] : [],
     guest_passes: guestPasses,
-    outstanding: mergedDues
-      .filter((due) => due.status === "due" || due.status === "partial")
-      .reduce((sum, due) => sum + Math.max(0, Number(due.amount) - Number(due.paid_amount)), 0),
-    contributed: funds.filter((fund) => fund.status === "verified").reduce((sum, fund) => sum + Number(fund.amount), 0),
-    fairOutstanding: totals.outstanding,
+    outstanding,
+    contributed,
+    pending_receipts: pendingReceipts,
+    dues_total: dueRows.reduce((sum, due) => sum + Number(due.amount), 0),
   });
 }
 
 /**
- * POST /api/portal/me — two student actions:
- *   { action: "fund", amount, method, trx_id, purpose, note }  → submit a payment
- *   { action: "pass", fair_slug }                              → get / refresh my QR pass
+ * POST /api/portal/me — what a student may ask for:
+ *   { action: "password", current_password, new_password }
+ *   { action: "fund", amount, method, trx_id, purpose }  → submit a payment for verification
+ *   { action: "pay-dues", due_id, amount, method, trx_id } → record a payment against one due
+ *
+ * QR passes are never created from here. They are issued by the system when the
+ * office marks a student PAID, or by an administrator.
  */
 export async function POST(request: Request) {
   const session = await currentSession();
@@ -70,6 +88,10 @@ export async function POST(request: Request) {
   const action = str(body.action);
 
   const { user, role } = session;
+
+  if (action === "pass" || action === "guest-passes") {
+    return fail("QR পাস শিক্ষার্থী নিজে তৈরি করতে পারে না — বিদ্যালয় কর্তৃপক্ষ পেমেন্ট নিশ্চিত হলে পাস ইস্যু করবে।", 403);
+  }
 
   if (action === "password") {
     const current = String(body.current_password ?? "");
@@ -114,35 +136,12 @@ export async function POST(request: Request) {
     return ok({ id: fundId, status: "pending" }, 201);
   }
 
-  if (action === "dues") {
-    // A student can ask for a due to be logged for them (payable at the office).
-    const amount = Number(body.amount ?? 0);
-    if (!Number.isFinite(amount) || amount <= 0) return fail("টাকার পরিমাণ ঠিকভাবে লিখুন।", 422);
-    const id = await createDue({
-      fair_slug: str(body.fair_slug),
-      user_id: user.id,
-      student_name: user.name,
-      student_id: user.student_id,
-      class_level: user.class_level,
-      section: user.section,
-      title: str(body.title, "বিজ্ঞান মেলা ফি") || "বিজ্ঞান মেলা ফি",
-      amount,
-      note: str(body.note),
-      status: "due",
-    });
-    return ok({ id }, 201);
-  }
-
   if (action === "pay-dues") {
     // Records what the student paid; a teacher still verifies it in the console.
     const id = str(body.due_id);
     if (!id) return fail("কোন পাওনাটি পরিশোধ করছেন তা বাছুন।", 422);
     const amount = Number(body.amount ?? 0);
-    const [ownedDues, studentDues] = await Promise.all([
-      listDues({ user_id: user.id, limit: 100 }),
-      user.student_id ? listDues({ student_id: user.student_id, limit: 100 }) : Promise.resolve([]),
-    ]);
-    const dues = [...ownedDues, ...studentDues.filter((row) => !ownedDues.some((owned) => owned.id === row.id) && (!row.user_id || row.user_id === user.id))];
+    const dues = await listStudentDues(user.id, user.student_id ?? "", 500);
     const due = dues.find((row) => row.id === id);
     if (!due) return fail("এই পাওনাটি খুঁজে পাওয়া যায়নি।", 404);
     const receipts = await dueReceiptTotals(due.id);
@@ -158,7 +157,7 @@ export async function POST(request: Request) {
       section: user.section,
       student_id: user.student_id,
       phone: user.phone,
-      amount: Number.isFinite(amount) && amount > 0 ? amount : 0,
+      amount,
       method: str(body.method, "নগদ") || "নগদ",
       trx_id: str(body.trx_id),
       purpose: due.title || "পাওনা পরিশোধ",
@@ -168,54 +167,5 @@ export async function POST(request: Request) {
     return ok({ due, fund_id: fundId, status: "pending" });
   }
 
-  if (action === "guest-passes") {
-    const fairSlug = str(body.fair_slug);
-    const parent = await findPassForUser(user.id, fairSlug);
-    if (!parent) return fail("অতিথি পাস তৈরির আগে নিজের QR পাস তৈরি করুন।", 409);
-    if (parent.status !== "active") return fail("বাতিল বা ব্যবহৃত মূল পাসে নতুন অতিথি পাস দেওয়া যাবে না।", 409);
-    const guestLimit = Number(body.guest_limit);
-    if (!Number.isInteger(guestLimit) || guestLimit < 0 || guestLimit > 4) return fail("অতিথি পাসের সীমা ০–৪ এর মধ্যে দিন।", 422);
-    try {
-      const allocation = await allocateGuestPasses(parent, guestLimit);
-      await logActivity({ actor_id: user.id, actor_name: user.name, actor_role: role, action: "pass.guests.allocate", entity: "passes", entity_id: parent.id, detail: `${guestLimit} guest passes` });
-      return ok(allocation);
-    } catch (error) {
-      if (error instanceof GuestPassLimitError) return fail(`ইতোমধ্যে ${error.message.split(":").pop()}টি অতিথি পাস ইস্যু হয়েছে — সীমা এর চেয়ে কম হতে পারবে না।`, 422);
-      if (error instanceof GuestPassStateError) return fail(error.message, 409);
-      throw error;
-    }
-  }
-
-  if (action === "pass") {
-    const fairSlug = str(body.fair_slug);
-    const existing = await findPassForUser(user.id, fairSlug);
-    if (existing) {
-      return ok({ pass: { ...existing, token: existing.token || makePassToken(existing.id) } });
-    }
-    const pass = await createPass({
-      fair_slug: fairSlug,
-      user_id: user.id,
-      holder_name: user.name,
-      holder_role: role,
-      student_id: user.student_id,
-      class_level: user.class_level,
-      section: user.section,
-      email: user.email,
-      phone: user.phone,
-      token: "",
-      expires_at: str(body.expires_at),
-    });
-    await createPassToken(pass.id);
-    const withToken = await listPasses({ user_id: user.id, limit: 1 });
-    return ok({ pass: withToken[0] ?? pass }, 201);
-  }
-
   return fail("অজানা অনুরোধ।", 400);
-}
-
-/** The pass token can only be minted after the row exists (it signs the id). */
-async function createPassToken(passId: string) {
-  const { db } = await import("@/lib/db");
-  const token = makePassToken(passId);
-  await db.execute({ sql: `UPDATE passes SET token = ? WHERE id = ?`, args: [token, passId] });
 }
