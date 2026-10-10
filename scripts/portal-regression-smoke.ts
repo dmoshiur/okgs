@@ -123,13 +123,13 @@ async function main() {
     const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
     const css = read("app/globals.css");
     assert.match(css, /\.printable-ticket \*, \.ticket-sheet, \.ticket-sheet \*\s*\{\s*visibility: visible !important/);
-    assert.match(css, /@page ticket-landscape \{ size: A4 landscape; margin: 0.5in; \}/);
+    assert.match(css, /@page ticket-portrait \{ size: A4 portrait; margin: 0.5in; \}/);
     assert.match(read("app/api/staff/settings/route.ts"), /isAdminRole\(session.role\)/);
     assert.match(read("app/api/staff/settings/route.ts"), /revalidatePath\("\/", "layout"\)/);
     assert.match(read("app/sf/print/ticket/[id]/page.tsx"), /!isStaffRole\(session.role\) && !isOwnTicket/);
     assert.match(read("app/layout.tsx"), /<DesktopSidebar/);
     assert.match(css, /@media screen and \(min-width: 768px\)/);
-    console.log("PASS print visibility, landscape margins, admin authorization, refresh and ticket ownership contracts");
+    console.log("PASS print visibility, portrait ticket margins, admin authorization, refresh and ticket ownership contracts");
   } finally { db.close(); rmSync(directory, { recursive: true, force: true }); }
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

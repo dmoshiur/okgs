@@ -21,7 +21,7 @@ type Search = Promise<Record<string, string | string[] | undefined>>;
 /**
  * /sf/print/ticket/:id?fair=&copies=1..3&guest=<guestId>&lang=en|bn|both&auto=0|1
  *
- * Full-screen landscape preview of the A4-landscape ticket, one sheet per copy.
+ * Full-screen portrait preview of the A4-portrait ticket, one sheet per copy.
  * The page is rendered on the server and prints as-is — no client fetch, so the
  * QR on paper is always the QR the backend signed.
  *
@@ -113,7 +113,7 @@ export default async function StudentTicketPage({ params, searchParams }: { para
         auto={autoPrint}
         lang={lang}
         total={copyLabels}
-        hint={`${schoolName} · ${fairName} — printed on A4 landscape, ${copies} ${copies === 1 ? "sheet" : "sheets"}. Nothing is saved in the browser; this page is the record.`}
+        hint={`${schoolName} · ${fairName} — printed on A4 portrait, ${copies} ${copies === 1 ? "sheet" : "sheets"}. Nothing is saved in the browser; this page is the record.`}
       />
       <div className="ticket-sheets">
         {Array.from({ length: copies }, (_, index) => (

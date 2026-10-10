@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/staff/students/:id/print — logs a ticket print (copies 1–3, optional
- * guardian) and returns the landscape ticket URL for the browser to open.
+ * guardian) and returns the portrait ticket URL for the browser to open.
  */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const guard = await staff();

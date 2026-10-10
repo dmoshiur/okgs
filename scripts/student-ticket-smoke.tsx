@@ -64,7 +64,7 @@ const student = {
   photo_url: "https://res.cloudinary.com/okgs/image/upload/v1730000000/okgs/students/2026-0101.jpg",
 };
 
-function renderSheet(lang: "en" | "bn" | "both") {
+function renderSheet(lang: "en" | "bn" | "both", studentCode = student.student_code) {
   return renderToStaticMarkup(
     <TicketSheet
       kind="student"
@@ -75,7 +75,7 @@ function renderSheet(lang: "en" | "bn" | "both") {
       copyIndex={1}
       copyCount={1}
       showFamily={false}
-      student={student}
+      student={{ ...student, student_code: studentCode }}
       paymentStatus="PAID"
       guardian={null}
       guardians={[]}
@@ -100,6 +100,12 @@ assert.ok(!BANGLA.test(english), "an English sheet carries no Bangla characters 
 assert.match(english, /<dt>Roll<\/dt>/, "English labels are plain English");
 assert.match(english, /<dt>Student ID<\/dt>/);
 assert.match(english, /<dd>5<\/dd>/, "Latin digits on an English sheet");
+
+const numericIdEnglish = renderSheet("en", "202405102");
+assert.match(numericIdEnglish, /<dt>Student ID<\/dt><dd>202405102<\/dd>/, "student IDs render as plain text, without thousands separators");
+assert.doesNotMatch(numericIdEnglish, /202,405,102/, "an ID is never formatted as a number");
+const numericIdBangla = renderSheet("bn", "202405102");
+assert.match(numericIdBangla, /<dd>২০২৪০৫১০২<\/dd>/, "Bangla IDs localize digits without adding grouping commas");
 
 const bangla = renderSheet("bn");
 for (const label of ["রোল", "শ্রেণি", "শিফট", "শিক্ষার্থী আইডি", "শাখা", "গ্রুপ"]) {
@@ -173,7 +179,10 @@ assert.match(englishWithBanglaDbName, /<b>Parent copy<\/b>/, "copy 3 prints as P
 assert.doesNotMatch(englishWithBanglaDbName, /School copy/i, "no School copy label is printed");
 pass("a ticket is entirely English, entirely Bangla or consistently bilingual — never mixed");
 
-/* ---------- 2 · the redesigned sheet -------------------------------------- */
+/* ---------- 2 · the portrait entry-ticket sheet -------------------------- */
+assert.match(css, /@page ticket-portrait\s*\{\s*size: A4 portrait; margin: 0\.5in; \}/, "the single ticket prints on its own A4 portrait page");
+assert.match(css, /\.ticket-sheet\s*\{[^}]*aspect-ratio: 210 \/ 297/, "the single-ticket preview is portrait");
+assert.match(css, /\.ticket-body\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/, "the photo, details and QR stack vertically");
 assert.match(css, /\.ticket-photo\s*\{[^}]*aspect-ratio: 3 \/ 4/, "the printed photo is a true 3:4 frame");
 assert.match(css, /\.ticket-photo img\s*\{[^}]*object-fit: cover/, "…cropped, never squashed");
 assert.match(css, /\.ticket-photo img\s*\{[^}]*object-position: center/, "…and centred on the face");
@@ -204,7 +213,8 @@ assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*break-after: page/, "a page b
 assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*page: ticket-compact/, "…on the named A4 portrait page");
 assert.match(bulkCss, /@media print[\s\S]{0,900}\.ticket-bulk-toolbar[\s\S]{0,200}display: none !important/, "the toolbar never reaches the paper");
 assert.match(bulkCss, /\.sf-desktop-sidebar[\s\S]{0,120}display: none !important/, "neither does the console sidebar");
-assert.match(bulkCss, /\.ticket-card-photo\s*\{[^}]*height: 33\.33mm/, "the compact card keeps the same 3:4 photo (25 × 33.33 mm)");
+assert.match(bulkCss, /\.ticket-card-body\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/, "bulk card photo, details and QR are stacked vertically");
+assert.match(bulkCss, /\.ticket-card-photo\s*\{[^}]*height: 29\.33mm/, "the portrait bulk card keeps a 3:4 photo crop");
 assert.match(bulkPage, /TICKETS_PER_PAGE = 4/, "the page groups four tickets per sheet");
 assert.match(bulkPage, /index \+= TICKETS_PER_PAGE/, "…by chunking the signed list");
 assert.match(bulkPage, /paidStudentsForPrint/, "the sheet is built from the PAID-only query");
@@ -218,7 +228,7 @@ assert.match(bulkApi, /recordTicketPrints/, "a bulk job is written to the print 
 const cards = Array.from({ length: 5 }, (_, index) => ({
   id: `s${index}`,
   name: `Student ${index + 1}`,
-  student_code: `2026-010${index + 1}`,
+  student_code: index === 0 ? "202405102" : `2026-010${index + 1}`,
   roll: String(index + 1),
   class_name: "Class 8",
   section: "A",
@@ -255,6 +265,8 @@ const renderedPages = pages.map(
 );
 assert.equal((renderedPages[0].match(/ticket-card"/g) ?? []).length, 4, "page one renders four cards");
 assert.equal((renderedPages[1].match(/ticket-bulk-slot-empty/g) ?? []).length, 3, "page two keeps its 2 × 2 grid with three empty slots");
+assert.match(renderedPages[0], /<dt>Student ID<\/dt><dd>202405102<\/dd>/, "bulk ticket IDs stay plain text");
+assert.doesNotMatch(renderedPages[0], /202,405,102/, "bulk ticket IDs never get thousands separators");
 assert.ok(renderedPages[0].includes("f_auto,q_auto,w_300,h_400,c_fill"), "card photos use the 300×400 Cloudinary crop");
 assert.ok(renderedPages[0].includes("Fee: Paid"), "every card carries the PAID badge");
 pass("bulk printing lays out exactly four tickets per A4 page and only prints PAID students");

@@ -478,7 +478,7 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
                         <Pencil size={14} /> Edit
                       </button>
                       {canProvision ? <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" disabled={busyId === student.id} onClick={() => void createPortalAccount(student)}><UserPlus size={14} /> Portal login</button> : null}
-                      <button type="button" className="v2-btn v2-btn-sm" disabled={!paid} title={paid ? "Open the A4 landscape ticket" : "Mark the fee PAID before printing a ticket"} onClick={() => setPrintFor(student)}>
+                      <button type="button" className="v2-btn v2-btn-sm" disabled={!paid} title={paid ? "Open the A4 portrait ticket" : "Mark the fee PAID before printing a ticket"} onClick={() => setPrintFor(student)}>
                         <Printer size={14} /> Print ticket
                       </button>
                       <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" onClick={() => setGuestOpen({ studentId: student.id })}>
@@ -722,7 +722,7 @@ function PrintTicketModal({
           <h3 id="print-modal-title">Print ticket — {student.name}</h3>
           <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" onClick={onClose} aria-label="Close"><X size={15} /></button>
         </header>
-        <p className="v2-muted sf-help">Landscape A4 ticket with the school ID, roll, class, section, the student photo and a signed QR code. Copies 2 and 3 also print the father&apos;s and mother&apos;s names and every approved external guardian (Mama, Fufa, Chacha, guest), with two blank lines left for a walk-in relative.</p>
+        <p className="v2-muted sf-help">Portrait A4 ticket with the school ID, roll, class, section, the student photo and a signed QR code, stacked vertically in an ID-card layout. Copies 2 and 3 also print the father&apos;s and mother&apos;s names and every approved external guardian (Mama, Fufa, Chacha, guest), with two blank lines left for a walk-in relative.</p>
         <div className="sf-form-grid">
           <fieldset className="sf-copies">
             <legend className="v2-label">Copies</legend>

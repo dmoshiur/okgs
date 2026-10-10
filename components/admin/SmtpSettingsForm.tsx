@@ -19,6 +19,40 @@ const initial: SmtpFormState = {
   host: "", port: "587", secure: false, username: "", from_name: "OKGS", from_email: "", reply_to: "", enabled: false, password_set: false,
 };
 
+/**
+ * A proxy or crashed upstream can return an HTML 502 page to a JSON API call.
+ * Read the body as text first so the UI can show a useful diagnostic instead
+ * of masking the original failure with `Unexpected token '<'` from response.json().
+ */
+async function readApiJson(response: Response): Promise<Record<string, unknown>> {
+  const body = await response.text();
+  let data: unknown;
+
+  try {
+    data = JSON.parse(body);
+  } catch {
+    const requestId = ["x-request-id", "x-correlation-id", "x-vercel-id", "cf-ray", "x-amzn-requestid"]
+      .map((header) => response.headers.get(header))
+      .find(Boolean);
+    const reference = requestId ? ` Request ID: ${requestId}.` : "";
+    if ([502, 503, 504].includes(response.status)) {
+      throw new Error(`The SMTP API returned a non-JSON HTTP ${response.status} response. The application server or reverse proxy may be unavailable; check both sets of logs.${reference}`);
+    }
+    throw new Error(`The SMTP API returned an invalid non-JSON response (HTTP ${response.status}).${reference}`);
+  }
+
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error(`The SMTP API returned an unexpected response (HTTP ${response.status}).`);
+  }
+  return data as Record<string, unknown>;
+}
+
+function throwApiError(response: Response, data: Record<string, unknown>, fallback: string) {
+  if (!response.ok) {
+    throw new Error(typeof data.error === "string" ? data.error : `${fallback} (HTTP ${response.status}).`);
+  }
+}
+
 export function SmtpSettingsForm() {
   const [form, setForm] = useState(initial);
   const [password, setPassword] = useState("");
@@ -34,11 +68,14 @@ export function SmtpSettingsForm() {
     let alive = true;
     fetch("/api/superadmin/smtp", { cache: "no-store" })
       .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "SMTP settings could not be loaded.");
+        const data = await readApiJson(response);
+        throwApiError(response, data, "SMTP settings could not be loaded.");
+        const settings = data.settings && typeof data.settings === "object"
+          ? data.settings as Partial<SmtpFormState>
+          : undefined;
         if (alive) {
-          setForm({ ...initial, ...(data.settings || {}), port: String(data.settings?.port ?? 587) });
-          setTestTo(data.settings?.from_email || "");
+          setForm({ ...initial, ...(settings || {}), port: String(settings?.port ?? 587) });
+          setTestTo(settings?.from_email || "");
         }
       })
       .catch((issue) => alive && setError(issue instanceof Error ? issue.message : "SMTP settings could not be loaded."))
@@ -63,8 +100,8 @@ export function SmtpSettingsForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, port: Number(form.port), password, clear_password: clearPassword }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "SMTP settings could not be saved.");
+      const data = await readApiJson(response);
+      throwApiError(response, data, "SMTP settings could not be saved.");
       setPassword("");
       setClearPassword(false);
       setForm((current) => ({ ...current, password_set: Boolean(data.password_set) }));
@@ -87,8 +124,8 @@ export function SmtpSettingsForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "test", to: testTo }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "The test email could not be sent.");
+      const data = await readApiJson(response);
+      throwApiError(response, data, "The test email could not be sent.");
       setMessage(`Test email delivered via ${data.provider}.`);
     } catch (issue) {
       setError(issue instanceof Error ? issue.message : "The test email could not be sent.");

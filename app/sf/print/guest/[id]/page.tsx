@@ -16,7 +16,7 @@ import { AutoPrint } from "@/components/print/AutoPrint";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Guest pass", robots: { index: false, follow: false } };
 
-/** /sf/print/guest/:id?fair= — landscape pass for a registered outside guest. */
+/** /sf/print/guest/:id?fair= — portrait pass for a registered outside guest. */
 export default async function GuestPassPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const session = await getPortalSession();
   if (!session) redirect("/sf/login");
@@ -53,7 +53,7 @@ export default async function GuestPassPage({ params, searchParams }: { params: 
         auto={String(query.auto ?? "1") !== "0"}
         lang={lang}
         total={[text.titles.guestCopy.primary]}
-        hint={`Outside guest pass for ${guest.name} — printed on A4 landscape, 1 sheet.`}
+        hint={`Outside guest pass for ${guest.name} — printed on A4 portrait, 1 sheet.`}
       />
       <div className="ticket-sheets">
       <TicketSheet

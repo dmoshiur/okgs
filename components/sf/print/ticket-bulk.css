@@ -9,7 +9,7 @@
 
      page box      210 × 297 mm   (@page ticket-compact, margin 0)
      safe padding     7 mm        (inside the sheet, keeps printers' dead edge)
-     grid          2 × 2, 3 mm gap → each ticket 96.5 × 138 mm
+     grid          2 × 2, 3 mm gap → each ticket 96.5 × 140 mm
      break         page break after every page box, i.e. after every 4 tickets
 
    Nothing in the app chrome (top bar, bottom bar, sidebar, toolbar) may reach
@@ -183,12 +183,14 @@
   opacity: .9;
 }
 
-/* Body: photo (3:4, left) · details · QR. */
+/* Body: photo · details · QR, stacked in a portrait ID-card layout. */
 .ticket-card-body {
   display: grid;
-  grid-template-columns: 25mm minmax(0, 1fr) 25mm;
-  gap: 2.4mm;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  justify-items: center;
+  align-content: start;
+  gap: 1.2mm;
   min-width: 0;
   min-height: 0;
   padding: 2.4mm;
@@ -197,8 +199,8 @@
   display: grid;
   place-items: center;
   margin: 0;
-  width: 25mm;
-  height: 33.33mm; /* exactly 3:4 */
+  width: 22mm;
+  height: 29.33mm; /* exactly 3:4 */
   overflow: hidden;
   border: .5mm solid #b9c4d2;
   border-radius: 2mm;
@@ -220,21 +222,25 @@
   display: grid;
   grid-auto-rows: min-content;
   align-content: start;
-  gap: 1.4mm;
+  justify-items: stretch;
+  gap: 1mm;
+  width: 100%;
   min-width: 0;
 }
 .ticket-card-name {
   margin: 0;
-  font-size: 13pt;
+  font-size: 11pt;
   line-height: 1.1;
   font-weight: 700;
   color: var(--bulk-ink);
+  text-align: center;
   overflow-wrap: anywhere;
 }
 .ticket-card-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.2mm 2mm;
+  gap: .8mm 2mm;
+  width: 100%;
   margin: 0;
   min-width: 0;
 }
@@ -264,7 +270,7 @@
   overflow-wrap: anywhere;
 }
 .ticket-card-badge {
-  justify-self: start;
+  justify-self: center;
   margin-top: .6mm;
   padding: .8mm 2.2mm;
   border: .4mm solid #0b6b43;
@@ -286,8 +292,8 @@
   text-align: center;
 }
 .ticket-card-qr img {
-  width: 24mm;
-  height: 24mm;
+  width: 22mm;
+  height: 22mm;
   padding: .8mm;
   background: #fff;
   border: .5mm solid var(--bulk-ink);

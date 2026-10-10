@@ -1,10 +1,10 @@
 /**
- * Landscape (A4 landscape, 297 × 210 mm) entry ticket. One sheet per copy.
+ * Portrait A4 entry ticket. One sheet per copy, with a vertical ID-card layout.
  * Server-rendered so the printed page and the QR are produced by the backend.
  *
  * Layout contract (kept stable for the print CSS):
  *   head  — school logo, school name, event title, ticket kind + copy label
- *   body  — student photo (left, 3:4) · details · signed QR (right)
+ *   body  — student photo · details · signed QR, stacked vertically
  *   foot  — validity, issue date, who printed it, signature note
  *
  * Copy 1 is the student copy. From copy 2 onward the parents' names and the
@@ -78,14 +78,15 @@ function initialsOf(value: string) {
 }
 
 /** One `Label / value` pair. In bilingual mode the English sits under the Bangla. */
-function Field({ label, value, lang, wide }: { label: TicketLabel; value: string; lang: TicketLang; wide?: boolean }) {
+function Field({ label, value, lang, wide, plain }: { label: TicketLabel; value: string; lang: TicketLang; wide?: boolean; plain?: boolean }) {
+  const displayValue = plain ? ticketValue(value, lang) : ticketNumber(value, lang);
   return (
     <div className={`ticket-field${wide ? " is-wide" : ""}`}>
       <dt>
         {label.primary}
         {label.secondary ? <em>{label.secondary}</em> : null}
       </dt>
-      <dd>{ticketNumber(value, lang) || "—"}</dd>
+      <dd>{displayValue || "—"}</dd>
     </div>
   );
 }
@@ -150,13 +151,13 @@ export function TicketSheet(props: TicketSheetProps) {
                 <Field label={t.labels.relation} value={guest?.relation ?? ""} lang={lang} />
                 <Field label={t.labels.contact} value={guest?.contact ?? ""} lang={lang} />
                 <Field label={t.labels.visitingStudent} value={student.name} lang={lang} />
-                <Field label={t.labels.studentId} value={student.student_code} lang={lang} />
+                <Field label={t.labels.studentId} value={student.student_code} lang={lang} plain />
                 <Field label={t.labels.className} value={student.class_name} lang={lang} />
                 <Field label={t.labels.section} value={student.section} lang={lang} />
               </dl>
             ) : (
               <dl className="ticket-grid">
-                <Field label={t.labels.studentId} value={student.student_code} lang={lang} />
+                <Field label={t.labels.studentId} value={student.student_code} lang={lang} plain />
                 <Field label={t.labels.roll} value={student.roll} lang={lang} />
                 <Field label={t.labels.className} value={student.class_name} lang={lang} />
                 <Field label={t.labels.section} value={student.section} lang={lang} />

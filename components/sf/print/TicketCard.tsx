@@ -1,9 +1,8 @@
 /**
  * One compact ticket for the bulk A4 sheet (4 per page, 2 × 2).
  *
- * Same signed QR, same photo rule and the same single-language word list as the
- * full landscape sheet — only the scale changes, so a gate warden reads a bulk
- * ticket exactly like a single one.
+ * Same signed QR, photo rule and single-language word list as the individual
+ * portrait ticket — laid out vertically so each A4 card reads like an ID badge.
  *
  * Every word comes from `ticketText(lang)`; there is no hard-coded copy here.
  */
@@ -40,14 +39,15 @@ function initialsOf(value: string) {
   return words.slice(0, 2).map((word) => word[0]).join("").toUpperCase() || "?";
 }
 
-function Field({ label, value, lang }: { label: TicketLabel; value: string; lang: TicketLang }) {
+function Field({ label, value, lang, plain }: { label: TicketLabel; value: string; lang: TicketLang; plain?: boolean }) {
+  const displayValue = plain ? ticketValue(value, lang) : ticketNumber(value, lang);
   return (
     <div className="ticket-card-field">
       <dt>
         {label.primary}
         {label.secondary ? <em>{label.secondary}</em> : null}
       </dt>
-      <dd>{ticketNumber(value, lang) || "—"}</dd>
+      <dd>{displayValue || "—"}</dd>
     </div>
   );
 }
@@ -84,7 +84,7 @@ export function TicketCard(props: TicketCardProps) {
         <div className="ticket-card-info">
           <h3 className="ticket-card-name">{student.name || "—"}</h3>
           <dl className="ticket-card-grid">
-            <Field label={t.labels.studentId} value={student.student_code} lang={lang} />
+            <Field label={t.labels.studentId} value={student.student_code} lang={lang} plain />
             <Field label={t.labels.roll} value={student.roll} lang={lang} />
             <Field label={t.labels.className} value={student.class_name} lang={lang} />
             <Field label={t.labels.section} value={student.section} lang={lang} />
