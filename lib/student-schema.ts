@@ -109,6 +109,41 @@ export const studentSchema = [
   /* "When was this person admitted" — subject first, then the fair and result. */
   `CREATE INDEX IF NOT EXISTS scan_logs_admission_idx ON scan_logs(subject_type, subject_id, fair_slug, result, entry_time)`,
 
+  /* One lunch per PERSON per Bangladesh calendar day, across ticket copies,
+     reprints, QR/manual entry and simultaneous canteen devices. Date-keyed rows
+     reset eligibility at midnight without deleting yesterday's audit trail. */
+  `CREATE TABLE IF NOT EXISTS lunch_claims (
+    id TEXT PRIMARY KEY,
+    fair_slug TEXT NOT NULL,
+    subject_type TEXT NOT NULL CHECK (subject_type IN ('student', 'guest')),
+    subject_id TEXT NOT NULL,
+    claim_date TEXT NOT NULL,
+    claimed_at TEXT NOT NULL,
+    claimed_by TEXT NOT NULL,
+    claimed_by_name TEXT NOT NULL DEFAULT '',
+    UNIQUE (subject_type, subject_id, claim_date)
+  )`,
+  `CREATE INDEX IF NOT EXISTS lunch_claims_fair_day_idx ON lunch_claims(fair_slug, claim_date)`,
+  `CREATE TABLE IF NOT EXISTS lunch_scan_logs (
+    id TEXT PRIMARY KEY,
+    fair_slug TEXT NOT NULL,
+    subject_type TEXT NOT NULL DEFAULT '',
+    subject_id TEXT NOT NULL DEFAULT '',
+    subject_name TEXT NOT NULL DEFAULT '',
+    subject_code TEXT NOT NULL DEFAULT '',
+    method TEXT NOT NULL CHECK (method IN ('qr', 'manual')),
+    action TEXT NOT NULL CHECK (action IN ('check', 'claim')),
+    result TEXT NOT NULL CHECK (result IN ('ready', 'success', 'duplicate', 'denied', 'expired', 'invalid')),
+    claim_date TEXT NOT NULL,
+    claim_time TEXT NOT NULL DEFAULT '',
+    scanned_at TEXT NOT NULL,
+    scanned_by TEXT NOT NULL,
+    scanned_by_name TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT ''
+  )`,
+  `CREATE INDEX IF NOT EXISTS lunch_scan_logs_fair_time_idx ON lunch_scan_logs(fair_slug, scanned_at)`,
+  `CREATE INDEX IF NOT EXISTS lunch_scan_logs_subject_day_idx ON lunch_scan_logs(subject_type, subject_id, claim_date)`,
+
   /* Each time a ticket is sent to print (copies, optional guardian). */
   `CREATE TABLE IF NOT EXISTS ticket_prints (
     id TEXT PRIMARY KEY,

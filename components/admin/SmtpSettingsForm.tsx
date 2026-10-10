@@ -162,6 +162,7 @@ export function SmtpSettingsForm() {
             <button className="admin-primary-button" type="submit" disabled={saving}>{saving ? <Loader2 size={15} className="spin" /> : <CheckCircle2 size={15} />} Save SMTP settings</button>
           </div>
           <p className="field-help">Credentials are encrypted at rest using AES-256-GCM. Set <code>SMTP_CONFIG_SECRET</code> (recommended) or <code>SESSION_SECRET</code> in the deployment environment. The password is never returned to the browser.</p>
+          <p className="field-help">SMTP uses IPv4 by default. If Render or your host blocks outbound SMTP ports, set <code>MAIL_PROVIDER=resend</code>, <code>RESEND_API_KEY</code> and <code>MAIL_FROM</code> in the deployment environment and verify the sender domain in Resend. HTTPS mode bypasses these SMTP settings; the test reports which provider sent the message.</p>
         </form>
       )}
 

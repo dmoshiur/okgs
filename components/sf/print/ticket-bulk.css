@@ -1,23 +1,10 @@
-/* ==========================================================================
-   Bulk student tickets — A4 portrait, exactly 4 tickets per page (2 × 2).
-
-   The 4-in-1 sheet does NOT re-style the ticket. It places four copies of
-   the very same A6 TicketSheet (105 × 148 mm) into a 2 × 2 grid — the same
-   component, the same classes, the same millimetre geometry. 2 × 105 mm =
-   210 mm and 2 × 148 mm = 296 mm, so four true-size A6 sheets fill an A4
-   page (210 × 297 mm) exactly, with no scaling and no overflow.
-
-     page box      210 × 297 mm   (@page ticket-compact, margin 0)
-     grid          2 × 2 of 105 × 148 mm sheets, centred on the page
-     break         page break after every page box, i.e. after every 4 tickets
-
-   Nothing in the app chrome (top bar, bottom bar, sidebar, toolbar) may reach
-   the paper — see the `@media print` block at the bottom.
-   ========================================================================== */
-
+/* A4 four-up: the same safe 95 × 137mm cards as single A6 printing.
+   Paper: 210 × 297mm; page margins: 5mm; printable box: 200 × 287mm.
+   Two cards across/down with a 4mm cutting gutter; centered inside that box.
+   One continuous DOM, with a physical page break after each group of four. */
 @page ticket-compact {
   size: A4 portrait;
-  margin: 0;
+  margin: 5mm;
 }
 
 /* ---------- Screen preview ------------------------------------------------ */
@@ -38,14 +25,14 @@
   page: ticket-compact;
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: 105mm 105mm;
-  grid-template-rows: 148mm 148mm;
+  grid-template-columns: 95mm 95mm;
+  grid-template-rows: 137mm 137mm;
   justify-content: center;
   align-content: center;
-  gap: 0;
+  gap: 4mm;
   width: 210mm;
   height: 297mm;
-  padding: 0;
+  padding: 5mm;
   background: #fff;
   color: #0f172a;
   border-radius: 4px;
@@ -67,18 +54,20 @@
 @media screen and (max-width: 900px) {
   .ticket-bulk-page { zoom: .58; }
 }
+@media screen and (max-width: 480px) { .ticket-bulk-page { zoom: .4; } }
+@media screen and (max-width: 350px) { .ticket-bulk-page { zoom: .36; } }
 @media screen and (min-width: 901px) and (max-width: 1180px) {
   .ticket-bulk-page { zoom: .82; }
 }
 
-/* ---------- Four true-size A6 sheets per page -----------------------------
+/* ---------- Four identical safe-area cards per page -----------------------------
    The sheet keeps every rule from the single-ticket stylesheet; only the
    pagination changes: inside the bulk grid a sheet is NOT its own page, and
    the preview shadow/rounding come off so four sheets read as one A4. */
 .ticket-bulk-page .ticket-sheet {
   page: auto;
-  width: 105mm;
-  height: 148mm;
+  width: 95mm;
+  height: 137mm;
   aspect-ratio: auto;
   border-radius: 0;
   box-shadow: none;
@@ -211,8 +200,9 @@
 
   .ticket-bulk-page {
     zoom: 1;
-    width: 210mm;
-    height: 297mm;
+    width: 200mm;
+    height: 287mm;
+    padding: 0;
     margin: 0;
     border-radius: 0;
     box-shadow: none;
@@ -232,9 +222,9 @@
   .ticket-bulk-page .ticket-sheet,
   .ticket-bulk-page .printable-ticket {
     page: auto !important;
-    width: 105mm !important;
-    max-width: 105mm !important;
-    height: 148mm !important;
+    width: 95mm !important;
+    max-width: 95mm !important;
+    height: 137mm !important;
     margin: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -250,5 +240,5 @@
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
-  .ticket-bulk-slot-empty { border-color: #e2e8f0; }
+  .ticket-bulk-slot-empty { border: 0; visibility: hidden !important; }
 }

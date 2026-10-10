@@ -10,7 +10,7 @@
  *      the bottom-left with the president's signature on the right, the fixed
  *      "31 December 2026" validity, and NONE of the retired badges (entry
  *      ticket / copy labels / HMAC note / printed-by);
- *   3. the A4 4-in-1 sheet — four true-size A6 TicketSheets per A4 page,
+ *   3. the A4 4-in-1 sheet — four identical safe-area TicketSheets per A4 page,
  *      page break after every four, and only PAID students printed;
  *   4. the photo-mapping importer — key matching, the student/father/mother
  *      photo columns, error rows, dry runs, and the real batch write against a
@@ -98,20 +98,20 @@ const english = renderSheet("en");
 assert.ok(!BANGLA.test(english), "an English sheet carries no Bangla characters at all");
 assert.match(english, /<dt>Roll<\/dt>/, "English labels are plain English");
 assert.match(english, /<dt>Student ID<\/dt>/);
-assert.match(english, /<dd>5<\/dd>/, "Latin digits on an English sheet");
+assert.match(english, /<dd[^>]*>5<\/dd>/, "Latin digits on an English sheet");
 
 const numericIdEnglish = renderSheet("en", "202405102");
-assert.match(numericIdEnglish, /<dt>Student ID<\/dt><dd>202405102<\/dd>/, "student IDs render as plain text, without thousands separators");
+assert.match(numericIdEnglish, /<dt>Student ID<\/dt><dd[^>]*>202405102<\/dd>/, "student IDs render as plain text, without thousands separators");
 assert.doesNotMatch(numericIdEnglish, /202,405,102/, "an ID is never formatted as a number");
 const numericIdBangla = renderSheet("bn", "202405102");
-assert.match(numericIdBangla, /<dd>২০২৪০৫১০২<\/dd>/, "Bangla IDs localize digits without adding grouping commas");
+assert.match(numericIdBangla, /<dd[^>]*>২০২৪০৫১০২<\/dd>/, "Bangla IDs localize digits without adding grouping commas");
 
 const bangla = renderSheet("bn");
 for (const label of ["রোল", "শ্রেণি", "শিফট", "শিক্ষার্থী আইডি", "শাখা", "গ্রুপ"]) {
   assert.ok(bangla.includes(label), `Bangla sheet prints the label ${label}`);
 }
 assert.ok(!/<dt>Roll<\/dt>/.test(bangla) && !/<dt>Class<\/dt>/.test(bangla), "a Bangla sheet has no English label left over");
-assert.ok(bangla.includes("<dd>৫</dd>"), "the roll is written in Bangla digits on a Bangla sheet");
+assert.match(bangla, /<dd[^>]*>৫<\/dd>/, "the roll is written in Bangla digits on a Bangla sheet");
 assert.match(bangla, /৩১ ডিসেম্বর ২০২৬/, "the fixed validity date is Bangla on a Bangla sheet");
 
 const bilingual = renderSheet("both");
@@ -152,9 +152,9 @@ assert.ok(!BANGLA.test(ticketSchoolName("ওমর কিন্ডারগা�
 pass("one language per sheet, pinned school name and pinned 31 December 2026 validity");
 
 /* ---------- 2 · the redesigned A6 sheet (105 × 148 mm) -------------------- */
-assert.match(css, /@page ticket-portrait\s*\{\s*size: A6 portrait; margin: 0; \}/, "the single ticket prints on its own A6 portrait page with zero page margin");
-assert.match(css, /\.ticket-sheet\s*\{[^}]*aspect-ratio: 105 \/ 148/, "the single-ticket preview is a true A6 portrait card");
-assert.match(css, /\.ticket-sheet\s*\{[^}]*width: min\(105mm, 100%\)/, "…105mm wide, never wider than its container");
+assert.match(css, /@page ticket-portrait\s*\{\s*size: 105mm 148mm; margin: 5mm; \}/, "single printing uses true A6 paper with a 5mm safe area");
+assert.match(css, /\.ticket-sheet\s*\{[^}]*aspect-ratio: 95 \/ 137/, "the single-ticket preview is a 95×137mm inset portrait card");
+assert.match(css, /\.ticket-sheet\s*\{[^}]*width: 95mm/, "…95mm wide inside A6 safe margins");
 assert.match(css, /\.ticket-sheet\s*\{[^}]*overflow: hidden/, "the sheet clips overflow, so nothing escapes the card border");
 assert.match(css, /\.ticket-frame\s*\{[^}]*display: flex[^}]*flex-direction: column/, "the frame stacks head, title, photos, grid and bottom in one column");
 assert.match(css, /\.ticket-grid\s*\{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/, "the details sit in a clean 3-column grid");
@@ -163,7 +163,7 @@ assert.match(css, /\.ticket-qr\s*\{[^}]*align-items: flex-start/, "the QR is anc
 assert.match(css, /\.ticket-photos\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1\.45fr\) minmax\(0, 1fr\)/, "the photo row is father · student (large) · mother");
 assert.match(css, /\.ticket-photo-frame\s*\{[^}]*aspect-ratio: 3 \/ 4/, "every photo keeps a true 3:4 frame");
 assert.match(css, /\.ticket-photo-frame img\s*\{[^}]*object-fit: cover/, "…cropped, never squashed");
-assert.match(css, /@media print[\s\S]{0,1200}\.ticket-sheet\s*\{[^}]*width: 105mm; height: 148mm/, "print pins every copy to exactly one A6 page — no second page, no spill");
+assert.match(css, /@media print[\s\S]{0,1200}\.ticket-sheet\s*\{[^}]*width: 95mm; height: 137mm/, "each 95×137mm copy fits one safely inset A6 page");
 assert.match(css, /\.ticket-sheet\[data-lang="bn"\][^{]*\{[^}]*--font-hind-siliguri/, "Bangla sheets use the Bangla typefaces");
 
 // Header: left crest, school name + sub-header, Scholars logo on the right.
@@ -175,8 +175,8 @@ assert.ok(english.includes(TICKET_SUB_HEADER), "the sub-header prints under the 
 assert.match(english, /ticket-title/, "the fair title has its own block");
 assert.match(english, /OKGS GENESIS 2026/, "the Science Fair event name prints prominently");
 // Photos: father + mother flanking the student photo, names under the sides.
-assert.ok(english.includes("f_auto,q_auto,w_600,h_800,c_fill"), "the main photo is a 600×800 auto-format Cloudinary crop");
-assert.ok(english.includes("f_auto,q_auto,w_300,h_400,c_fill"), "the parents' photos use the 300×400 crop");
+assert.ok(english.includes("f_auto,q_auto,w_320,h_427,c_fill"), "the main photo is a 320×427 print-quality auto-format Cloudinary crop");
+assert.ok(english.includes("f_auto,q_auto,w_240,h_320,c_fill"), "the parents' photos use the 240×320 print-quality crop");
 assert.ok(english.includes("Rafiqul Islam") && english.includes("Salma Begum"), "father's and mother's names sit under their photos");
 // Bottom: signed QR left, president signature right.
 assert.match(english, /src="data:image\/png;base64,QR"/, "the signed QR prints");
@@ -213,24 +213,32 @@ const guestHtml = renderToStaticMarkup(
   />,
 );
 assert.match(guestHtml, /GUEST ENTRY/, "outside guests are tagged GUEST ENTRY");
-assert.match(guestHtml, /<dt>Guest ID<\/dt><dd>ABCD1234<\/dd>/, "the guest ID prints shortened and upper-case");
+assert.match(guestHtml, /<dt>Guest ID<\/dt><dd[^>]*>ABCD1234<\/dd>/, "the guest ID prints shortened and upper-case");
 assert.match(guestHtml, /<dt>Tagged student<\/dt>/, "the tagged student reference prints");
 assert.match(guestHtml, /01712345678/, "the guest contact prints");
 assert.match(guestHtml, /<dt>Status<\/dt>/, "the guest status prints");
 assert.ok(guestHtml.includes("okgs/guests/kamal.jpg"), "the desk photo prints on the guest ticket");
 assert.match(guestHtml, /src="data:image\/png;base64,GUESTQR"/, "the guest QR is signed separately");
 assert.equal(guestTicketId("abcd1234-dead-beef"), "ABCD1234");
+assert.ok(guestHtml.includes("okgs/fathers/") && guestHtml.includes("okgs/mothers/"), "related parents flank the guest portrait too");
+assert.equal((guestHtml.match(/ticket-photo-frame/g) || []).length, 3, "guest tickets use the same clean three-photo row");
+assert.ok(guestHtml.indexOf("okgs/fathers/") < guestHtml.indexOf("guests/kamal.jpg") && guestHtml.indexOf("guests/kamal.jpg") < guestHtml.indexOf("okgs/mothers/"), "guest stays centered between father and mother");
+assert.match(css, /\.ticket-bottom\s*\{[^}]*flex: 1 0 26mm/, "QR space never flex-shrinks");
+assert.match(css, /width: 95mm !important; max-width: 95mm !important; height: 137mm !important/, "the final important print override agrees with the safe geometry");
 pass("redesigned A6 sheet: dual logos, fair title, photo row, QR-left + signature-right, pinned validity, no badges");
 
-/* ---------- 3 · bulk A4 sheet: four true-size A6 tickets per page --------- */
+/* ---------- 3 · bulk A4 sheet: four identical safe-area tickets per page --------- */
 assert.match(bulkCss, /@page ticket-compact\s*\{\s*size: A4 portrait/, "the bulk sheet prints A4 portrait");
-assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*grid-template-columns: 105mm 105mm/, "two true-size A6 tickets across");
-assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*grid-template-rows: 148mm 148mm/, "two true-size A6 tickets down");
+assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*grid-template-columns: 95mm 95mm/, "two identical safe-area tickets across");
+assert.match(bulkCss, /gap: 4mm/, "A4 cards have a cutting gutter");
+assert.match(bulkCss, /margin: 5mm/, "the A4 page has physical safe margins");
+assert.match(bulkCss, /width: 200mm;[\s\S]{0,50}height: 287mm/, "print page boxes fit within the A4 content area");
+assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*grid-template-rows: 137mm 137mm/, "two identical safe-area tickets down");
 assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*width: 210mm/, "the page box is real A4");
 assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*break-after: page/, "a page break after every page box");
 assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*page: ticket-compact/, "…on the named A4 portrait page");
-assert.match(bulkCss, /\.ticket-bulk-page \.ticket-sheet\s*\{[^}]*width: 105mm/, "each bulk sheet keeps the exact A6 width");
-assert.match(bulkCss, /\.ticket-bulk-page \.ticket-sheet\s*\{[^}]*height: 148mm/, "…and the exact A6 height — the template is never scaled");
+assert.match(bulkCss, /\.ticket-bulk-page \.ticket-sheet\s*\{[^}]*width: 95mm/, "each bulk sheet keeps the exact safe-card width");
+assert.match(bulkCss, /\.ticket-bulk-page \.ticket-sheet\s*\{[^}]*height: 137mm/, "…and the exact safe-card height — the template is never scaled");
 assert.match(bulkCss, /@media print[\s\S]*\.ticket-bulk-page \.ticket-sheet[\s\S]{0,420}break-after: auto !important/, "inside the grid a sheet does not take a page of its own");
 assert.match(bulkCss, /@media screen[\s\S]{0,900}\.ticket-bulk-toolbar/, "the toolbar stays a screen-only surface");
 assert.match(bulkPage, /TICKETS_PER_PAGE = 4/, "the page groups four tickets per A4 sheet");
@@ -301,12 +309,12 @@ const renderedPages = pages.map(
 );
 assert.equal((renderedPages[0].match(/ticket-sheet printable-ticket/g) ?? []).length, 4, "page one renders four A6 sheets");
 assert.equal((renderedPages[1].match(/ticket-bulk-slot-empty/g) ?? []).length, 3, "page two keeps its 2 × 2 grid with three empty slots");
-assert.match(renderedPages[0], /<dt>Student ID<\/dt><dd>202405102<\/dd>/, "bulk ticket IDs stay plain text");
+assert.match(renderedPages[0], /<dt>Student ID<\/dt><dd[^>]*>202405102<\/dd>/, "bulk ticket IDs stay plain text");
 assert.doesNotMatch(renderedPages[0], /202,405,102/, "bulk ticket IDs never get thousands separators");
-assert.ok(renderedPages[0].includes("f_auto,q_auto,w_600,h_800,c_fill"), "bulk photos use the same Cloudinary crop as the single print");
+assert.ok(renderedPages[0].includes("f_auto,q_auto,w_320,h_427,c_fill"), "bulk photos use the same Cloudinary crop as the single print");
 assert.ok(renderedPages[0].includes("Valid until 31 December 2026"), "every bulk ticket carries the pinned validity");
 assert.match(TICKET_VALID_UNTIL_ISO, /^2026-12-31$/, "the validity constant is the ISO date behind the footer line");
-pass("bulk printing lays out four true-size A6 tickets per A4 page and only prints PAID students");
+pass("bulk printing lays out four identical safe-area tickets per A4 page and only prints PAID students");
 
 /* ---------- 4 · photo-mapping spreadsheet --------------------------------- */
 const goodSheet = parsePhotoCsv(
@@ -462,6 +470,15 @@ async function databaseChecks() {
   assert.deepEqual(selectedByRowId.map((row) => row.id), [ids[0]], "a database-ID selection returns only that paid student");
   const selectedBySchoolCode = await roster.paidStudentsForPrint({ fair_slug: "smoke-fair", student_ids: ["2026-0103"] });
   assert.deepEqual(selectedBySchoolCode.map((row) => row.student_code), ["2026-0103"], "student IDs in a print link may use the school's student code");
+  const { dbRun } = await import("../lib/portal-db");
+  await dbRun("UPDATE students SET student_code = ? WHERE id = ?", [ids[0], ids[2]]);
+  assert.deepEqual((await roster.paidStudentsForPrint({ fair_slug: "smoke-fair", student_ids: [ids[0]] })).map((row) => row.id), [ids[0]], "a canonical selected ID never widens to another person's matching school-code alias");
+  await dbRun("UPDATE students SET student_code = ? WHERE id = ?", ["CASE-CODE", ids[0]]);
+  await dbRun("UPDATE students SET student_code = ? WHERE id = ?", ["case-code", ids[2]]);
+  assert.equal((await roster.paidStudentsForPrint({ fair_slug: "smoke-fair", student_ids: ["Case-Code"] })).length, 0, "an ambiguous case-folded alias fails closed instead of printing extra students");
+  assert.deepEqual((await roster.paidStudentsForPrint({ fair_slug: "smoke-fair", student_ids: ["CASE-CODE"] })).map((row) => row.id), [ids[0]], "an exact school code still identifies exactly one student");
+  await dbRun("UPDATE students SET student_code = ? WHERE id = ?", ["2026-0101", ids[0]]);
+  await dbRun("UPDATE students SET student_code = ? WHERE id = ?", ["2026-0103", ids[2]]);
   const selectedByRoll = await roster.paidStudentsForPrint({ fair_slug: "smoke-fair", rolls: new Set(["3"]) });
   assert.deepEqual(selectedByRoll.map((row) => row.student_code), ["2026-0103"], "a selected roll returns only the matching PAID student");
   assert.equal((await roster.paidStudentsForPrint({ fair_slug: "smoke-fair", student_ids: [] })).length, 0, "an explicitly empty ID selection never falls back to all students");

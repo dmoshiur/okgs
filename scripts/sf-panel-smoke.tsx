@@ -23,6 +23,8 @@ const css = read("app/globals.css");
 const layout = read("app/layout.tsx");
 const nav = read("components/sf/BottomNav.tsx");
 const scanner = read("components/sf/Scanner.tsx");
+const scanDialog = read("components/sf/ScanResultDialog.tsx");
+const scanAudit = read("components/sf/ScannerAuditLog.tsx");
 const students = read("components/sf/console/StudentsPanel.tsx");
 const sheet = read("components/sf/print/TicketSheet.tsx");
 const importer = read("app/api/staff/students/import/route.ts");
@@ -72,8 +74,8 @@ assert.equal(gateResultClass("success"), "is-good");
 // The scanner is a standalone page: it must carry the console root and its tokens.
 assert.match(scanner, /sf-console sf-scan-page/, "scanner page opts into the console token layer");
 assert.match(scanner, /v2-wrap app-body sf-main/, "scanner body clears the fixed bar");
-assert.match(scanner, /sf-result-label/, "scanner shows one big English status word");
-assert.match(scanner, /role="status" aria-live="assertive"/, "the gate result is announced to screen readers");
+assert.match(scanDialog, /sf-result-label/, "scanner shows one big English status word");
+assert.match(scanDialog, /role="status" aria-live="assertive"/, "the gate result is announced to screen readers");
 // No white-on-white: the console layer redefines its own tokens for both schemes.
 assert.match(css, /\.sf-console,[\s\S]{0,200}--sf-card:/, "console tokens are declared once for the whole layer");
 assert.match(css, /html\[data-color-scheme="dark"\][^{]*\{[^}]*--sf-card:/, "dark scheme overrides the same tokens");
@@ -149,8 +151,8 @@ assert.match(html, /ticket-signature/, "the president's signature prints bottom-
 assert.match(html, /Valid until 31 December 2026/, "validity is pinned to 31 December 2026");
 assert.doesNotMatch(html, /STUDENT ENTRY TICKET|Student copy|Copy 1 of 1/i, "the old badges are gone");
 assert.doesNotMatch(html, /HMAC|Printed by/i, "…and so are the HMAC note and the printed-by line");
-assert.match(css, /@page ticket-portrait\s*\{ size: A6 portrait; margin: 0; \}/, "the ticket uses its own A6 portrait print page with zero margin");
-assert.match(css, /\.ticket-sheet\s*\{[^}]*aspect-ratio: 105 \/ 148/, "the preview keeps the A6 portrait ratio (105 × 148 mm)");
+assert.match(css, /@page ticket-portrait\s*\{ size: 105mm 148mm; margin: 5mm; \}/, "true A6 paper has a 5mm physical printer safe area");
+assert.match(css, /\.ticket-sheet\s*\{[^}]*aspect-ratio: 95 \/ 137/, "the preview keeps the safe card ratio (95 × 137 mm)");
 assert.match(css, /\.ticket-frame\s*\{[^}]*display: flex[^}]*flex-direction: column/, "the sheet stacks head, title, photos, grid and bottom vertically");
 assert.match(css, /\.ticket-grid\s*\{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/, "ticket fields stay readable in three compact columns");
 assert.match(css, /\.ticket-print-root\s*\{[^}]*min-height: 100vh/, "the ticket fills the screen");
@@ -162,7 +164,7 @@ const stamp = formatDateTimeEn("2026-10-08T14:03:36.351Z");
 assert.match(stamp, /8 Oct 2026/, "date renders in English, day first");
 assert.match(stamp, /14:03/, "and 24-hour minutes");
 assert.match(formatTimeEn("2026-10-08T14:03:36.351Z"), /^14:03$/);
-assert.match(scanner, /<th>Date<\/th>\s*<th>Time<\/th>/, "the audit table splits date and time");
+assert.match(scanAudit, /<th>Date<\/th>\s*<th>Time<\/th>/, "the audit table splits date and time");
 assert.equal(en(1234), "1,234", "counts are grouped with ASCII digits, never Bengali");
 assert.equal(en("07"), "7", "a stored roll is shown as written, digits only when numeric");
 pass("scan log shows the exact date and time of every attempt");
@@ -191,6 +193,11 @@ pass("zero browser storage, zero mock rows — the database is the only source")
 
 // ---------- route reachability ------------------------------------------
 assert.ok(isSfPanelPath("/sf"), "/sf carries the bar");
+assert.equal(sfSectionForPath("/sf/canteen")?.id, "canteen");
+assert.ok(isSfPanelPath("/sf/canteen"), "canteen is a real navigable staff route");
+assert.match(scanner, /busyRef.current = true/, "camera/manual requests use a synchronous lock");
+assert.match(scanDialog, /dialog.showModal\(\)/, "mobile results use a native focus-trapped top-layer popup");
+assert.match(scanDialog, /Confirm lunch box handover/, "non-consuming checks can be confirmed quickly");
 assert.ok(isSfPanelPath("/sf/scan"), "/sf/scan carries the bar");
 assert.ok(isSfPanelPath("/sf/students"), "/sf/students carries the bar");
 assert.ok(isSfPanelPath("/sf/dashboard"), "/sf/dashboard carries the bar");

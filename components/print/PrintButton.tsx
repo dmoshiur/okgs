@@ -1,7 +1,9 @@
 "use client";
 
 import { Printer } from "lucide-react";
+import { usePrintAction } from "@/components/print/usePrintAction";
 
 export function PrintButton({ label = "Print / Save as PDF" }: { label?: string }) {
-  return <button className="v2-btn no-print" type="button" onClick={() => window.print()}><Printer size={15} /> {label}</button>;
+  const action = usePrintAction();
+  return <span className="no-print"><button className="v2-btn" type="button" disabled={!action.ready || action.preparing} onClick={() => void action.print()}><Printer size={15} /> {!action.ready ? "Loading view…" : action.preparing ? "Preparing print…" : label}</button>{action.notice ? <small className="print-ready-note" role="status">{action.notice}</small> : null}</span>;
 }

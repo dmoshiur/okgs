@@ -115,3 +115,9 @@ export async function qrSvg(text: string, options: QrOptions = {}) {
     color: { dark: options.dark ?? "#0b3a25", light: options.light ?? "#ffffff" },
   });
 }
+
+/** Lightweight vector QR for large print views: crisp on paper, without 500+ PNG encodes. */
+export async function qrSvgDataUrl(text: string, options: QrOptions = {}) {
+  const svg = await qrSvg(text, options);
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+}

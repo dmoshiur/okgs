@@ -7,6 +7,8 @@ import { db } from "@/lib/db";
 import { dbQuery as query, dbRun as run, ensurePortal } from "@/lib/portal-db";
 import { guestRelations } from "@/lib/student-schema";
 import { normalizeRoll } from "@/lib/roll-range";
+import { dhakaDayStartIso, nextSchoolDayIso } from "@/lib/school-time";
+export { dhakaDayStartIso } from "@/lib/school-time";
 
 const nowIso = () => new Date().toISOString();
 
@@ -219,7 +221,13 @@ function studentFilterSql(filter: StudentFilter) {
     if (!filter.student_ids.length) {
       clauses.push("1 = 0");
     } else {
-      clauses.push("EXISTS (SELECT 1 FROM json_each(?) AS selected WHERE CAST(selected.value AS TEXT) = s.id OR upper(CAST(selected.value AS TEXT)) = upper(s.student_code))");
+      // Resolve each requested identifier to at most ONE record. A selected
+      // database ID must not also match an unselected student's school code.
+      clauses.push(`s.id IN (SELECT COALESCE(
+        (SELECT by_id.id FROM students by_id WHERE by_id.id = CAST(selected.value AS TEXT)),
+        (SELECT by_code.id FROM students by_code WHERE by_code.student_code = CAST(selected.value AS TEXT)),
+        (SELECT MIN(by_alias.id) FROM students by_alias WHERE upper(by_alias.student_code) = upper(CAST(selected.value AS TEXT)) HAVING COUNT(*) = 1)
+      ) FROM json_each(?) AS selected)`);
       args.push(JSON.stringify(Array.from(new Set(filter.student_ids))));
     }
   }
@@ -646,28 +654,21 @@ export async function guestCountsByRelation(fairSlug: string) {
 }
 
 /** Scans of the current fair day (Asia/Dhaka) — "today" for the gate. */
-export async function scanDaySummary(fairSlug: string) {
-  const since = dhakaDayStartIso();
+export async function scanDaySummary(fairSlug: string, now = new Date()) {
+  const since = dhakaDayStartIso(now);
+  const until = nextSchoolDayIso(now);
   const rows = await query<{ result: string; total: number }>(
-    `SELECT result, COUNT(*) AS total FROM scan_logs WHERE fair_slug = ? AND scanned_at >= ? GROUP BY result`,
-    [fairSlug, since],
+    `SELECT result, COUNT(*) AS total FROM scan_logs WHERE fair_slug = ? AND scanned_at >= ? AND scanned_at < ? GROUP BY result`,
+    [fairSlug, since, until],
   );
   const today: Record<string, number> = { success: 0, duplicate: 0, expired: 0, invalid: 0 };
   for (const row of rows) today[String(row.result)] = Number(row.total ?? 0);
   const admitted = await query<{ total: number }>(
-    `SELECT COUNT(DISTINCT subject_type || ':' || subject_id) AS total FROM scan_logs WHERE fair_slug = ? AND result = 'success' AND scanned_at >= ?`,
-    [fairSlug, since],
+    `SELECT COUNT(DISTINCT subject_type || ':' || subject_id) AS total FROM scan_logs WHERE fair_slug = ? AND result = 'success' AND scanned_at >= ? AND scanned_at < ?`,
+    [fairSlug, since, until],
   );
   return { since, ...today, admitted: Number(admitted[0]?.total ?? 0) };
 }
-
-/** Midnight in Bangladesh (UTC+6, no DST) as an ISO string — the gate's "today". */
-export function dhakaDayStartIso(date = new Date()) {
-  const minutes = date.getTime() / 60000 + 6 * 60;
-  const localDay = Math.floor(minutes / 1440) * 1440;
-  return new Date((localDay - 6 * 60) * 60000).toISOString();
-}
-
 
 /** Upserts roster rows keyed by the school ID. Returns how many were new vs updated. */
 export async function upsertStudents(records: StudentImportRecord[], batch: string) {
@@ -1082,9 +1083,11 @@ export async function insertScanLog(values: Omit<ScanLogRow, "id">) {
   );
 }
 
-export async function listScanLogs(filter: { fair_slug: string; limit?: number }) {
-  const limit = Math.max(1, Math.min(500, Math.floor(filter.limit ?? 100)));
-  return query<ScanLogRow>(`SELECT * FROM scan_logs WHERE fair_slug = ? ORDER BY scanned_at DESC LIMIT ${limit}`, [filter.fair_slug]);
+export async function listScanLogs(filter: { fair_slug: string; limit?: number; today?: boolean }, now = new Date()) {
+  const limit = Number.isFinite(filter.limit) ? Math.max(1, Math.min(500, Math.floor(filter.limit!))) : 100;
+  const where = `fair_slug = ?${filter.today ? " AND scanned_at >= ? AND scanned_at < ?" : ""}`;
+  const args = filter.today ? [filter.fair_slug, dhakaDayStartIso(now), nextSchoolDayIso(now)] : [filter.fair_slug];
+  return query<ScanLogRow>(`SELECT * FROM scan_logs WHERE ${where} ORDER BY scanned_at DESC LIMIT ${limit}`, args);
 }
 
 export async function scanSummary(fairSlug: string) {

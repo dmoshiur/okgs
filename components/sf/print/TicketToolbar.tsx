@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Languages, Maximize2, Minimize2, Printer } from "lucide-react";
 import { ticketLangOptions, type TicketLang } from "@/lib/ticket-locale";
+import { usePrintAction } from "@/components/print/usePrintAction";
 
 export function TicketToolbar({
   copies,
@@ -30,6 +31,7 @@ export function TicketToolbar({
   lang?: TicketLang;
 }) {
   const router = useRouter();
+  const printAction = usePrintAction(hint + (lang || "en"));
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [full, setFull] = useState(false);
 
@@ -99,9 +101,10 @@ export function TicketToolbar({
       <button type="button" onClick={toggleFull} aria-pressed={full}>
         {full ? <Minimize2 size={15} /> : <Maximize2 size={15} />} {full ? "Exit full screen" : "Full screen"}
       </button>
-      <button type="button" className="ticket-print-now" onClick={() => window.print()}>
-        <Printer size={15} /> Print {copies === 1 ? "ticket" : `${copies} tickets`}
+      <button type="button" className="ticket-print-now" disabled={!printAction.ready || printAction.preparing} onClick={() => void printAction.print()}>
+        <Printer size={15} /> {!printAction.ready ? "Loading view…" : printAction.preparing ? "Preparing…" : `Print ${copies === 1 ? "ticket" : `${copies} tickets`}`}
       </button>
+      {printAction.notice ? <p className="print-ready-note" role="status">{printAction.notice}</p> : null}
     </div>
   );
 }
