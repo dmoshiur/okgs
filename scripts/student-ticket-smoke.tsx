@@ -19,7 +19,7 @@ import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TicketSheet } from "../components/sf/print/TicketSheet";
 import { TicketCard } from "../components/sf/print/TicketCard";
-import { parseTicketLang, ticketNumber, ticketText } from "../lib/ticket-locale";
+import { DEFAULT_TICKET_SCHOOL_NAME, parseTicketLang, ticketNumber, ticketSchoolName, ticketText } from "../lib/ticket-locale";
 import { parsePhotoCsv, parsePhotoSheet, photoTemplateCsv, isCloudinaryPhoto } from "../lib/photo-import";
 import { toBanglaDigits, toLatinDigits } from "../lib/digits";
 import { optimizedImage } from "../lib/cloudinary";
@@ -129,6 +129,48 @@ assert.equal(toLatinDigits(toBanglaDigits("2026-0101")), "2026-0101", "the conve
 assert.equal(ticketNumber("12", "en"), "12");
 assert.equal(ticketNumber("12", "bn"), "১২");
 assert.deepEqual(Object.keys(ticketText("en").labels), Object.keys(ticketText("bn").labels), "both dictionaries cover the same fields");
+assert.deepEqual(
+  ticketText("en").titles.copies.map((copy) => copy.primary),
+  ["Student copy", "Parent copy", "Parent copy"],
+  "three copies are student copy, parent copy and another parent copy — never school copy",
+);
+assert.deepEqual(
+  ticketText("bn").titles.copies.map((copy) => copy.primary),
+  ["শিক্ষার্থী কপি", "অভিভাবক কপি", "অভিভাবক কপি"],
+  "Bangla copy labels match: student copy + two parent copies",
+);
+assert.equal(
+  ticketSchoolName("ওমর কিন্ডারগার্টেন স্কুল এন্ড ওমর গার্টেন একাডেমি"),
+  DEFAULT_TICKET_SCHOOL_NAME,
+  "a Bangla site_name from the database is converted to the English school name on tickets",
+);
+assert.ok(!BANGLA.test(ticketSchoolName("ওমর কিন্ডারগার্টেন স্কুল এন্ড ওমর গার্টেন একাডেমি")), "ticket school name never contains Bangla characters");
+const englishWithBanglaDbName = renderToStaticMarkup(
+  <TicketSheet
+    kind="student"
+    lang="en"
+    schoolName="ওমর কিন্ডারগার্টেন স্কুল এন্ড ওমর গার্টেন একাডেমি"
+    fairName="Science Fair 2026"
+    logo=""
+    copyIndex={3}
+    copyCount={3}
+    showFamily={false}
+    student={student}
+    paymentStatus="PAID"
+    guardian={null}
+    guardians={[]}
+    admittedAt=""
+    qr="data:image/png;base64,QR"
+    validUntil="9 October 2026"
+    issuedAt="9 October 2026"
+    ticketCode="2026-0101"
+    printedBy="Super Admin"
+  />,
+);
+assert.ok(!BANGLA.test(englishWithBanglaDbName), "even when given a Bangla site_name, the rendered English ticket contains zero Bangla characters");
+assert.match(englishWithBanglaDbName, /Omar Kindergarten School &amp; Omar Garten Academy/, "the English school name prints on the ticket");
+assert.match(englishWithBanglaDbName, /<b>Parent copy<\/b>/, "copy 3 prints as Parent copy, not School copy");
+assert.doesNotMatch(englishWithBanglaDbName, /School copy/i, "no School copy label is printed");
 pass("a ticket is entirely English, entirely Bangla or consistently bilingual — never mixed");
 
 /* ---------- 2 · the redesigned sheet -------------------------------------- */

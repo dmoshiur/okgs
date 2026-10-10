@@ -147,11 +147,10 @@
 .ticket-card-school-copy { min-width: 0; }
 .ticket-card-school-copy strong {
   display: block;
-  overflow: hidden;
-  font-size: 9.5pt;
+  font-size: 8.5pt;
   line-height: 1.15;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 .ticket-card-school-copy small {
   display: block;

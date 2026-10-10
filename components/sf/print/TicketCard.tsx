@@ -8,7 +8,7 @@
  * Every word comes from `ticketText(lang)`; there is no hard-coded copy here.
  */
 import { optimizedImage } from "@/lib/cloudinary";
-import { ticketNumber, ticketText, ticketValue, type TicketLabel, type TicketLang } from "@/lib/ticket-locale";
+import { ticketNumber, ticketSchoolName, ticketText, ticketValue, type TicketLabel, type TicketLang } from "@/lib/ticket-locale";
 
 export interface BulkTicketStudent {
   id: string;
@@ -56,6 +56,7 @@ export function TicketCard(props: TicketCardProps) {
   const { student } = props;
   const lang = props.lang;
   const t = ticketText(lang);
+  const schoolName = ticketSchoolName(props.schoolName);
   // `f_auto,q_auto,w_300,h_400,c_fill` — the exact 3:4 crop the card shows.
   const photo = optimizedImage(student.photo_url, { width: 300, height: 400, fit: "cover" });
 
@@ -63,9 +64,9 @@ export function TicketCard(props: TicketCardProps) {
     <article className="ticket-card" data-lang={lang} aria-label={`${student.name} · ${student.student_code}`}>
       <header className="ticket-card-head">
         <div className="ticket-card-school">
-          {props.logo ? <img src={props.logo} alt="" className="ticket-card-logo" /> : <span className="ticket-card-logo is-fallback">{initialsOf(props.schoolName)}</span>}
+          {props.logo ? <img src={props.logo} alt="" className="ticket-card-logo" /> : <span className="ticket-card-logo is-fallback">{initialsOf(schoolName)}</span>}
           <div className="ticket-card-school-copy">
-            <strong>{ticketValue(props.schoolName, lang)}</strong>
+            <strong>{schoolName}</strong>
             <small>{ticketValue(props.fairName, lang)}</small>
           </div>
         </div>

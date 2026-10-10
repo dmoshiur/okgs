@@ -27,7 +27,7 @@ export function TicketToolbar({
   guestId?: string;
   auto: boolean;
   hint: string;
-  /** Names of the copies, e.g. ["Student copy", "Parent copy", "School copy"]. */
+  /** Names of the copies, e.g. ["Student copy", "Parent copy", "Parent copy"]. */
   total: string[];
   /** When set, the language toggle is shown and written back to `?lang=`. */
   lang?: TicketLang;

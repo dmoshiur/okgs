@@ -8,7 +8,7 @@ import { settingValue } from "@/lib/club-data";
 import { qrDataUrl } from "@/lib/qr";
 import { makeTicketToken, ticketExpiry } from "@/lib/ticket-token";
 import { getGuestById, getPaymentStatus, getStudentById, lastAdmission } from "@/lib/student-db";
-import { parseTicketLang, ticketDate, ticketText } from "@/lib/ticket-locale";
+import { parseTicketLang, ticketDate, ticketFairName, ticketSchoolName, ticketText } from "@/lib/ticket-locale";
 import { TicketSheet } from "@/components/sf/print/TicketSheet";
 import { TicketToolbar } from "@/components/sf/print/TicketToolbar";
 import { AutoPrint } from "@/components/print/AutoPrint";
@@ -59,8 +59,8 @@ export default async function GuestPassPage({ params, searchParams }: { params: 
       <TicketSheet
         kind="guest"
         lang={lang}
-        schoolName={settingValue(content.settings, "site_name", "OKGS")}
-        fairName={fair?.name ?? "Science Fair"}
+        schoolName={ticketSchoolName(readSetting(content.settings, "site_name_en") || settingValue(content.settings, "site_name"))}
+        fairName={ticketFairName(fair)}
         logo={readSetting(content.settings, "logo_url")}
         copyIndex={1}
         copyCount={1}

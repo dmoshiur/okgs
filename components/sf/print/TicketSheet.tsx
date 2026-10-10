@@ -18,6 +18,7 @@ import { optimizedImage } from "@/lib/cloudinary";
 import {
   ticketDate,
   ticketNumber,
+  ticketSchoolName,
   ticketText,
   ticketValue,
   type TicketLabel,
@@ -93,13 +94,14 @@ export function TicketSheet(props: TicketSheetProps) {
   const { student, guest } = props;
   const lang = props.lang ?? "en";
   const t = ticketText(lang);
+  const schoolName = ticketSchoolName(props.schoolName);
   const isGuest = props.kind === "guest";
   const headline = isGuest ? guest?.name ?? "" : student.name;
   const revoked = isGuest && guest?.status !== "active";
   const kindLabel = isGuest ? t.titles.guestPass : t.titles.studentTicket;
   const copySource = isGuest ? t.titles.guestCopy : t.titles.copies[props.copyIndex - 1] ?? t.titles.copies[0];
   const copyLabel = props.copyLabel || copySource.primary;
-  const copyAlt = props.copyLabel ? "" : copySource.secondary;
+  const copyAlt = !props.copyLabel || props.copyLabel === copySource.primary ? copySource.secondary : "";
   // Every approved outside guardian is printed, plus two blank lines a gate
   // warden can fill by hand for a walk-in relative.
   const listed = props.guardians?.length ? props.guardians : props.guardian ? [props.guardian] : [];
@@ -120,10 +122,10 @@ export function TicketSheet(props: TicketSheetProps) {
             {props.logo ? (
               <img src={props.logo} alt="" className="ticket-logo" />
             ) : (
-              <span className="ticket-logo ticket-logo-fallback">{initialsOf(props.schoolName)}</span>
+              <span className="ticket-logo ticket-logo-fallback">{initialsOf(schoolName)}</span>
             )}
             <div className="ticket-school-copy">
-              <strong>{ticketValue(props.schoolName, lang)}</strong>
+              <strong>{schoolName}</strong>
               <small>{ticketValue(props.fairName, lang)}</small>
             </div>
           </div>

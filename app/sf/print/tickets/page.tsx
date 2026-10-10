@@ -9,7 +9,7 @@ import { qrDataUrl } from "@/lib/qr";
 import { makeTicketToken, ticketExpiry } from "@/lib/ticket-token";
 import { paidStudentsForPrint, printableStudentCounts } from "@/lib/student-db";
 import { parseRollExpression } from "@/lib/roll-range";
-import { parseTicketLang, ticketDate, ticketNumber, ticketText, type TicketLang } from "@/lib/ticket-locale";
+import { parseTicketLang, ticketDate, ticketFairName, ticketNumber, ticketSchoolName, ticketText, type TicketLang } from "@/lib/ticket-locale";
 import { AutoPrint } from "@/components/print/AutoPrint";
 import { TicketCard } from "@/components/sf/print/TicketCard";
 import { BulkTicketToolbar } from "@/components/sf/print/BulkTicketToolbar";
@@ -95,9 +95,9 @@ export default async function BulkTicketsPage({ searchParams }: { searchParams: 
 
   const expiresAt = ticketExpiry(fair?.ends_on);
   const validUntil = ticketDate(new Date(expiresAt * 1000).toISOString(), lang, "short");
-  const schoolName = settingValue(content.settings, "site_name", "OKGS");
+  const schoolName = ticketSchoolName(readSetting(content.settings, "site_name_en") || settingValue(content.settings, "site_name"));
   const logo = readSetting(content.settings, "logo_url");
-  const fairName = fair?.name ?? "Science Fair";
+  const fairName = ticketFairName(fair);
 
   // Sign one QR per student, on the server, so the paper always carries the QR
   // the backend issued. 260 px is plenty for a 24 mm print and keeps the page light.

@@ -729,7 +729,7 @@ function PrintTicketModal({
             {[1, 2, 3].map((count) => (
               <label key={count} className={`sf-radio ${copies === count ? "is-on" : ""}`}>
                 <input type="radio" name="copies" checked={copies === count} onChange={() => setCopies(count)} />
-                {count} {count === 1 ? "copy (student)" : count === 2 ? "copies (+ parent)" : "copies (+ parent, school)"}
+                {count} {count === 1 ? "copy (student)" : count === 2 ? "copies (+ parent)" : "copies (+ parent, parent)"}
               </label>
             ))}
           </fieldset>
