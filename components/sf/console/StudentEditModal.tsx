@@ -1,20 +1,18 @@
 "use client";
 
 /**
- * Edit one student — every field the office corrects by hand, plus the photo.
+ * Edit one student — every field the office corrects by hand, including the
+ * student's, father's and mother's photos.
  *
- * The photo uploads straight from the browser to Cloudinary (signed by
- * `/api/media/sign`, so no API secret reaches the client) and previews the moment
- * a file is picked, before the upload finishes. Saving PATCHes
- * `/api/staff/students/:id`, which stores the delivery URL and — when the payment
- * status changed — writes the payments row for the active fair.
+ * Each photo uploads straight from the browser to Cloudinary (signed by
+ * `/api/media/sign`, so no API secret reaches the client) and previews as soon as
+ * a file is picked. Saving PATCHes the secure delivery URLs alongside the
+ * student's details and active-fair payment status.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ImageOff, Loader2, Save, Trash2, Upload, X } from "lucide-react";
-import { optimizedImage } from "@/lib/cloudinary";
-import { formatBytes, uploadToCloudinary } from "@/lib/upload-client";
-import { en } from "@/lib/format";
+import { useCallback, useState } from "react";
+import { Save, X } from "lucide-react";
 import { Empty, Notice, postJson } from "@/components/sf/console/ui";
+import { StudentPhotoUploadField } from "@/components/sf/console/StudentPhotoUploadField";
 import type { StudentListRow } from "@/components/sf/console/StudentsPanel";
 
 export interface StudentEditValues {
@@ -32,6 +30,8 @@ export interface StudentEditValues {
   mother_name: string;
   tags: string;
   photo_url: string;
+  father_photo_url: string;
+  mother_photo_url: string;
   payment_status: "PAID" | "UNPAID";
 }
 
@@ -71,71 +71,25 @@ export function StudentEditModal({
     mother_name: student.mother_name,
     tags: student.tags,
     photo_url: student.photo_url,
+    father_photo_url: student.father_photo_url,
+    mother_photo_url: student.mother_photo_url,
     payment_status: student.payment_status,
   }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [uploading, setUploading] = useState<{ percent: number } | null>(null);
-  const [uploadError, setUploadError] = useState("");
-  /** Local object URL — the preview shows before Cloudinary answers. */
-  const [preview, setPreview] = useState("");
-  const [photoBroken, setPhotoBroken] = useState(false);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const controllerRef = useRef<AbortController | null>(null);
-
-  useEffect(() => {
-    return () => {
-      controllerRef.current?.abort();
-      if (preview) URL.revokeObjectURL(preview);
-    };
-  }, [preview]);
-
-  useEffect(() => setPhotoBroken(false), [values.photo_url]);
+  const [uploadingPhotos, setUploadingPhotos] = useState({ student: false, father: false, mother: false });
+  const uploading = Object.values(uploadingPhotos).some(Boolean);
 
   const set = useCallback(<K extends keyof StudentEditValues>(key: K, value: StudentEditValues[K]) => {
     setValues((current) => ({ ...current, [key]: value }));
   }, []);
 
-  async function pickPhoto(file: File | null | undefined) {
-    if (!file) return;
-    setUploadError("");
-    const local = URL.createObjectURL(file);
-    setPreview((previous) => {
-      if (previous) URL.revokeObjectURL(previous);
-      return local;
-    });
-    setUploading({ percent: 4 });
-    controllerRef.current = new AbortController();
-    try {
-      const result = await uploadToCloudinary({
-        file,
-        prefix: "students",
-        label: values.student_code || values.name || "student",
-        tags: ["student", values.class_name || "roster"],
-        signal: controllerRef.current.signal,
-        onProgress: (percent) => setUploading({ percent }),
-      });
-      set("photo_url", result.url);
-      setPreview("");
-    } catch (issue) {
-      setUploadError(errorText(issue));
-      setPreview("");
-    } finally {
-      setUploading(null);
-      controllerRef.current = null;
-      if (inputRef.current) inputRef.current.value = "";
-    }
-  }
-
-  function clearPhoto() {
-    controllerRef.current?.abort();
-    setPreview("");
-    set("photo_url", "");
-    setUploadError("");
-  }
-
   async function save(event: React.FormEvent) {
     event.preventDefault();
+    if (uploading) {
+      setError("Wait for all student and parent photo uploads to finish before saving.");
+      return;
+    }
     if (!values.name.trim()) {
       setError("The student name cannot be empty.");
       return;
@@ -155,8 +109,6 @@ export function StudentEditModal({
       setBusy(false);
     }
   }
-
-  const shownPhoto = preview || (photoBroken ? "" : optimizedImage(values.photo_url, { width: 300, height: 400, fit: "cover" }));
 
   return (
     <div className="sf-modal-backdrop no-print" role="presentation" onClick={onClose}>
@@ -178,45 +130,31 @@ export function StudentEditModal({
         {error ? <Notice kind="bad">{error}</Notice> : null}
 
         <div className="sf-edit-grid">
-          <div className="sf-photo-editor">
-            <div className="sf-photo-frame">
-              {shownPhoto ? (
-                <img src={shownPhoto} alt={`${values.name} — photo preview`} onError={() => setPhotoBroken(true)} />
-              ) : (
-                <span className="sf-photo-empty">
-                  <ImageOff size={22} /> No photo yet
-                </span>
-              )}
-              {uploading ? (
-                <span className="sf-photo-progress" role="status">
-                  <Loader2 size={16} className="sf-spin" /> {en(uploading.percent)}%
-                </span>
-              ) : null}
-            </div>
-            <input
-              ref={inputRef}
-              type="file"
-              accept="image/*"
-              className="sf-file"
-              onChange={(event) => void pickPhoto(event.target.files?.[0])}
-              aria-label="Upload student photo"
+          <div className="sf-photo-editors">
+            <StudentPhotoUploadField
+              label="Student's Photo"
+              tag="student"
+              uploadLabel={values.student_code || values.name || "student"}
+              value={values.photo_url}
+              onChange={(url) => set("photo_url", url)}
+              onUploadingChange={(isUploading) => setUploadingPhotos((current) => ({ ...current, student: isUploading }))}
             />
-            <div className="sf-photo-actions">
-              <button type="button" className="v2-btn v2-btn-sm" disabled={Boolean(uploading)} onClick={() => inputRef.current?.click()}>
-                <Upload size={14} /> {uploading ? `Uploading ${en(uploading.percent)}%` : values.photo_url ? "Replace photo" : "Upload photo"}
-              </button>
-              {values.photo_url ? (
-                <button type="button" className="v2-btn v2-btn-sm v2-btn-danger" disabled={Boolean(uploading)} onClick={clearPhoto}>
-                  <Trash2 size={14} /> Remove
-                </button>
-              ) : null}
-            </div>
-            {uploadError ? <Notice kind="bad">{uploadError}</Notice> : null}
-            <label className="sf-photo-url">
-              <span className="v2-label">Photo URL (Cloudinary)</span>
-              <input className="v2-input" value={values.photo_url} placeholder="https://res.cloudinary.com/…" onChange={(event) => set("photo_url", event.target.value.trim())} />
-              <small className="v2-muted">Uploaded files go straight to Cloudinary; the delivery link is what gets saved and printed.</small>
-            </label>
+            <StudentPhotoUploadField
+              label="Father's Photo"
+              tag="father"
+              uploadLabel={values.student_code || values.name || "student"}
+              value={values.father_photo_url}
+              onChange={(url) => set("father_photo_url", url)}
+              onUploadingChange={(isUploading) => setUploadingPhotos((current) => ({ ...current, father: isUploading }))}
+            />
+            <StudentPhotoUploadField
+              label="Mother's Photo"
+              tag="mother"
+              uploadLabel={values.student_code || values.name || "student"}
+              value={values.mother_photo_url}
+              onChange={(url) => set("mother_photo_url", url)}
+              onUploadingChange={(isUploading) => setUploadingPhotos((current) => ({ ...current, mother: isUploading }))}
+            />
           </div>
 
           <div className="sf-form-grid">
@@ -308,8 +246,8 @@ export function StudentEditModal({
           <button type="button" className="v2-btn v2-btn-ghost" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="v2-btn" disabled={busy || Boolean(uploading)}>
-            <Save size={15} /> {busy ? "Saving…" : "Save changes"}
+          <button type="submit" className="v2-btn" disabled={busy || uploading}>
+            <Save size={15} /> {busy ? "Saving…" : uploading ? "Wait for photo uploads…" : "Save changes"}
           </button>
         </footer>
       </form>

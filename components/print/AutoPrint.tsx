@@ -13,7 +13,12 @@ export function AutoPrint() {
       ...images.map((image) => image.decode?.().catch(() => undefined) ?? Promise.resolve()),
     ]);
     let timeout: ReturnType<typeof setTimeout>;
-    const fallback = new Promise<void>((resolve) => { timeout = setTimeout(resolve, 8000); });
+    // A 500-student run can contain more than 1,500 Cloudinary photos. Give
+    // those large print sheets longer to decode before falling back, without
+    // slowing down single tickets or small print batches.
+    const isLargeBulkPrint = document.querySelectorAll(".ticket-bulk-page").length > 20;
+    const fallbackMs = isLargeBulkPrint ? 30_000 : 8_000;
+    const fallback = new Promise<void>((resolve) => { timeout = setTimeout(resolve, fallbackMs); });
     void Promise.race([ready, fallback]).then(() => {
       clearTimeout(timeout);
       requestAnimationFrame(() => requestAnimationFrame(() => { if (!cancelled) window.print(); }));

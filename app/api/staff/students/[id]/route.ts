@@ -22,19 +22,21 @@ const TEXT_FIELDS = [
   "tags",
 ] as const;
 
+const PHOTO_FIELDS = ["photo_url", "father_photo_url", "mother_photo_url"] as const;
+
 /**
  * GET  /api/staff/students/:id — one student, as the edit modal needs it.
  * PATCH /api/staff/students/:id — save the edited fields.
  *
  * Body (all optional, but at least one is required):
  *   name, student_code, roll, class_name, section, shift, student_group, branch,
- *   sms_contact, father_contact, father_name, mother_name, photo_url, tags,
- *   serial_no, payment_status ("PAID" | "UNPAID") + fair_slug
+ *   sms_contact, father_contact, father_name, mother_name, photo_url,
+ *   father_photo_url, mother_photo_url, tags, serial_no,
+ *   payment_status ("PAID" | "UNPAID") + fair_slug
  *
- * `photo_url` is written exactly as the Cloudinary upload returned it — the
- * browser uploads straight to Cloudinary (signed by /api/media/sign) and this
- * route only stores the delivery URL, so no secret and no image bytes pass
- * through the API.
+ * The three photo URLs are validated as absolute http(s) delivery links and
+ * stored exactly as returned by Cloudinary. The browser uploads directly using
+ * `/api/media/sign`, so no secret and no image bytes pass through this route.
  */
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const guard = await staff();
@@ -80,12 +82,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       }
     }
 
-    if (body.photo_url !== undefined) {
-      const photo = str(body.photo_url);
-      if (photo && !isPhotoUrl(photo)) return fail("The photo link must be a full http(s) URL.", 422);
-      if (photo !== student.photo_url) {
-        patch.photo_url = photo;
-        changed.push("photo_url");
+    for (const field of PHOTO_FIELDS) {
+      if (body[field] === undefined) continue;
+      const photo = str(body[field]);
+      if (photo && !isPhotoUrl(photo)) return fail(`${field} must be a full http(s) URL.`, 422);
+      if (photo !== student[field]) {
+        patch[field] = photo;
+        changed.push(field);
       }
     }
 

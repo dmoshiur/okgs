@@ -105,7 +105,7 @@ function PhotoCell({ src, name, large, alt, optimized }: { src: string; name: st
   return (
     <figure className={`ticket-photo-cell${large ? " is-large" : ""}`}>
       <span className="ticket-photo-frame">
-        {optimized ? <img src={optimized} alt={alt} /> : <span className="ticket-photo-initial">{initialsOf(src || name || alt)}</span>}
+        {optimized ? <img src={optimized} alt={alt} loading="eager" decoding="async" /> : <span className="ticket-photo-initial">{initialsOf(src || name || alt)}</span>}
       </span>
       {name ? <figcaption>{name}</figcaption> : null}
     </figure>

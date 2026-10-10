@@ -7,7 +7,8 @@ import { activeFair, fairMode, readSetting } from "@/lib/site";
 import { settingValue } from "@/lib/club-data";
 import { qrDataUrl } from "@/lib/qr";
 import { makeTicketToken, ticketExpiry } from "@/lib/ticket-token";
-import { paidStudentsForPrint, printableStudentCounts } from "@/lib/student-db";
+import { getTicketPrintJob, paidStudentsForPrint, printableStudentCounts } from "@/lib/student-db";
+import { MAX_STUDENT_SELECTION, normalizeStudentIdentifiers } from "@/lib/student-selection";
 import { parseRollExpression } from "@/lib/roll-range";
 import { parseTicketLang, ticketDate, ticketFairName, ticketSchoolName, ticketText, ticketValidUntil, type TicketLang } from "@/lib/ticket-locale";
 import { AutoPrint } from "@/components/print/AutoPrint";
@@ -20,17 +21,35 @@ export const metadata: Metadata = { title: "Bulk student tickets", robots: { ind
 
 type Search = Promise<Record<string, string | string[] | undefined>>;
 
-/** Tickets per print run: always a whole number of A4 pages (4 tickets each). */
-const MIN_RUN = 4;
-const MAX_RUN = 100;
+/** Four true-size A6 tickets are grouped on each physical A4 page. */
 const TICKETS_PER_PAGE = 4;
+const STUDENT_ID_QUERY_KEYS = ["student_ids", "student_id", "selected_student_ids", "ids", "id"] as const;
 
 function one(value: unknown) {
-  const raw = value;
-  return Array.isArray(raw) ? String(raw[0] ?? "") : String(raw ?? "");
+  return Array.isArray(value) ? String(value[0] ?? "") : String(value ?? "");
 }
 
-/** Keep the CPU bounded while signing a hundred QR codes. */
+function queryHas(query: Record<string, string | string[] | undefined>, keys: readonly string[]) {
+  return keys.some((key) => query[key] !== undefined);
+}
+
+function queryStudentIds(query: Record<string, string | string[] | undefined>) {
+  const provided = queryHas(query, STUDENT_ID_QUERY_KEYS);
+  const values = STUDENT_ID_QUERY_KEYS.flatMap((key) => {
+    const value = query[key];
+    return Array.isArray(value) ? value : value === undefined ? [] : [value];
+  });
+  return { provided, ids: normalizeStudentIdentifiers(...values) };
+}
+
+function queryValues(query: Record<string, string | string[] | undefined>, keys: readonly string[]) {
+  return keys.flatMap((key) => {
+    const value = query[key];
+    return Array.isArray(value) ? value : value === undefined ? [] : [value];
+  }).map((value) => String(value).trim()).filter(Boolean).join(",");
+}
+
+/** Bound concurrent QR creation while returning one complete, ordered array. */
 async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
   const out = new Array<R>(items.length);
   let cursor = 0;
@@ -47,18 +66,16 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: nu
 }
 
 /**
- * /sf/print/tickets?fair=&class=&section=&shift=&rolls=&lang=&page=&size=&auto=
+ * /sf/print/tickets?job=…&lang=&auto=…
  *
- * The bulk ticket sheet: **only PAID students** are printed, four to an A4
- * portrait page in a 2 × 2 grid, with a page break after every page box.
+ * The print view fetches every matching PAID student in one unpaginated query.
+ * The DOM is a continuous sequence of physical A4 page boxes; each box keeps
+ * the 2 × 2 grid of the same unmodified A6 portrait ticket.
  *
- * Four true-size A6 TicketSheets (105 × 148 mm) fill the A4 page exactly —
- * the 4-in-1 layout places the very same ticket template on the sheet without
- * breaking or re-styling it.
- *
- * Unpaid and pending students are excluded in the database query
- * (`paidStudentsForPrint`), never in the markup — a printed sheet is the office's
- * proof of payment, so the filter cannot be toggled away from the browser.
+ * For direct links, `ids`, `student_ids`, repeated `id` parameters and `rolls`
+ * are also supported. An explicit empty/invalid selection never falls back to
+ * the whole roster. Bulk POST jobs snapshot their exact selected IDs server-side
+ * so 500+ IDs do not have to fit into a URL.
  */
 export default async function BulkTicketsPage({ searchParams }: { searchParams: Search }) {
   const session = await getPortalSession();
@@ -66,36 +83,52 @@ export default async function BulkTicketsPage({ searchParams }: { searchParams: 
   if (!isStaffRole(session.role)) redirect("/me");
 
   const query = await searchParams;
+  const requestedJobId = one(query.job).trim();
+  const job = requestedJobId ? await getTicketPrintJob(requestedJobId) : null;
+  const invalidJob = Boolean(requestedJobId && !job);
+  const directSelection = queryStudentIds(query);
+  const tooManyIds = directSelection.ids.length > MAX_STUDENT_SELECTION;
+  const emptyExplicitSelection = directSelection.provided && directSelection.ids.length === 0;
+
   const content = await getPublicContent();
   const mode = fairMode(content.settings);
-  const fair = activeFair(content, one(query.fair) || mode.slug);
-  const fairSlug = fair?.slug ?? one(query.fair);
-  const lang: TicketLang = parseTicketLang(one(query.lang));
+  const fairSlug = job?.fair_slug || one(query.fair) || mode.slug;
+  const fair = activeFair(content, fairSlug);
+  const lang: TicketLang = parseTicketLang(one(query.lang) || job?.lang);
   const text = ticketText(lang);
 
   const scope = {
-    class_name: one(query.class),
-    section: one(query.section),
-    shift: one(query.shift),
-    rolls: one(query.rolls),
+    class_name: job?.class_name || one(query.class_name) || one(query.class),
+    section: job?.section || one(query.section),
+    shift: job?.shift || one(query.shift),
+    rolls: job?.rolls || queryValues(query, ["rolls", "roll"]),
+    q: job?.q || one(query.q) || one(query.search),
   };
-  const parsed = scope.rolls ? parseRollExpression(scope.rolls) : { rolls: new Set<string>(), error: "" };
-  const rollError = parsed.error;
-
-  const size = Math.min(MAX_RUN, Math.max(MIN_RUN, Math.round((Number(one(query.size)) || 20) / TICKETS_PER_PAGE) * TICKETS_PER_PAGE));
-  const filter = { fair_slug: fairSlug, ...scope, rolls: parsed.rolls };
-
-  const counts = rollError ? { total: 0, paid: 0, unpaid: 0 } : await printableStudentCounts(filter);
-  /* Two different counts, and the toolbar must not confuse them:
-     `runs`  — how many times the office has to press print for the whole scope
-               (each run carries `size` tickets), and
-     `sheets`— how many A4 pages *this* run prints, four tickets to a page. */
-  const runs = Math.max(1, Math.ceil(counts.paid / size));
-  const run = Math.min(runs, Math.max(1, Math.floor(Number(one(query.page)) || 1)));
-  const totalSheets = Math.ceil(counts.paid / TICKETS_PER_PAGE);
+  const parsedRolls = scope.rolls ? parseRollExpression(scope.rolls) : { rolls: new Set<string>(), error: "" };
+  const rollError = parsedRolls.error;
   const autoPrint = one(query.auto) !== "0";
 
-  const students = rollError || !counts.paid ? [] : await paidStudentsForPrint({ ...filter, limit: size, offset: (run - 1) * size });
+  // A server-created print job is an exact ID snapshot. Direct IDs and roll
+  // ranges are combined with any accompanying class/search filters in SQL.
+  const filter = job
+    ? { fair_slug: fairSlug, student_ids: job.student_ids }
+    : {
+        fair_slug: fairSlug,
+        class_name: scope.class_name,
+        section: scope.section,
+        shift: scope.shift,
+        q: scope.q,
+        rolls: parsedRolls.rolls,
+        ...(directSelection.provided ? { student_ids: directSelection.ids } : {}),
+      };
+
+  const invalidSelection = invalidJob || tooManyIds || emptyExplicitSelection;
+  const counts = invalidSelection || rollError
+    ? { total: 0, paid: 0, unpaid: 0 }
+    : await printableStudentCounts(filter);
+  const students = invalidSelection || rollError || !counts.paid
+    ? []
+    : await paidStudentsForPrint(filter);
 
   const expiresAt = ticketExpiry(fair?.ends_on);
   const validUntil = ticketValidUntil(lang);
@@ -104,38 +137,50 @@ export default async function BulkTicketsPage({ searchParams }: { searchParams: 
   const logo = readSetting(content.settings, "logo_url");
   const fairName = ticketFairName(fair);
 
-  // Sign one QR per student, on the server, so the paper always carries the QR
-  // the backend issued. 300 px is plenty for the A6 bottom-left QR box and
-  // keeps a four-ticket page light.
+  // Sign every ticket QR without creating an unbounded burst of QR work. This
+  // list is intentionally not sliced: every selected/matching student is kept.
   const cards = await mapLimit(students, 8, async (student) => ({
     student,
     qr: await qrDataUrl(makeTicketToken({ k: "s", i: student.id, f: fairSlug, e: expiresAt }), { size: 300, margin: 1 }),
   }));
 
   const sheets: (typeof cards)[] = [];
-  for (let index = 0; index < cards.length; index += TICKETS_PER_PAGE) sheets.push(cards.slice(index, index + TICKETS_PER_PAGE));
+  for (let index = 0; index < cards.length; index += TICKETS_PER_PAGE) {
+    sheets.push(cards.slice(index, index + TICKETS_PER_PAGE));
+  }
 
-  const scopeLabel = [scope.class_name, scope.section ? `${text.labels.section.primary} ${scope.section}` : "", scope.shift].filter(Boolean).join(" · ");
-  const hint = counts.paid
-    ? `${schoolName} · ${fairName}${scopeLabel ? ` · ${scopeLabel}` : ""} — ${counts.paid} paid student(s), ${TICKETS_PER_PAGE} tickets per A4 page, ${sheets.length} A4 sheet(s) in this run${runs > 1 ? `, run ${run} of ${runs}` : ""}.`
-    : `${schoolName} · ${fairName} — nothing to print for this scope.`;
-  const warning = rollError
-    ? rollError
-    : counts.unpaid
-      ? `${counts.unpaid} student(s) in this scope have not paid and are not printed. ${text.notes.paidOnly.primary}`
-      : text.notes.paidOnly.primary;
+  const scopeLabel = [
+    scope.class_name,
+    scope.section ? `${text.labels.section.primary} ${scope.section}` : "",
+    scope.shift,
+    scope.rolls ? `${text.labels.roll.primary} ${scope.rolls}` : "",
+    scope.q ? `search ${scope.q}` : "",
+    job || directSelection.provided ? `${students.length} selected` : "",
+  ].filter(Boolean).join(" · ");
+  const hint = students.length
+    ? `${schoolName} · ${fairName}${scopeLabel ? ` · ${scopeLabel}` : ""} — ${students.length} paid student(s), ${TICKETS_PER_PAGE} tickets per A4 page, ${sheets.length} A4 sheet(s) total.`
+    : `${schoolName} · ${fairName} — nothing to print for this selection.`;
+  const warning = invalidJob
+    ? "This bulk print selection has expired or is not available. Return to Students and prepare the selection again."
+    : tooManyIds
+      ? `A print selection can contain at most ${MAX_STUDENT_SELECTION.toLocaleString()} students.`
+      : emptyExplicitSelection
+        ? "No valid student IDs were provided; no students were selected."
+        : rollError
+          ? rollError
+          : counts.unpaid
+            ? `${counts.unpaid} student(s) in this scope have not paid and are not printed. ${text.notes.paidOnly.primary}`
+            : text.notes.paidOnly.primary;
+
+  const toolbarScope = { fair: fairSlug };
 
   return (
     <main className="ticket-bulk-root" data-lang={lang}>
-      {counts.paid ? (
+      {students.length ? (
         <BulkTicketToolbar
-          scope={{ fair: fairSlug, ...scope }}
+          scope={toolbarScope}
           lang={lang}
-          run={run}
-          runs={runs}
           sheets={sheets.length}
-          totalSheets={totalSheets}
-          size={size}
           auto={autoPrint}
           hint={hint}
           warning={warning}
@@ -151,7 +196,7 @@ export default async function BulkTicketsPage({ searchParams }: { searchParams: 
       )}
 
       {sheets.map((group, sheetIndex) => (
-        <section className="ticket-bulk-page" key={`${run}-${sheetIndex}`} aria-label={`A4 sheet ${sheetIndex + 1} of ${sheets.length} — ticket ${sheetIndex * TICKETS_PER_PAGE + 1} to ${sheetIndex * TICKETS_PER_PAGE + group.length} of ${cards.length}`}>
+        <section className="ticket-bulk-page" key={sheetIndex} aria-label={`A4 sheet ${sheetIndex + 1} of ${sheets.length} — ticket ${sheetIndex * TICKETS_PER_PAGE + 1} to ${sheetIndex * TICKETS_PER_PAGE + group.length} of ${cards.length}`}>
           {group.map((card) => (
             <TicketSheet
               key={card.student.id}

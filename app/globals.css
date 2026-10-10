@@ -7487,12 +7487,16 @@ html[data-color-scheme="dark"] .ticket-print-root {
 @keyframes sf-row-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .sf-row-fade { animation: none; } }
 .sf-scroll-sentinel { height: 1px; }
+.sf-select-col { width: 38px; min-width: 38px; text-align: center; }
+.sf-select-col input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--sf-accent, #2674dc); vertical-align: middle; }
 
-/* Edit-student modal: photo editor on the left, fields on the right. */
+/* Edit-student modal: three family photo upload boxes plus student fields. */
 .sf-modal-wide { width: min(880px, 100%); }
-.sf-edit-grid { display: grid; grid-template-columns: minmax(0, 200px) minmax(0, 1fr); gap: 16px; min-width: 0; }
+.sf-edit-grid { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 16px; min-width: 0; }
 @media (max-width: 720px) { .sf-edit-grid { grid-template-columns: minmax(0, 1fr); } }
-.sf-photo-editor { display: grid; gap: 8px; align-content: start; }
+.sf-photo-editors { display: grid; gap: 16px; align-content: start; }
+.sf-photo-editor { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.sf-photo-editor > strong { margin: 0; }
 .sf-photo-frame { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 3 / 4; overflow: hidden; border: 1px solid var(--sf-line); border-radius: 10px; background: var(--sf-card-2); }
 .sf-photo-frame img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .sf-photo-empty { display: grid; place-content: center; justify-items: center; gap: 6px; color: var(--sf-muted); font-size: 12.5px; font-weight: 600; }

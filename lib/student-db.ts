@@ -156,6 +156,8 @@ export interface StudentFilter {
   payment?: "" | "PAID" | "UNPAID";
   /** Normalised rolls (`parseRollExpression`) — filtered in SQL so paging and totals agree. */
   rolls?: Set<string>;
+  /** Explicit database IDs or school student codes; an empty array matches no students. */
+  student_ids?: string[];
   limit?: number;
   offset?: number;
 }
@@ -212,6 +214,14 @@ function studentFilterSql(filter: StudentFilter) {
   if (filter.payment) {
     clauses.push("COALESCE(p.status, 'UNPAID') = ?");
     args.push(filter.payment);
+  }
+  if (filter.student_ids !== undefined) {
+    if (!filter.student_ids.length) {
+      clauses.push("1 = 0");
+    } else {
+      clauses.push("EXISTS (SELECT 1 FROM json_each(?) AS selected WHERE CAST(selected.value AS TEXT) = s.id OR upper(CAST(selected.value AS TEXT)) = upper(s.student_code))");
+      args.push(JSON.stringify(Array.from(new Set(filter.student_ids))));
+    }
   }
   if (filter.rolls?.size) {
     const rolls = rollClause(filter.rolls);
@@ -318,16 +328,13 @@ export interface PrintableStudent {
  * gate is proof of payment — so the filter is applied in the query, not in the UI.
  */
 export async function paidStudentsForPrint(
-  filter: Omit<StudentFilter, "payment" | "limit" | "offset"> & { limit?: number; offset?: number },
+  filter: Omit<StudentFilter, "payment" | "limit" | "offset">,
 ): Promise<PrintableStudent[]> {
   const { where, args } = studentFilterSql({ ...filter, payment: "PAID" });
-  const limit = Math.max(1, Math.min(2000, Math.floor(filter.limit ?? 20)));
-  const offset = Math.max(0, Math.floor(filter.offset ?? 0));
   return query<PrintableStudent>(
     `SELECT s.id, s.student_code, s.roll, s.name, s.class_name, s.section, s.shift, s.student_group,
        s.photo_url, s.father_name, s.mother_name, s.father_photo_url, s.mother_photo_url
-     ${STUDENT_JOIN} ${where} ${STUDENT_ORDER}
-     LIMIT ${limit} OFFSET ${offset}`,
+     ${STUDENT_JOIN} ${where} ${STUDENT_ORDER}`,
     [filter.fair_slug, ...args],
   );
 }
@@ -924,6 +931,82 @@ export async function activeGuestsForStudent(studentId: string, fairSlug: string
 /* ------------------------------------------------------------------ *
  * Ticket prints
  * ------------------------------------------------------------------ */
+
+export interface TicketPrintJob {
+  id: string;
+  fair_slug: string;
+  student_ids: string[];
+  class_name: string;
+  section: string;
+  shift: string;
+  rolls: string;
+  q: string;
+  lang: string;
+  created_by: string;
+  created_at: string;
+  expires_at: string;
+}
+
+const TICKET_PRINT_JOB_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** Stores the prepared student IDs server-side so large selections stay out of URLs. */
+export async function createTicketPrintJob(input: Omit<TicketPrintJob, "id" | "created_at" | "expires_at">) {
+  await ensurePortal();
+  const stamp = nowIso();
+  const id = randomUUID();
+  const expiresAt = new Date(Date.now() + TICKET_PRINT_JOB_TTL_MS).toISOString();
+  await run(`DELETE FROM ticket_print_jobs WHERE expires_at <= ?`, [stamp]);
+  await run(
+    `INSERT INTO ticket_print_jobs
+      (id, fair_slug, student_ids_json, class_name, section, shift, rolls, q, lang, created_by, created_at, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.fair_slug,
+      JSON.stringify(Array.from(new Set(input.student_ids))),
+      input.class_name,
+      input.section,
+      input.shift,
+      input.rolls,
+      input.q,
+      input.lang,
+      input.created_by,
+      stamp,
+      expiresAt,
+    ],
+  );
+  return id;
+}
+
+/** Loads a prepared print snapshot. Expired or unknown jobs never fall back to the whole roster. */
+export async function getTicketPrintJob(id: string): Promise<TicketPrintJob | null> {
+  const rows = await query<Record<string, unknown>>(
+    `SELECT * FROM ticket_print_jobs WHERE id = ? AND expires_at > ? LIMIT 1`,
+    [id, nowIso()],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  let ids: unknown = [];
+  try {
+    ids = JSON.parse(String(row.student_ids_json ?? "[]"));
+  } catch {
+    ids = [];
+  }
+  return {
+    id: String(row.id ?? ""),
+    fair_slug: String(row.fair_slug ?? ""),
+    student_ids: Array.isArray(ids) ? ids.map(String).filter(Boolean) : [],
+    class_name: String(row.class_name ?? ""),
+    section: String(row.section ?? ""),
+    shift: String(row.shift ?? ""),
+    rolls: String(row.rolls ?? ""),
+    q: String(row.q ?? ""),
+    lang: String(row.lang ?? "en"),
+    created_by: String(row.created_by ?? ""),
+    created_at: String(row.created_at ?? ""),
+    expires_at: String(row.expires_at ?? ""),
+  };
+}
 
 export async function recordTicketPrint(values: { fair_slug: string; student_id: string; guest_id: string; copies: number; printed_by: string; printed_by_name: string }) {
   await run(

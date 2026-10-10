@@ -31,6 +31,7 @@ import { parsePhotoCsv, parsePhotoSheet, photoTemplateCsv, isCloudinaryPhoto } f
 import { toBanglaDigits, toLatinDigits } from "../lib/digits";
 import { optimizedImage } from "../lib/cloudinary";
 import { studentSchema } from "../lib/student-schema";
+import { normalizeStudentIdentifiers, studentIdentifiersFromSearchParams } from "../lib/student-selection";
 
 const read = (path: string) => readFileSync(new URL(path, new URL("../", import.meta.url)), "utf8");
 const css = read("app/globals.css");
@@ -232,15 +233,26 @@ assert.match(bulkCss, /\.ticket-bulk-page \.ticket-sheet\s*\{[^}]*width: 105mm/,
 assert.match(bulkCss, /\.ticket-bulk-page \.ticket-sheet\s*\{[^}]*height: 148mm/, "…and the exact A6 height — the template is never scaled");
 assert.match(bulkCss, /@media print[\s\S]*\.ticket-bulk-page \.ticket-sheet[\s\S]{0,420}break-after: auto !important/, "inside the grid a sheet does not take a page of its own");
 assert.match(bulkCss, /@media screen[\s\S]{0,900}\.ticket-bulk-toolbar/, "the toolbar stays a screen-only surface");
-assert.match(bulkPage, /TICKETS_PER_PAGE = 4/, "the page groups four tickets per sheet");
-assert.match(bulkPage, /index \+= TICKETS_PER_PAGE/, "…by chunking the signed list");
-assert.match(bulkPage, /paidStudentsForPrint/, "the sheet is built from the PAID-only query");
+assert.match(bulkPage, /TICKETS_PER_PAGE = 4/, "the page groups four tickets per A4 sheet");
+assert.match(bulkPage, /index \+= TICKETS_PER_PAGE/, "…by chunking the complete signed list into physical sheets");
+assert.match(bulkPage, /paidStudentsForPrint\(filter\)/, "the sheet is built from the unpaginated PAID-only query");
 assert.match(bulkPage, /printableStudentCounts/, "…and reports how many were excluded");
+assert.match(bulkPage, /getTicketPrintJob/, "large selections are restored from a server-side print snapshot");
+assert.match(bulkPage, /student_ids: directSelection\.ids/, "directly supplied student IDs are applied to the print query");
 assert.match(bulkPage, /<TicketSheet/, "the bulk page reuses the very same A6 ticket component");
 assert.match(bulkPage, /ticketValidUntil/, "bulk tickets carry the pinned validity date");
+assert.doesNotMatch(bulkPage, /MAX_RUN|MIN_RUN|query\.page|query\.size|limit: size/, "the print view does not cap or page selected students");
 assert.match(studentDb, /studentFilterSql\(\{ \.\.\.filter, payment: "PAID" \}\)/, "the PAID rule is applied in SQL, not in the markup");
-assert.match(bulkApi, /if \(!counts\.paid\)/, "the bulk print API refuses a scope with no paid student");
-assert.match(bulkApi, /recordTicketPrints/, "a bulk job is written to the print audit log");
+assert.match(studentDb, /json_each\(\?\)/, "large explicit ID selections use one bounded JSON SQL parameter");
+assert.match(bulkApi, /if \(!students\.length\)/, "the bulk print API refuses an empty or unpaid-only selection");
+assert.match(bulkApi, /studentIdentifiersFromSearchParams/, "the bulk endpoint also reads IDs from query parameters");
+assert.match(bulkApi, /createTicketPrintJob/, "the API snapshots the exact selected paid IDs for the print view");
+assert.match(bulkApi, /recordTicketPrints/, "every selected ticket is written to the print audit log");
+assert.doesNotMatch(bulkApi, /MAX_RUN|MAX_JOB_ROWS|body\.size|body\.page/, "the print API has no batch-size or pagination cap");
+assert.doesNotMatch(bulkToolbar, /Per run|run \/|\[20, 40, 100\]/, "the print toolbar no longer offers capped runs");
+assert.deepEqual(normalizeStudentIdentifiers("row-0001, 2026-0102", ["row-0001", "row-0003"]), ["row-0001", "2026-0102", "row-0003"], "IDs and school-facing codes normalize and deduplicate");
+const selectedParams = new URLSearchParams("id=row-0001&id=row-0002&rolls=1%2C2");
+assert.deepEqual(studentIdentifiersFromSearchParams(selectedParams), { provided: true, ids: ["row-0001", "row-0002"] }, "query selection accepts repeated ID values without losing either student");
 
 // Five tickets must produce a full page of four plus a page with one ticket and
 // three placeholders, so the grid never collapses to three-across.
@@ -351,11 +363,19 @@ assert.equal(isCloudinaryPhoto("https://example.com/a.jpg"), false);
 assert.match(photoTemplateCsv(), /^student_id,roll,photo_url,father_photo_url,mother_photo_url/, "the template the office downloads carries all three photo columns");
 assert.match(photoApi, /dry_run/, "the importer can validate without writing");
 assert.match(photoApi, /updateStudentPhotos/, "…and writes through the batch updater");
-assert.match(editApi, /photo_url/, "the edit endpoint stores the uploaded Cloudinary URL");
-assert.match(editApi, /isPhotoUrl/, "…and refuses anything that is not an http(s) URL");
+assert.match(editApi, /father_photo_url/, "the edit endpoint stores the father's photo URL");
+assert.match(editApi, /mother_photo_url/, "…and the mother's photo URL");
+assert.match(editApi, /isPhotoUrl/, "parent and student photos must be full http(s) URLs");
 const editModal = read("components/sf/console/StudentEditModal.tsx");
-assert.match(editModal, /uploadToCloudinary/, "the edit modal uploads straight to Cloudinary");
-assert.match(editModal, /URL\.createObjectURL\(file\)/, "…and previews the file before the upload finishes");
+const photoField = read("components/sf/console/StudentPhotoUploadField.tsx");
+assert.match(editModal, /father_photo_url/, "the edit modal sends the father's photo URL");
+assert.match(editModal, /mother_photo_url/, "…and the mother's photo URL");
+assert.match(editModal, /Father's Photo/, "the form has a dedicated father's photo section");
+assert.match(editModal, /Mother's Photo/, "…and a dedicated mother's photo section");
+assert.match(photoField, /uploadToCloudinary/, "all three family photo fields use the same Cloudinary upload pipeline");
+assert.match(photoField, /URL\.createObjectURL\(file\)/, "each field previews the selected file before upload completes");
+assert.match(photoField, /Replace photo/, "existing student and parent photos can be replaced");
+assert.match(photoField, /Cloudinary\)\s*<\/span>/, "each photo field includes its editable Cloudinary URL");
 assert.match(editModal, /payment_status/, "…and can change the payment status that gates bulk printing");
 assert.match(studentsPanel, /PhotoImportPanel/, "the roster panel exposes the photo sheet importer");
 assert.match(studentsPanel, /bulk-print/, "…and the bulk ticket print job");
@@ -387,6 +407,7 @@ for (const statement of [
   "payments_fair_status_student_idx ON payments(fair_slug, status, student_id)",
   "scan_logs_admission_idx ON scan_logs(subject_type, subject_id, fair_slug, result, entry_time)",
   "ticket_prints_fair_idx ON ticket_prints(fair_slug, student_id)",
+  "ticket_print_jobs_expiry_idx ON ticket_print_jobs(expires_at)",
   "students_class_section_idx ON students(class_name, section)",
 ]) {
   assert.ok(studentSchema.some((sql) => sql.includes(statement)), `index ${statement} is created at boot`);
@@ -437,6 +458,14 @@ async function databaseChecks() {
   assert.ok("father_photo_url" in printable[0] && "mother_photo_url" in printable[0], "the print query carries the parents' photo URLs");
   assert.equal(printable[0].father_name, "Father 1", "…and the parents' names, so the three-photo row always renders");
 
+  const selectedByRowId = await roster.paidStudentsForPrint({ fair_slug: "smoke-fair", student_ids: [ids[0]] });
+  assert.deepEqual(selectedByRowId.map((row) => row.id), [ids[0]], "a database-ID selection returns only that paid student");
+  const selectedBySchoolCode = await roster.paidStudentsForPrint({ fair_slug: "smoke-fair", student_ids: ["2026-0103"] });
+  assert.deepEqual(selectedBySchoolCode.map((row) => row.student_code), ["2026-0103"], "student IDs in a print link may use the school's student code");
+  const selectedByRoll = await roster.paidStudentsForPrint({ fair_slug: "smoke-fair", rolls: new Set(["3"]) });
+  assert.deepEqual(selectedByRoll.map((row) => row.student_code), ["2026-0103"], "a selected roll returns only the matching PAID student");
+  assert.equal((await roster.paidStudentsForPrint({ fair_slug: "smoke-fair", student_ids: [] })).length, 0, "an explicitly empty ID selection never falls back to all students");
+
   assert.deepEqual(
     await roster.studentStatusCounts({ fair_slug: "smoke-fair", class_name: "Class 8" }),
     { total: 2, paid: 1, unpaid: 1, printed: 0, entered: 0 },
@@ -467,13 +496,52 @@ async function databaseChecks() {
   const unmatched = await roster.updateStudentPhotos([{ key: "9999-9999", match: "code", photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/x.jpg", row: 9 }]);
   assert.deepEqual(unmatched.missing, [{ key: "9999-9999", row: 9 }], "an unknown ID is reported, never guessed");
 
-  const edited = await roster.updateStudent(ids[0], { name: "Edited Name", class_name: "Class 8", section: "A" });
+  const edited = await roster.updateStudent(ids[0], {
+    name: "Edited Name",
+    class_name: "Class 8",
+    section: "A",
+    father_photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/father.jpg",
+    mother_photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/mother.jpg",
+  });
   assert.equal(edited?.name, "Edited Name");
   assert.equal(edited?.student_code, "2026-0101", "fields that were not sent are left alone");
+  assert.equal(edited?.father_photo_url, "https://res.cloudinary.com/okgs/image/upload/v1/okgs/father.jpg", "the edit model persists the father's photo URL");
+  assert.equal(edited?.mother_photo_url, "https://res.cloudinary.com/okgs/image/upload/v1/okgs/mother.jpg", "…and the mother's photo URL");
 
   assert.equal(await roster.recordTicketPrints({ fair_slug: "smoke-fair", student_ids: [ids[0], ids[1]], printed_by: "smoke", printed_by_name: "Smoke" }), 2);
   const prints = await roster.ticketPrintSummary("smoke-fair");
   assert.equal(prints.students, 2, "the bulk job lands in the print audit");
+
+  // A print query and a saved ID snapshot must both carry 500+ tickets without
+  // inheriting roster-page limits or a 20/40/100-ticket print-run cap.
+  const largeRecords = Array.from({ length: 520 }, (_, index) => make(index + 10, "Bulk 500", "A"));
+  await roster.upsertStudents(largeRecords, "large-print-batch");
+  const largeRows = await roster.scopedStudents({ class_name: "Bulk 500" });
+  assert.equal(largeRows.length, 520, "the fixture contains more than 500 print candidates");
+  await roster.setPaymentStatus({
+    fair_slug: "large-print-fair",
+    student_ids: largeRows.map((row) => row.id),
+    status: "PAID",
+    actor_id: "smoke",
+    actor_name: "Smoke",
+  });
+  const largePrint = await roster.paidStudentsForPrint({ fair_slug: "large-print-fair", class_name: "Bulk 500" });
+  assert.equal(largePrint.length, 520, "the print query returns every matching student with no default limit");
+  const largeSelection = await roster.paidStudentsForPrint({ fair_slug: "large-print-fair", student_ids: largeRows.map((row) => row.id) });
+  assert.equal(largeSelection.length, 520, "an explicit selection above 500 IDs is queried as one safe JSON parameter");
+  const printJobId = await roster.createTicketPrintJob({
+    fair_slug: "large-print-fair",
+    student_ids: largeSelection.map((row) => row.id),
+    class_name: "Bulk 500",
+    section: "",
+    shift: "",
+    rolls: "",
+    q: "",
+    lang: "en",
+    created_by: "smoke",
+  });
+  const printJob = await roster.getTicketPrintJob(printJobId);
+  assert.equal(printJob?.student_ids.length, 520, "the server-side print snapshot retains the full large selection");
 
   /* Guest fees: 50 BDT entry is mandatory, lunch box adds 150 BDT. */
   assert.deepEqual(guestFeeBreakdown(false), { entry: 50, lunch: 0, total: 50 });

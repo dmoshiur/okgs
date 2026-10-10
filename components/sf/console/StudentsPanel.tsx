@@ -45,6 +45,8 @@ export interface StudentListRow {
   father_contact: string;
   father_name: string;
   mother_name: string;
+  father_photo_url: string;
+  mother_photo_url: string;
   tags: string;
   payment_status: "PAID" | "UNPAID";
   paid_at: string;
@@ -120,6 +122,7 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
   const search = useDebouncedValue(filters.q);
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<StudentListRow[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [credentials, setCredentials] = useState<{ studentId: string; password: string } | null>(null);
   const [message, setMessage] = useState("");
   const [problem, setProblem] = useState("");
@@ -159,6 +162,13 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
   const total = students.data?.total ?? 0;
   const hasMore = Boolean(students.data?.has_more);
   const allGuests = guests.data?.guests ?? [];
+  const selectedIdSet = useMemo(() => new Set(selectedStudentIds), [selectedStudentIds]);
+  const selectedStudents = rows.filter((student) => selectedIdSet.has(student.id));
+  const printPaidCount = selectedStudentIds.length
+    ? selectedStudents.filter((student) => student.payment_status === "PAID").length
+    : summary.paid;
+  const printUnpaidCount = selectedStudentIds.length ? selectedStudents.length - printPaidCount : summary.unpaid;
+  const allLoadedSelected = rows.length > 0 && rows.every((student) => selectedIdSet.has(student.id));
 
   // Pages accumulate into one table; page 1 replaces the list.
   useEffect(() => {
@@ -170,6 +180,7 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
   // Any filter change starts over at page 1.
   useEffect(() => {
     setPage(1);
+    setSelectedStudentIds([]);
   }, [fairSlug, filters, search]);
 
   // Infinite scroll: fetch the next page a little before the sentinel appears.
@@ -187,7 +198,28 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
   }, [hasMore, students.loading, query]);
 
   function update<K extends FilterKey>(key: K, value: string) {
+    setSelectedStudentIds([]);
     setFilters((state) => ({ ...state, [key]: value }));
+  }
+
+  function toggleStudentSelection(id: string, checked: boolean) {
+    setSelectedStudentIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return Array.from(next);
+    });
+  }
+
+  function toggleLoadedSelection(checked: boolean) {
+    setSelectedStudentIds((current) => {
+      const next = new Set(current);
+      for (const student of rows) {
+        if (checked) next.add(student.id);
+        else next.delete(student.id);
+      }
+      return Array.from(next);
+    });
   }
 
   async function createPortalAccount(student: StudentListRow) {
@@ -293,7 +325,16 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
   }
 
   const rollsActive = Boolean(filters.rolls.trim());
-  const scopeLabel = [filters.class_name, filters.section ? `section ${filters.section}` : "", filters.shift ? `${filters.shift} shift` : "", filters.rolls.trim() ? `rolls ${filters.rolls.trim()}` : ""].filter(Boolean).join(" · ");
+  const scopeLabel = [
+    filters.class_name,
+    filters.section ? `section ${filters.section}` : "",
+    filters.shift ? `${filters.shift} shift` : "",
+    filters.rolls.trim() ? `rolls ${filters.rolls.trim()}` : "",
+    search ? `search ${search}` : "",
+  ].filter(Boolean).join(" · ");
+  const bulkScopeLabel = selectedStudentIds.length
+    ? `${en(selectedStudentIds.length)} selected student(s)`
+    : scopeLabel || "the whole roster";
 
   return (
     <div className="sf-stack">
@@ -307,9 +348,17 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
         <span className="sf-stat sf-stat-bad"><CircleDashed size={14} /> Unpaid <b>{en(summary.unpaid)}</b></span>
         <span className="sf-stat"><Printer size={14} /> Printed <b>{en(summary.printed)}</b></span>
         <span className="sf-stat"><ScanLine size={14} /> Entered <b>{en(summary.entered)}</b></span>
-        <button type="button" className="v2-btn v2-btn-sm sf-stat-action" onClick={() => setBulkOpen(true)} disabled={!summary.paid}>
-          <LayoutGrid size={14} /> Print bulk tickets
+        {selectedStudentIds.length ? (
+          <span className="sf-stat">Selected <b>{en(selectedStudentIds.length)}</b></span>
+        ) : null}
+        <button type="button" className="v2-btn v2-btn-sm sf-stat-action" onClick={() => setBulkOpen(true)} disabled={!printPaidCount}>
+          <LayoutGrid size={14} /> {selectedStudentIds.length ? `Print ${en(selectedStudentIds.length)} selected` : "Print bulk tickets"}
         </button>
+        {selectedStudentIds.length ? (
+          <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost sf-stat-action" onClick={() => setSelectedStudentIds([])}>
+            Clear selection
+          </button>
+        ) : null}
         <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost sf-stat-action" onClick={() => setImportOpen((open) => !open)}>
           <FileSpreadsheet size={14} /> {importOpen ? "Close import" : "Import Excel roster"}
         </button>
@@ -362,7 +411,7 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
       <Panel title="Students by class">
         <div className="sf-filter-grid">
           <label><span className="v2-label">Class</span>
-            <select className="v2-select" value={filters.class_name} onChange={(event) => setFilters((state) => ({ ...state, class_name: event.target.value, section: "" }))}>
+            <select className="v2-select" value={filters.class_name} onChange={(event) => { setSelectedStudentIds([]); setFilters((state) => ({ ...state, class_name: event.target.value, section: "" })); }}>
               <option value="">All classes</option>
               {options.classes.map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
@@ -427,6 +476,7 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
             </button>
           </div>
           <p className="v2-muted sf-help">Roll numbers accept ranges — <code>1, 2, 5, 8-12</code> marks rolls 1, 2, 5, 8, 9, 10, 11 and 12. Every change is written to the database at once; reloading the page shows the same status.</p>
+          <p className="v2-muted sf-help">Select row checkboxes to print only those students. With no rows selected, bulk printing includes every PAID student matching the current class, section, shift, roll and search filters.</p>
         </div>
 
         {students.error ? <Notice kind="bad">{students.error}</Notice> : null}
@@ -436,6 +486,16 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
           <table className="sf-table">
             <thead>
               <tr>
+                <th className="sf-select-col">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all loaded students for printing"
+                    title="Select or clear all students currently loaded in this filtered roster"
+                    checked={allLoadedSelected}
+                    disabled={!rows.length}
+                    onChange={(event) => toggleLoadedSelection(event.target.checked)}
+                  />
+                </th>
                 <th>Roll</th>
                 <th>ID</th>
                 <th>Student</th>
@@ -454,6 +514,14 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
                 const paid = student.payment_status === "PAID";
                 return (
                   <tr key={student.id} className="sf-row-fade">
+                    <td className="sf-select-col">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${student.name} (${student.student_code}) for printing`}
+                        checked={selectedIdSet.has(student.id)}
+                        onChange={(event) => toggleStudentSelection(student.id, event.target.checked)}
+                      />
+                    </td>
                     <td>{student.roll || "—"}</td>
                     <td className="sf-nowrap">{student.student_code}</td>
                     <td className="sf-wrap-cell">
@@ -498,7 +566,7 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
                 );
               })}
               {!rows.length && !students.loading ? (
-                <tr><td colSpan={11}><Empty>No students match these filters. Import a roster or change the filters.</Empty></td></tr>
+                <tr><td colSpan={12}><Empty>No students match these filters. Import a roster or change the filters.</Empty></td></tr>
               ) : null}
             </tbody>
           </table>
@@ -628,9 +696,17 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
       {bulkOpen ? (
         <BulkPrintModal
           fairSlug={fairSlug}
-          scopeLabel={scopeLabel || "the whole roster"}
-          paid={summary.paid}
-          unpaid={summary.unpaid}
+          scopeLabel={bulkScopeLabel}
+          scope={{
+            class_name: filters.class_name,
+            section: filters.section,
+            shift: filters.shift,
+            rolls: filters.rolls,
+            q: search,
+            student_ids: selectedStudentIds,
+          }}
+          paid={printPaidCount}
+          unpaid={printUnpaidCount}
           onClose={() => setBulkOpen(false)}
           onOpened={(tickets, sheets) => {
             setBulkOpen(false);
@@ -835,15 +911,14 @@ function PrintTicketModal({
 }
 
 /**
- * Bulk ticket printing — A4 portrait, four tickets per page.
- *
- * Only PAID students are printed. The count shown here comes from the same filter
- * the roster uses, and the server applies the PAID rule again in SQL, so the
- * office cannot print a ticket for a student whose fee is still due.
+ * Bulk ticket printing — one continuous view with no arbitrary ticket/page cap.
+ * The server rechecks payment status and exact IDs/rolls before preparing the
+ * four-up A4 pages, so unpaid students can never reach the printed sheet.
  */
 function BulkPrintModal({
   fairSlug,
   scopeLabel,
+  scope,
   paid,
   unpaid,
   onClose,
@@ -852,38 +927,43 @@ function BulkPrintModal({
 }: {
   fairSlug: string;
   scopeLabel: string;
+  scope: {
+    class_name: string;
+    section: string;
+    shift: string;
+    rolls: string;
+    q: string;
+    student_ids: string[];
+  };
   paid: number;
   unpaid: number;
   onClose: () => void;
   onOpened: (tickets: number, sheets: number) => void | Promise<void>;
   onError: (message: string) => void;
 }) {
-  const [size, setSize] = useState(20);
-  const [page, setPage] = useState(1);
   const [lang, setLang] = useState<TicketLang>("en");
   const [busy, setBusy] = useState(false);
-  const runs = Math.max(1, Math.ceil(paid / size));
   const sheets = Math.ceil(paid / 4);
 
   async function open() {
     setBusy(true);
+    const printWindow = window.open("about:blank", "_blank");
     try {
-      const scope = Object.fromEntries(
-        new URLSearchParams(window.location.search).entries(),
-      ) as Record<string, string>;
-      const result = await postJson<{ url: string; paid: number; runs: number; sheets_total: number }>("/api/staff/students/bulk-print", {
+      const result = await postJson<{ url: string; paid: number; sheets_total: number }>("/api/staff/students/bulk-print", {
         fair_slug: fairSlug,
-        class_name: scope.class ?? "",
-        section: scope.section ?? "",
-        shift: scope.shift ?? "",
-        rolls: scope.rolls ?? "",
-        size,
-        page,
+        class_name: scope.class_name,
+        section: scope.section,
+        shift: scope.shift,
+        rolls: scope.rolls,
+        q: scope.q,
+        ...(scope.student_ids.length ? { student_ids: scope.student_ids } : {}),
         lang,
       });
-      window.open(result.url, "_blank", "noopener");
+      if (printWindow) printWindow.location.href = result.url;
+      else window.location.assign(result.url);
       await onOpened(result.paid, result.sheets_total);
     } catch (issue) {
+      printWindow?.close();
       onError(errorText(issue));
       onClose();
     } finally {
@@ -899,44 +979,26 @@ function BulkPrintModal({
           <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" onClick={onClose} aria-label="Close"><X size={15} /></button>
         </header>
         <p className="v2-muted sf-help">
-          A4 portrait sheets, four tickets per page in a 2 × 2 grid, with a page break after every fourth ticket. Scope: <strong>{scopeLabel}</strong>.
+          Prints the complete selection in one continuous A4 portrait view, four A6 tickets per page in a 2 × 2 grid. Scope: <strong>{scopeLabel}</strong>.
         </p>
         <dl className="sf-print-summary">
           <div><dt>Will print</dt><dd>{en(paid)} paid student(s)</dd></div>
           <div><dt>Excluded</dt><dd>{en(unpaid)} unpaid / pending</dd></div>
           <div><dt>A4 sheets</dt><dd>{en(sheets)} page(s), 4 per page</dd></div>
         </dl>
-        <div className="sf-form-grid">
-          <fieldset className="sf-copies">
-            <legend className="v2-label">Tickets per print run</legend>
-            {[20, 40, 100].map((value) => (
-              <label key={value} className={`sf-radio ${size === value ? "is-on" : ""}`}>
-                <input type="radio" name="bulk-size" checked={size === value} onChange={() => { setSize(value); setPage(1); }} />
-                {en(value)} tickets — {en(value / 4)} A4 page(s)
-              </label>
-            ))}
-          </fieldset>
-          <fieldset className="sf-copies">
-            <legend className="v2-label">Ticket language</legend>
-            {ticketLangOptions.map((option) => (
-              <label key={option.id} className={`sf-radio ${lang === option.id ? "is-on" : ""}`} title={option.hint}>
-                <input type="radio" name="bulk-lang" checked={lang === option.id} onChange={() => setLang(option.id)} />
-                {option.label}
-              </label>
-            ))}
-          </fieldset>
-          {runs > 1 ? (
-            <label>
-              <span className="v2-label">Start at print run</span>
-              <input className="v2-input" type="number" min={1} max={runs} value={page} onChange={(event) => setPage(Math.min(runs, Math.max(1, Number(event.target.value) || 1)))} />
-              <small className="v2-muted">Each run covers {en(size)} tickets ({en(size / 4)} A4 pages); use the run arrows on the print page to continue.</small>
+        <fieldset className="sf-copies">
+          <legend className="v2-label">Ticket language</legend>
+          {ticketLangOptions.map((option) => (
+            <label key={option.id} className={`sf-radio ${lang === option.id ? "is-on" : ""}`} title={option.hint}>
+              <input type="radio" name="bulk-lang" checked={lang === option.id} onChange={() => setLang(option.id)} />
+              {option.label}
             </label>
-          ) : null}
-        </div>
+          ))}
+        </fieldset>
         <footer className="sf-modal-foot">
           <button type="button" className="v2-btn v2-btn-ghost" onClick={onClose}>Cancel</button>
           <button type="button" className="v2-btn" disabled={busy || !paid} onClick={open}>
-            <LayoutGrid size={15} /> {busy ? "Preparing sheets…" : `Open ${en(Math.min(size, paid))} ticket(s)`}
+            <LayoutGrid size={15} /> {busy ? "Preparing all tickets…" : `Open ${en(paid)} ticket(s)`}
           </button>
         </footer>
       </div>

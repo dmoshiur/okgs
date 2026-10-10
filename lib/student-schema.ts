@@ -123,6 +123,24 @@ export const studentSchema = [
   `CREATE INDEX IF NOT EXISTS ticket_prints_student_idx ON ticket_prints(student_id, fair_slug)`,
   /* print_count per student of one fair, and the fair-wide print summary. */
   `CREATE INDEX IF NOT EXISTS ticket_prints_fair_idx ON ticket_prints(fair_slug, student_id)`,
+
+  /* Short-lived snapshot of the exact students prepared for one bulk print.
+     Keeping the IDs server-side avoids enormous URLs for 500+ selections. */
+  `CREATE TABLE IF NOT EXISTS ticket_print_jobs (
+    id TEXT PRIMARY KEY,
+    fair_slug TEXT NOT NULL DEFAULT '',
+    student_ids_json TEXT NOT NULL DEFAULT '[]',
+    class_name TEXT NOT NULL DEFAULT '',
+    section TEXT NOT NULL DEFAULT '',
+    shift TEXT NOT NULL DEFAULT '',
+    rolls TEXT NOT NULL DEFAULT '',
+    q TEXT NOT NULL DEFAULT '',
+    lang TEXT NOT NULL DEFAULT 'en',
+    created_by TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT '',
+    expires_at TEXT NOT NULL DEFAULT ''
+  )`,
+  `CREATE INDEX IF NOT EXISTS ticket_print_jobs_expiry_idx ON ticket_print_jobs(expires_at)`,
 ];
 
 /** Relations accepted for external guests. Stored as the English label. */
