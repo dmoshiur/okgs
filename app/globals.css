@@ -7503,9 +7503,19 @@ html[data-color-scheme="dark"] .ticket-print-root {
 .sf-spin { animation: sf-spin 1s linear infinite; }
 @keyframes sf-spin { to { transform: rotate(360deg); } }
 
-/* ---------- Print ticket: full-screen A4 portrait, high contrast ---------- */
-/* Named page keeps ticket orientation scoped; receipts and reports keep theirs. */
-@page ticket-portrait { size: A4 portrait; margin: 0.5in; }
+/* ---------- Print ticket: true-size A6 portrait card (105 × 148 mm) ------ */
+/* Named page keeps the ticket size and orientation scoped; receipts and
+   reports keep theirs. The card is authored at physical size, so the browser
+   preview and the print preview show the same document: 105mm wide, 148mm
+   tall, one vertical flow — crest + school name + badge, centred photo, name
+   and a 3-column detail grid, status pills, signed QR, footer — all of it
+   INSIDE the frame border. Every element is box-sizing: border-box (global
+   reset) and the sheet clips overflow, so nothing can escape the card.
+
+   The QR block is the only flexible member: when the content above it grows
+   (bilingual labels, the family block on parent copies) the QR shrinks —
+   the frame, the footer and the page break never do. */
+@page ticket-portrait { size: A6 portrait; margin: 0; }
 .ticket-print-root { min-height: 100vh; min-height: 100dvh; display: grid; gap: 12px; place-content: center justify-items center; align-items: center; padding: 16px 12px 28px; background: #101a2b; color: #f1f5fb; }
 .ticket-print-root .ticket-toolbar { position: sticky; top: 0; z-index: 5; width: min(100%, calc(100vw - 24px)); display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding: 8px; border-radius: var(--r, 12px); background: rgba(15, 23, 42, .78); color: #f1f5fb; }
 .ticket-print-root .ticket-toolbar > * { flex: 0 0 auto; }
@@ -7526,7 +7536,7 @@ html[data-color-scheme="dark"] .ticket-print-root {
 .ticket-print-root .v2-btn-ghost { background: transparent; color: #f1f5fb; border-color: rgba(241, 245, 251, .4); }
 .ticket-print-root .v2-btn-ghost:hover { background: rgba(241, 245, 251, .12); color: #fff; }
 .ticket-sheets { display: grid; gap: 14px; justify-items: center; width: 100%; min-width: 0; }
-/* One sheet. The palette is pinned here so a dark colour scheme can never
+/* One A6 sheet. The palette is pinned here so a dark colour scheme can never
    reach the paper — the ticket is its own document, not part of the console. */
 .ticket-sheet {
   --t-ink: #0f172a; --t-soft: #475569; --t-faint: #64748b;
@@ -7534,8 +7544,8 @@ html[data-color-scheme="dark"] .ticket-print-root {
   --t-line: #b9c4d2;
   position: relative;
   page: ticket-portrait;
-  width: min(100%, calc((100dvh - 130px) * 210 / 297), calc(100vw - 24px));
-  aspect-ratio: 210 / 297;
+  width: min(105mm, 100%);
+  aspect-ratio: 105 / 148;
   background: var(--t-paper);
   color: var(--t-ink);
   border-radius: 10px;
@@ -7545,7 +7555,7 @@ html[data-color-scheme="dark"] .ticket-print-root {
   font-family: var(--font-inter, "Inter"), var(--font-hind-siliguri, "Hind Siliguri"), system-ui, sans-serif;
   print-color-adjust: exact; -webkit-print-color-adjust: exact;
 }
-/* Bangla sheets: the Bangla UI face for labels, the display serif for the name. */
+/* Bangla sheets use the Bangla UI face for labels, the display serif for the name. */
 .ticket-sheet[data-lang="bn"], .ticket-sheet[data-lang="both"] {
   font-family: var(--font-hind-siliguri, "Hind Siliguri"), var(--font-inter, "Inter"), sans-serif;
 }
@@ -7553,69 +7563,99 @@ html[data-color-scheme="dark"] .ticket-print-root {
   font-family: var(--font-noto-serif-bengali, "Noto Serif Bengali"), var(--font-hind-siliguri, "Hind Siliguri"), serif;
 }
 .ticket-sheet:last-child { break-after: auto; page-break-after: auto; }
-.ticket-frame { position: absolute; inset: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; padding: 4.2% 4.6% 3.2%; }
-.ticket-frame::before { content: ""; position: absolute; inset: 1.8%; border: 1.5px solid var(--t-gold); border-radius: 6px; pointer-events: none; }
-.ticket-frame::after { content: ""; position: absolute; inset: 0; border: 6px solid var(--t-accent); border-radius: 10px; pointer-events: none; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+/* The frame is the bordered card: a flex column sharing out the fixed 148mm.
+   Overflow is clipped here as well — double insurance for the border. */
+.ticket-frame { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 2mm; min-height: 0; padding: 4mm; overflow: hidden; }
+.ticket-frame::before { content: ""; position: absolute; inset: 1.6mm; border: .4mm solid var(--t-gold); border-radius: 7px; pointer-events: none; }
+.ticket-frame::after { content: ""; position: absolute; inset: 0; border: 1.4mm solid var(--t-accent); border-radius: 10px; pointer-events: none; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
 
 /* ---------- Header: crest, institution, event, ticket kind --------------- */
-.ticket-head { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3mm; min-width: 0; padding: 4mm 5mm; border: 1.5px solid var(--t-accent); border-radius: 8px; background: linear-gradient(135deg, #f7f9fd 0%, #eaf0f9 55%, #e2ebf7 100%); text-align: center; }
-.ticket-school { display: flex; align-items: center; justify-content: center; gap: 3mm; min-width: 0; }
+.ticket-head { position: relative; flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5mm; min-width: 0; padding: 2mm 2.5mm; border: .4mm solid var(--t-accent); border-radius: 8px; background: linear-gradient(135deg, #f7f9fd 0%, #eaf0f9 55%, #e2ebf7 100%); text-align: center; }
+.ticket-school { display: flex; align-items: center; justify-content: center; gap: 2.5mm; min-width: 0; }
 .ticket-school-copy { min-width: 0; text-align: left; }
-.ticket-school strong { display: block; font-size: clamp(14px, 2.4vw, 28px); line-height: 1.18; color: var(--t-accent); letter-spacing: -.01em; overflow-wrap: anywhere; }
-.ticket-school small { display: block; color: var(--t-soft); font-size: clamp(9px, 1.1vw, 14px); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; overflow-wrap: anywhere; }
-.ticket-logo { width: clamp(30px, 4.8vw, 60px); height: clamp(30px, 4.8vw, 60px); object-fit: contain; flex: 0 0 auto; padding: 2px; background: #fff; border: 1.5px solid var(--t-line); border-radius: 8px; }
-.ticket-logo-fallback { display: grid; place-items: center; border-radius: 50%; background: var(--t-accent); color: #fff; font-weight: 800; }
-.ticket-kind { position: relative; flex: 0 0 auto; display: grid; gap: 1px; justify-items: center; padding: 0.9% 2%; border-radius: 999px; background: var(--t-accent); color: #fff; text-align: center; box-shadow: 0 2px 8px rgba(18, 53, 92, .28); }
-.ticket-kind span { font-size: clamp(8px, 1.05vw, 13px); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
-.ticket-kind i { font-size: clamp(7px, .85vw, 11px); font-style: normal; font-weight: 600; letter-spacing: .04em; text-transform: none; opacity: .92; }
-.ticket-kind b { font-size: clamp(8px, 1vw, 12px); letter-spacing: .06em; }
-.ticket-kind em { font-style: normal; font-size: clamp(7px, .85vw, 11px); opacity: .9; }
+.ticket-school strong { display: block; font-size: 4.1mm; line-height: 1.16; color: var(--t-accent); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.ticket-school small { display: block; margin-top: .4mm; color: var(--t-soft); font-size: 2.3mm; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; overflow-wrap: anywhere; }
+.ticket-logo { width: 10mm; height: 10mm; object-fit: contain; flex: 0 0 auto; padding: .6mm; background: #fff; border: .4mm solid var(--t-line); border-radius: 8px; }
+.ticket-logo-fallback { display: grid; place-items: center; border-radius: 50%; background: var(--t-accent); color: #fff; font-size: 3.4mm; font-weight: 800; }
+/* The badge: ticket kind + copy label + copy counter, flowing onto as many
+   lines as the language needs, always centred under the school name. */
+.ticket-kind { position: relative; flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; column-gap: 1.8mm; row-gap: .3mm; padding: .9mm 3mm; border-radius: 999px; background: var(--t-accent); color: #fff; text-align: center; box-shadow: 0 2px 8px rgba(18, 53, 92, .28); }
+.ticket-kind span { font-size: 2.7mm; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.ticket-kind i { font-size: 2mm; line-height: 1.25; font-style: normal; font-weight: 600; letter-spacing: .03em; opacity: .92; }
+/* Only the kind's second-language line takes a full width; the copy label's
+   secondary line stays beside it. */
+.ticket-kind i:first-of-type { flex-basis: 100%; }
+.ticket-kind b { font-size: 2.2mm; letter-spacing: .05em; }
+.ticket-kind em { font-style: normal; font-size: 2mm; opacity: .9; }
 .is-guest .ticket-kind { background: var(--t-gold); box-shadow: 0 2px 8px rgba(138, 100, 20, .28); }
 
-/* ---------- Body: portrait stack — photo · details · signed QR ------------ */
-.ticket-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: start; gap: 3mm; min-height: 0; padding: 3mm 0; }
+/* ---------- Body: portrait stack — photo · details · badges · signed QR --- */
+.ticket-body { position: relative; flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; gap: 2mm; min-height: 0; width: 100%; padding: .5mm 0; overflow: hidden; }
 /* The portrait is a true 3:4 crop, centred, in a rounded frame — never squashed. */
-.ticket-photo { display: grid; place-items: center; align-self: start; margin: 0; width: min(32%, 38mm); aspect-ratio: 3 / 4; overflow: hidden; border: 2px solid var(--t-accent); border-radius: 10px; background: repeating-linear-gradient(45deg, #f8fafc 0 8px, #eef2f7 8px 16px); box-shadow: 0 3px 10px rgba(15, 23, 42, .12); min-height: 0; }
+.ticket-photo { display: grid; place-items: center; flex: 0 0 auto; margin: 0; width: 22mm; aspect-ratio: 3 / 4; overflow: hidden; border: .5mm solid var(--t-accent); border-radius: 10px; background: repeating-linear-gradient(45deg, #f8fafc 0 8px, #eef2f7 8px 16px); box-shadow: 0 3px 10px rgba(15, 23, 42, .12); }
 .ticket-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
-.ticket-photo span { font-size: clamp(16px, 3vw, 34px); font-weight: 800; color: #64748b; }
-.ticket-info { display: grid; grid-auto-rows: min-content; align-content: start; gap: 3mm; width: 100%; min-width: 0; }
-.ticket-name { margin: 0; font-size: clamp(18px, 3.6vw, 42px); line-height: 1.12; font-weight: 800; color: var(--t-ink); letter-spacing: -.01em; text-align: center; overflow-wrap: anywhere; }
-.ticket-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2mm 5mm; margin: 0; min-width: 0; padding: 3mm 0; border-top: 1.5px solid var(--t-line); border-bottom: 1.5px solid var(--t-line); }
+.ticket-photo span { font-size: 7mm; font-weight: 800; color: #64748b; }
+.ticket-info { display: flex; flex-direction: column; gap: 1.8mm; width: 100%; min-width: 0; flex: 0 0 auto; }
+.ticket-name { margin: 0; font-size: 5mm; line-height: 1.15; font-weight: 800; color: var(--t-ink); letter-spacing: -.01em; text-align: center; overflow-wrap: anywhere; }
+/* Student details in a clean 3-column grid: ID · Roll · Class / Section ·
+   Shift · Group. Values wrap anywhere, so long text never blows a column. */
+.ticket-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.6mm 3mm; margin: 0; min-width: 0; padding: 1.6mm 1mm; border-top: .4mm solid var(--t-line); border-bottom: .4mm solid var(--t-line); }
 .ticket-field { min-width: 0; }
-.ticket-field dt, .ticket-field span { display: block; color: var(--t-faint); font-size: clamp(8px, .95vw, 12px); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
-.ticket-field dt em { display: block; font-size: clamp(7px, .8vw, 10px); font-style: normal; font-weight: 600; letter-spacing: .04em; text-transform: none; opacity: .85; }
-.ticket-field dd, .ticket-field strong { display: block; margin: 0; color: var(--t-ink); font-size: clamp(11px, 1.6vw, 19px); font-weight: 700; overflow-wrap: anywhere; }
-.ticket-family { display: grid; gap: 1.2%; padding-top: 1.4%; border-top: 1.5px dashed var(--t-line); min-width: 0; }
-.ticket-family-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3%; min-width: 0; }
-.ticket-guardians { display: grid; gap: 1%; padding: 1.2% 1.6%; border: 1.5px solid var(--t-gold); border-radius: 6px; background: #fffaf0; min-width: 0; }
-.ticket-guardian-title { color: #6d4c08; font-size: clamp(8px, .95vw, 12px); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
-.ticket-guardian-list { display: grid; gap: 0.6%; margin: 0; padding-left: 1.2em; color: var(--t-ink); font-size: clamp(9px, 1.15vw, 14px); }
+.ticket-field dt, .ticket-field span { display: block; color: var(--t-faint); font-size: 2.1mm; line-height: 1.2; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; overflow-wrap: anywhere; }
+.ticket-field dt em { display: block; font-size: 1.9mm; line-height: 1.2; font-style: normal; font-weight: 600; letter-spacing: .03em; text-transform: none; opacity: .85; }
+.ticket-field dd, .ticket-field strong { display: block; margin: 0; color: var(--t-ink); font-size: 3.5mm; line-height: 1.2; font-weight: 700; overflow-wrap: anywhere; }
+.ticket-family { display: grid; gap: 1.5mm; padding-top: 1.5mm; border-top: .4mm dashed var(--t-line); min-width: 0; }
+.ticket-family-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3mm; min-width: 0; }
+.ticket-guardians { display: grid; gap: 1mm; padding: 1.2mm 1.6mm; border: .4mm solid var(--t-gold); border-radius: 6px; background: #fffaf0; min-width: 0; }
+.ticket-guardian-title { color: #6d4c08; font-size: 2mm; line-height: 1.25; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.ticket-guardian-list { display: grid; gap: .6mm; margin: 0; padding-left: 3.4mm; color: var(--t-ink); font-size: 2.4mm; line-height: 1.25; }
 .ticket-guardian-list li { min-width: 0; overflow-wrap: anywhere; }
 .ticket-guardian-list strong { color: var(--t-ink); }
-.ticket-guardian-note { margin: 0; color: var(--t-soft); font-size: clamp(8px, 1vw, 12px); }
-.ticket-blank { display: flex; flex-wrap: wrap; gap: 0.6% 3%; color: var(--t-faint); font-size: clamp(9px, 1.05vw, 13px); font-style: italic; }
-.ticket-status-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; align-items: center; }
-.ticket-pill { display: inline-flex; padding: 0.5% 1.6%; border-radius: 999px; font-size: clamp(8px, 1vw, 13px); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; border: 1.5px solid transparent; white-space: nowrap; }
+.ticket-guardian-note { margin: 0; color: var(--t-soft); font-size: 2.2mm; line-height: 1.3; }
+.ticket-blank { display: flex; flex-wrap: wrap; gap: .6mm 3mm; color: var(--t-faint); font-size: 2.2mm; font-style: italic; }
+.ticket-status-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.5mm; align-items: center; }
+.ticket-pill { display: inline-flex; padding: .7mm 2.4mm; border-radius: 999px; font-size: 2.4mm; line-height: 1.25; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; border: .4mm solid transparent; white-space: nowrap; }
 .ticket-pill.is-paid { color: #08553a; background: #d9f5e6; border-color: #0b6b43; }
 .ticket-pill.is-unpaid { color: #8d160c; background: #ffe4e0; border-color: #a31d12; }
 .ticket-pill.is-admitted { color: #12355c; background: #e2ecfb; border-color: #1d4f91; }
-.ticket-qr { display: grid; justify-items: center; align-content: start; gap: 1.5mm; width: 100%; min-width: 0; text-align: center; }
-.ticket-qr img, .ticket-qr svg { width: min(100%, 38mm); height: auto; max-width: 38mm; aspect-ratio: 1; padding: 1.5mm; background: #fff; border: 1.5px solid var(--t-ink); border-radius: 6px; }
-.ticket-qr small { color: var(--t-soft); font-size: clamp(8px, .95vw, 12px); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+/* The QR area absorbs whatever height remains inside the frame. The image
+   grows to fill it up to a 32mm square cap, so it is always fully contained
+   INSIDE the card border — it can never overlap the footer. */
+.ticket-qr { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1mm; width: 100%; min-width: 0; min-height: 0; text-align: center; }
+.ticket-qr-fit { flex: 1 1 auto; min-height: 6mm; width: 100%; display: flex; align-items: center; justify-content: center; }
+.ticket-qr img, .ticket-qr svg { display: block; width: auto; height: auto; min-width: 0; min-height: 0; max-width: min(100%, 32mm); max-height: 100%; aspect-ratio: 1; object-fit: contain; padding: 1.2mm; background: #fff; border: .4mm solid var(--t-ink); border-radius: 6px; }
+.ticket-qr small { color: var(--t-soft); font-size: 2.2mm; line-height: 1.25; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .ticket-qr small em { display: block; font-style: normal; font-weight: 600; text-transform: none; letter-spacing: .02em; }
-.ticket-qr code { font-size: clamp(7px, .85vw, 11px); color: var(--t-ink); overflow-wrap: anywhere; }
-.ticket-foot { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: start; gap: 2mm 4mm; padding-top: 3mm; border-top: 1.5px solid var(--t-line); color: var(--t-soft); font-size: clamp(8px, 1vw, 12px); min-width: 0; }
+.ticket-qr code { font-size: 2mm; line-height: 1.25; color: var(--t-ink); overflow-wrap: anywhere; }
+
+/* ---------- Footer: validity, issue date, print info ---------------------- */
+.ticket-foot { position: relative; flex: 0 0 auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8mm 3mm; padding-top: 1.5mm; border-top: .4mm solid var(--t-line); color: var(--t-soft); font-size: 2.1mm; line-height: 1.3; min-width: 0; }
 .ticket-foot span { overflow-wrap: anywhere; }
+
+/* Parent copies carry the family block; the photo steps down a size, the gaps
+   tighten and the QR cap comes down with them, so the QR keeps a scannable
+   share of the fixed 148mm even on the fullest sheet. */
+.ticket-sheet:has(.ticket-family) .ticket-photo { width: 16mm; }
+.ticket-sheet:has(.ticket-family) .ticket-frame { gap: 1.5mm; }
+.ticket-sheet:has(.ticket-family) .ticket-body { gap: 1.5mm; }
+.ticket-sheet:has(.ticket-family) .ticket-info { gap: 1.4mm; }
+.ticket-sheet:has(.ticket-family) .ticket-qr img,
+.ticket-sheet:has(.ticket-family) .ticket-qr svg { max-width: min(100%, 26mm); }
+
 @media print {
   .no-print, .ticket-toolbar { display: none !important; }
   html, body { background: #fff !important; padding: 0 !important; }
-  .ticket-print-root { display: block; min-height: 0; padding: 0; background: #fff; color: var(--t-ink, #0f172a); }
+  .ticket-print-root { display: block; min-height: 0; padding: 0; background: #fff; color: #0f172a; }
   .ticket-sheets { gap: 0; display: block; }
-  .ticket-sheet { width: 100%; height: 271.6mm; aspect-ratio: auto; border-radius: 0; box-shadow: none; page: ticket-portrait; break-after: page; page-break-after: always; }
+  /* Exactly one A6 page per copy: 105 × 148mm on a margin-less page, and
+     nothing can escape the sheet — overflow clips instead of spilling onto a
+     second page or over the footer. */
+  .ticket-sheet { width: 105mm; height: 148mm; aspect-ratio: auto; border-radius: 0; box-shadow: none; overflow: hidden; page: ticket-portrait; break-after: page; page-break-after: always; }
   .ticket-sheet:last-child { break-after: auto; page-break-after: auto; }
-  .ticket-frame { padding: 6mm 8mm; }
+  /* The screen's double border (masked ring + gold hairline) becomes one
+     solid frame the printer lays down cleanly. */
+  .ticket-frame { padding: 4mm; border: 1mm solid var(--t-accent); border-radius: 0; }
   .ticket-frame::before, .ticket-frame::after { display: none; }
-  .ticket-frame { border: 1.2mm solid var(--t-accent); }
   * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
 
@@ -7686,14 +7726,14 @@ html[data-color-scheme="dark"] .ticket-print-root {
   }
   .printable-ticket, .ticket-sheet {
     display: block !important; position: relative !important; inset: auto !important;
-    width: 100% !important; max-width: none !important; height: 184mm !important;
-    overflow: visible !important; margin: 0 !important; box-shadow: none !important;
+    width: 105mm !important; max-width: 105mm !important; height: 148mm !important;
+    overflow: hidden !important; margin: 0 !important; box-shadow: none !important;
     break-inside: avoid !important; break-after: page !important; page-break-after: always !important;
   }
   .printable-ticket:last-child, .ticket-sheet:last-child { break-after: auto !important; page-break-after: auto !important; }
-  .ticket-frame { padding: 6mm 8mm !important; border: 1.2mm solid var(--t-accent, #12355c) !important; }
+  .ticket-frame { padding: 4mm !important; border: 1mm solid var(--t-accent, #12355c) !important; border-radius: 0 !important; overflow: hidden !important; }
   .ticket-head { display: flex !important; flex-direction: column !important; }
-  .ticket-body { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 3mm !important; justify-items: center !important; align-content: start !important; }
+  .ticket-body { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 2mm !important; }
   .ticket-sheet img { visibility: visible !important; opacity: 1 !important; }
   .no-print, nav, .sidebar, .top-nav, .app-top, .app-tabs, .sf-bottom-nav, .sf-more-root,
   .sf-desktop-sidebar, .ticket-toolbar, .ticket-bulk-toolbar { display: none !important; }
