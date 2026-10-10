@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { dbQuery as query, dbRun as run, ensurePortal } from "@/lib/portal-db";
 import { guestRelations } from "@/lib/student-schema";
+import { MAX_STUDENT_SELECTION } from "@/lib/student-selection";
 import { normalizeRoll } from "@/lib/roll-range";
 import { dhakaDayStartIso, nextSchoolDayIso } from "@/lib/school-time";
 export { dhakaDayStartIso } from "@/lib/school-time";
@@ -223,11 +224,25 @@ function studentFilterSql(filter: StudentFilter) {
     } else {
       // Resolve each requested identifier to at most ONE record. A selected
       // database ID must not also match an unselected student's school code.
-      clauses.push(`s.id IN (SELECT COALESCE(
-        (SELECT by_id.id FROM students by_id WHERE by_id.id = CAST(selected.value AS TEXT)),
-        (SELECT by_code.id FROM students by_code WHERE by_code.student_code = CAST(selected.value AS TEXT)),
-        (SELECT MIN(by_alias.id) FROM students by_alias WHERE upper(by_alias.student_code) = upper(CAST(selected.value AS TEXT)) HAVING COUNT(*) = 1)
-      ) FROM json_each(?) AS selected)`);
+      //
+      // The resolution is deliberately *set-based*: the three lookups run once
+      // over `json_each(?)` instead of once per identifier. A correlated
+      // subquery for the case-folded alias had to re-scan the whole roster for
+      // every selected ID (3,300 IDs ≈ 2 s, and the cost grew with the roster on
+      // top of that), which is what made a 500+ ticket job look like a hung
+      // server. The derived alias table is grouped once, and an ambiguous
+      // case-folded alias still fails closed (`HAVING COUNT(*) = 1`).
+      clauses.push(`s.id IN (
+        SELECT COALESCE(by_id.id, by_code.id, by_alias.id)
+        FROM json_each(?) AS selected
+        LEFT JOIN students by_id ON by_id.id = CAST(selected.value AS TEXT)
+        LEFT JOIN students by_code ON by_code.student_code = CAST(selected.value AS TEXT)
+        LEFT JOIN (
+          SELECT upper(student_code) AS code, MIN(id) AS id
+          FROM students GROUP BY upper(student_code) HAVING COUNT(*) = 1
+        ) by_alias ON by_alias.code = upper(CAST(selected.value AS TEXT))
+        WHERE COALESCE(by_id.id, by_code.id, by_alias.id) IS NOT NULL
+      )`);
       args.push(JSON.stringify(Array.from(new Set(filter.student_ids))));
     }
   }
@@ -329,22 +344,71 @@ export interface PrintableStudent {
   mother_photo_url: string;
 }
 
+/** Rows pulled per statement while a bulk print list is fetched. */
+const PRINT_FETCH_CHUNK_SIZE = 400;
+
+export interface PaidStudentsPrintOptions {
+  /** Rows per statement. Bounded SQL work and bounded peak memory. */
+  chunkSize?: number;
+  /**
+   * Stop after this many rows. A caller that refuses an oversized job asks
+   * `paidStudentSelectionOverflows` instead, so it never fetches what it will not
+   * print; `maxRows` is the bound for a caller that has to fetch anyway.
+   */
+  maxRows?: number;
+}
+
+const PRINT_FETCH_COLUMNS = `s.id, s.student_code, s.roll, s.name, s.class_name, s.section, s.shift, s.student_group,
+       s.photo_url, s.father_name, s.mother_name, s.father_photo_url, s.mother_photo_url`;
+
+/** True when a print filter holds more PAID students than `maxRows`. */
+export async function paidStudentSelectionOverflows(
+  filter: Omit<StudentFilter, "payment" | "limit" | "offset">,
+  maxRows: number,
+) {
+  const ceiling = Math.max(0, Math.floor(maxRows));
+  const { where, args } = studentFilterSql({ ...filter, payment: "PAID" });
+  const rows = await query<{ total: number }>(
+    `SELECT COUNT(*) AS total FROM (SELECT 1 ${STUDENT_JOIN} ${where} LIMIT ${ceiling + 1})`,
+    [filter.fair_slug, ...args],
+  );
+  return Number(rows[0]?.total ?? 0) > ceiling;
+}
+
 /**
  * Students whose fee is PAID for this fair, in print order.
  *
  * Bulk ticket printing must never put an unpaid student on paper — a sheet at the
  * gate is proof of payment — so the filter is applied in the query, not in the UI.
+ *
+ * The complete selection is returned (a print job is never silently truncated), but
+ * it is *fetched* in bounded pages: a 1,000+ ticket job used to be stepped and
+ * materialised as one unbounded result set, which is how a large selection turned
+ * into an exhausted server instead of paper.
  */
 export async function paidStudentsForPrint(
   filter: Omit<StudentFilter, "payment" | "limit" | "offset">,
+  options: PaidStudentsPrintOptions = {},
 ): Promise<PrintableStudent[]> {
   const { where, args } = studentFilterSql({ ...filter, payment: "PAID" });
-  return query<PrintableStudent>(
-    `SELECT s.id, s.student_code, s.roll, s.name, s.class_name, s.section, s.shift, s.student_group,
-       s.photo_url, s.father_name, s.mother_name, s.father_photo_url, s.mother_photo_url
-     ${STUDENT_JOIN} ${where} ${STUDENT_ORDER}`,
-    [filter.fair_slug, ...args],
-  );
+  const chunk = Math.max(1, Math.min(2_000, Math.floor(options.chunkSize ?? PRINT_FETCH_CHUNK_SIZE) || PRINT_FETCH_CHUNK_SIZE));
+  const ceiling = Number.isFinite(options.maxRows) ? Math.max(0, Math.floor(options.maxRows as number)) : 0;
+  const students: PrintableStudent[] = [];
+  // The ORDER BY is stable, so OFFSET paging visits every row exactly once —
+  // the same complete list as one unbounded query, just never all at once.
+  for (let offset = 0; ; offset += chunk) {
+    const size = ceiling ? Math.min(chunk, ceiling - students.length) : chunk;
+    if (size <= 0) break;
+    const rows = await query<PrintableStudent>(
+      `SELECT ${PRINT_FETCH_COLUMNS}
+     ${STUDENT_JOIN} ${where} ${STUDENT_ORDER}
+     LIMIT ${size} OFFSET ${offset}`,
+      [filter.fair_slug, ...args],
+    );
+    students.push(...rows);
+    if (rows.length < size) break;
+  }
+  return students;
 }
 
 /** How many PAID / UNPAID students a scope holds — the bulk-print confirmation. */
@@ -950,12 +1014,38 @@ export interface TicketPrintJob {
 
 const TICKET_PRINT_JOB_TTL_MS = 24 * 60 * 60 * 1000;
 
-/** Stores the prepared student IDs server-side so large selections stay out of URLs. */
+/**
+ * Snapshot student IDs: trimmed, de-duplicated, non-empty and never more than a
+ * print selection may hold. A missing/garbage array can no longer throw inside
+ * the job store (the old `new Set(input.student_ids)` did exactly that when a
+ * caller passed `null`), and `oversize` lets the caller refuse the job instead of
+ * saving a snapshot the print view would later have to reject.
+ */
+function ticketJobIds(values: unknown) {
+  const raw = Array.isArray(values) ? values : [];
+  const ids = new Set<string>();
+  for (const value of raw) {
+    if (value === null || value === undefined || typeof value === "object") continue;
+    const id = String(value).trim();
+    if (id && id.length <= 128) ids.add(id);
+  }
+  const oversize = raw.length > MAX_STUDENT_SELECTION || ids.size > MAX_STUDENT_SELECTION;
+  return { ids: Array.from(ids), oversize };
+}
+
+/**
+ * Stores the prepared student IDs server-side so large selections stay out of URLs.
+ * Returns the job id, or `""` when the snapshot could never be printed.
+ */
 export async function createTicketPrintJob(input: Omit<TicketPrintJob, "id" | "created_at" | "expires_at">) {
   await ensurePortal();
   const stamp = nowIso();
   const id = randomUUID();
   const expiresAt = new Date(Date.now() + TICKET_PRINT_JOB_TTL_MS).toISOString();
+  const { ids, oversize } = ticketJobIds(input?.student_ids);
+  // Storing more identifiers than a selection may hold would only create a job the
+  // print view has to refuse, so nothing is saved and the caller says so instead.
+  if (oversize) return "";
   await run(`DELETE FROM ticket_print_jobs WHERE expires_at <= ?`, [stamp]);
   await run(
     `INSERT INTO ticket_print_jobs
@@ -963,15 +1053,15 @@ export async function createTicketPrintJob(input: Omit<TicketPrintJob, "id" | "c
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
-      input.fair_slug,
-      JSON.stringify(Array.from(new Set(input.student_ids))),
-      input.class_name,
-      input.section,
-      input.shift,
-      input.rolls,
-      input.q,
-      input.lang,
-      input.created_by,
+      String(input?.fair_slug ?? ""),
+      JSON.stringify(ids),
+      String(input?.class_name ?? ""),
+      String(input?.section ?? ""),
+      String(input?.shift ?? ""),
+      String(input?.rolls ?? ""),
+      String(input?.q ?? ""),
+      String(input?.lang ?? "en"),
+      String(input?.created_by ?? ""),
       stamp,
       expiresAt,
     ],
@@ -979,24 +1069,85 @@ export async function createTicketPrintJob(input: Omit<TicketPrintJob, "id" | "c
   return id;
 }
 
-/** Loads a prepared print snapshot. Expired or unknown jobs never fall back to the whole roster. */
-export async function getTicketPrintJob(id: string): Promise<TicketPrintJob | null> {
-  const rows = await query<Record<string, unknown>>(
-    `SELECT * FROM ticket_print_jobs WHERE id = ? AND expires_at > ? LIMIT 1`,
-    [id, nowIso()],
-  );
-  const row = rows[0];
-  if (!row) return null;
-  let ids: unknown = [];
+/** Why a print snapshot could not be used. Every value has a distinct operator message. */
+export type TicketPrintJobIssue = "missing" | "expired" | "unreadable" | "oversize" | "storage";
+
+export interface TicketPrintJobLookup {
+  /** `ready` is the only state the print view may render from. */
+  state: "ready" | TicketPrintJobIssue;
+  /** The snapshot itself, or `null` for every non-ready state. */
+  job: TicketPrintJob | null;
+  /** Shorthand for `job?.student_ids ?? []` so a caller can never dereference null. */
+  ids: string[];
+  /** Storage/parse detail for the server log — never shown to the browser. */
+  detail: string;
+}
+
+/** True while a snapshot timestamp is usable; a blank or broken one fails closed. */
+function ticketJobIsLive(expiresAt: unknown) {
+  const raw = String(expiresAt ?? "").trim();
+  if (!raw) return false;
+  const at = Date.parse(raw);
+  return Number.isFinite(at) && at > Date.now();
+}
+
+/**
+ * Reads one print snapshot and says *why* it can or cannot be used.
+ *
+ * This is the function the print route calls. It never throws: an unknown job,
+ * an expired job, a row whose JSON snapshot was written by an older release and
+ * even a database that is temporarily unreachable are all reported as a state
+ * the controller can turn into a sentence — instead of an unhandled exception
+ * surfacing as a server error page in front of the printer.
+ */
+export async function openTicketPrintJob(id: string): Promise<TicketPrintJobLookup> {
+  const wanted = String(id ?? "").trim();
+  const unusable = (state: TicketPrintJobIssue, detail = ""): TicketPrintJobLookup => ({ state, job: null, ids: [], detail });
+  if (!wanted) return unusable("missing", "no print job id was supplied");
+
+  let row: Record<string, unknown> | undefined;
   try {
-    ids = JSON.parse(String(row.student_ids_json ?? "[]"));
-  } catch {
-    ids = [];
+    await ensurePortal();
+    const rows = await query<Record<string, unknown>>(
+      `SELECT id, fair_slug, student_ids_json, class_name, section, shift, rolls, q, lang, created_by, created_at, expires_at
+       FROM ticket_print_jobs WHERE id = ? LIMIT 1`,
+      [wanted],
+    );
+    row = rows[0];
+  } catch (error) {
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.error(`[ticket-print-job] snapshot read failed · job=${wanted} · ${detail}`);
+    return unusable("storage", detail);
   }
-  return {
-    id: String(row.id ?? ""),
+
+  if (!row) return unusable("missing", `no print job is stored under ${wanted}`);
+  if (!ticketJobIsLive(row.expires_at)) {
+    return unusable("expired", `job ${wanted} expired at ${String(row.expires_at ?? "unknown") || "an unknown time"}`);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(String(row.student_ids_json ?? "[]"));
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error(`[ticket-print-job] snapshot is not readable JSON · job=${wanted} · ${detail}`);
+    return unusable("unreadable", detail);
+  }
+  if (!Array.isArray(parsed)) {
+    console.error(`[ticket-print-job] snapshot is not an array · job=${wanted}`);
+    return unusable("unreadable", "the stored snapshot is not a student ID array");
+  }
+
+  const { ids, oversize } = ticketJobIds(parsed);
+  if (oversize) {
+    console.error(`[ticket-print-job] snapshot holds ${parsed.length} identifiers, more than ${MAX_STUDENT_SELECTION.toLocaleString()} · job=${wanted}`);
+    return unusable("oversize", `the snapshot holds more than ${MAX_STUDENT_SELECTION} identifiers`);
+  }
+
+  const job: TicketPrintJob = {
+    id: String(row.id ?? wanted),
     fair_slug: String(row.fair_slug ?? ""),
-    student_ids: Array.isArray(ids) ? ids.map(String).filter(Boolean) : [],
+    student_ids: ids,
     class_name: String(row.class_name ?? ""),
     section: String(row.section ?? ""),
     shift: String(row.shift ?? ""),
@@ -1007,6 +1158,16 @@ export async function getTicketPrintJob(id: string): Promise<TicketPrintJob | nu
     created_at: String(row.created_at ?? ""),
     expires_at: String(row.expires_at ?? ""),
   };
+  return { state: "ready", job, ids, detail: "" };
+}
+
+/**
+ * Loads a prepared print snapshot. Expired, unknown or unreadable jobs return
+ * `null` and never fall back to the whole roster; use `openTicketPrintJob` when
+ * the reason matters (the print route does, so it can explain itself).
+ */
+export async function getTicketPrintJob(id: string): Promise<TicketPrintJob | null> {
+  return (await openTicketPrintJob(id)).job;
 }
 
 export async function recordTicketPrint(values: { fair_slug: string; student_id: string; guest_id: string; copies: number; printed_by: string; printed_by_name: string }) {
@@ -1031,7 +1192,7 @@ export async function recordTicketPrints(values: {
   printed_by_name: string;
 }) {
   await ensurePortal();
-  const ids = Array.from(new Set(values.student_ids.filter(Boolean)));
+  const ids = Array.from(new Set((Array.isArray(values.student_ids) ? values.student_ids : []).map((id) => String(id ?? "").trim()).filter(Boolean)));
   if (!ids.length) return 0;
   const copies = Math.max(1, Math.floor(values.copies ?? 1));
   const stamp = nowIso();

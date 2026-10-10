@@ -1,18 +1,21 @@
 import { defaultFairSlug, fail, ok, staff, str } from "@/lib/api";
 import { logActivity } from "@/lib/portal-db";
+import type { PortalSession } from "@/lib/portal-auth";
 import {
   createTicketPrintJob,
   paidStudentsForPrint,
   printableStudentCounts,
   recordTicketPrints,
 } from "@/lib/student-db";
-import { MAX_STUDENT_SELECTION, normalizeStudentIdentifiers, studentIdentifiersFromSearchParams } from "@/lib/student-selection";
+import { MAX_BULK_PRINT_TICKETS, MAX_STUDENT_SELECTION, normalizeStudentIdentifiers, studentIdentifiersFromSearchParams } from "@/lib/student-selection";
 import { parseRollExpression } from "@/lib/roll-range";
 
 export const dynamic = "force-dynamic";
 
 /** Four A6 portrait tickets occupy each physical A4 sheet. */
 const TICKETS_PER_A4_SHEET = 4;
+/** The same log tag as the print route, so one job can be followed across both. */
+const LOG_TAG = "students.bulk-print";
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -33,11 +36,25 @@ function hasAny(source: Record<string, unknown>, keys: string[]) {
  * Every job snapshots the exact matching PAID student IDs server-side. The
  * resulting short URL remains reliable for large selections, and the print view
  * cannot accidentally broaden a specific selection to the entire roster.
+ *
+ * The endpoint never rejects the caller with a bare crash: the print window is
+ * opened straight from this response, so anything thrown here used to arrive at
+ * the office as a server error page instead of a sentence.
  */
 export async function POST(request: Request) {
   const guard = await staff();
   if ("status" in guard) return guard;
-  const { session } = guard;
+  try {
+    return await preparePrintJob(request, guard.session);
+  } catch (error) {
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.error(`[${LOG_TAG}] print job could not be prepared · ${detail}`);
+    return fail("The print job could not be prepared. Nothing was printed — please try again, or print one class at a time.", 500);
+  }
+}
+
+/** The whole preparation, so POST owns exactly one try/catch and one fallback. */
+async function preparePrintJob(request: Request, session: PortalSession) {
   const url = new URL(request.url);
   // A malformed selection must never silently become an unfiltered whole-roster job.
   if (request.headers.get("sec-fetch-site") === "cross-site") return fail("Cross-site print requests are not allowed.", 403);
@@ -85,6 +102,11 @@ export async function POST(request: Request) {
   if (studentIds.length > MAX_STUDENT_SELECTION) {
     return fail(`A single print selection can contain up to ${MAX_STUDENT_SELECTION.toLocaleString()} students.`, 422);
   }
+  // Refusing the oversized selection here is what protects the print route: a
+  // snapshot that cannot be rendered as one A4 stream is never created at all.
+  if (studentIds.length > MAX_BULK_PRINT_TICKETS) {
+    return fail(`One print run prints up to ${MAX_BULK_PRINT_TICKETS.toLocaleString()} tickets (${Math.ceil(MAX_BULK_PRINT_TICKETS / TICKETS_PER_A4_SHEET).toLocaleString()} A4 pages). This selection holds ${studentIds.length.toLocaleString()} — print it class by class.`, 422);
+  }
 
   const parsedRolls = scope.rolls ? parseRollExpression(scope.rolls) : { rolls: new Set<string>(), error: "" };
   if (parsedRolls.error) return fail(parsedRolls.error, 422);
@@ -101,7 +123,9 @@ export async function POST(request: Request) {
 
   const [counts, students] = await Promise.all([
     printableStudentCounts(filter),
-    paidStudentsForPrint(filter),
+    // One row beyond the ceiling is all the check needs, so the worst case is
+    // bounded even when the scope is "the whole roster".
+    paidStudentsForPrint(filter, { maxRows: MAX_BULK_PRINT_TICKETS + 1 }),
   ]);
   if (!students.length) {
     return fail(
@@ -110,6 +134,11 @@ export async function POST(request: Request) {
         : "No students match this selection.",
       422,
     );
+  }
+  // A scope filter without explicit IDs can still widen past the ceiling; say so
+  // before a job that the print view would have to refuse is saved.
+  if (students.length > MAX_BULK_PRINT_TICKETS) {
+    return fail(`This scope holds ${counts.paid.toLocaleString()} paid students, and one print run prints up to ${MAX_BULK_PRINT_TICKETS.toLocaleString()} tickets. Print it class by class or shift by shift.`, 422);
   }
 
   const printedIds = students.map((student) => student.id);
@@ -129,13 +158,20 @@ export async function POST(request: Request) {
     lang,
     created_by: session.user.id,
   });
+  if (!jobId) return fail("The print selection could not be saved — it holds more students than a print job may carry. Please print class by class.", 422);
 
+  // The audit trail is a record *about* a print run. Failing to write one must not
+  // cost the operator the tickets that are already prepared, so it is logged and
+  // reported rather than allowed to abort the response.
   const recorded = await recordTicketPrints({
     fair_slug: fair,
     student_ids: printedIds,
     copies: 1,
     printed_by: session.user.id,
     printed_by_name: session.user.name,
+  }).catch((error: unknown) => {
+    console.error(`[${LOG_TAG}] print audit rows skipped · job=${jobId} · ${error instanceof Error ? error.message : String(error)}`);
+    return -1;
   });
 
   const scopeLabel = hasExplicitIds
@@ -150,7 +186,9 @@ export async function POST(request: Request) {
     action: "tickets.bulk_print",
     entity: "students",
     entity_id: fair,
-    detail: `${recorded} ticket(s) prepared · ${scopeLabel} · ${Math.max(0, counts.total - students.length)} unpaid excluded`,
+    detail: `${Math.max(0, recorded)} ticket(s) prepared · ${scopeLabel} · ${Math.max(0, counts.total - students.length)} unpaid excluded · job ${jobId}`,
+  }).catch((error: unknown) => {
+    console.error(`[${LOG_TAG}] activity log skipped · job=${jobId} · ${error instanceof Error ? error.message : String(error)}`);
   });
 
   const params = new URLSearchParams({ job: jobId });
@@ -158,12 +196,13 @@ export async function POST(request: Request) {
 
   return ok({
     url: `/sf/print/tickets?${params.toString()}`,
+    job: jobId,
     paid: students.length,
     unpaid: Math.max(0, counts.total - students.length),
     total: counts.total,
     excluded: Math.max(0, counts.total - students.length),
     sheets_total: Math.ceil(students.length / TICKETS_PER_A4_SHEET),
     tickets_per_sheet: TICKETS_PER_A4_SHEET,
-    recorded,
+    recorded: Math.max(0, recorded),
   });
 }

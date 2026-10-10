@@ -157,6 +157,37 @@
     font-size: 12.5px;
     font-weight: 600;
   }
+
+  /* ---------- Notice: a print job that cannot be rendered -----------------
+     Replaces what used to be a blank page (or a server error) with a sentence
+     and the two actions that recover from it. Screen-only, like the toolbar. */
+  .ticket-bulk-notice {
+    justify-content: flex-start;
+    align-items: center;
+    gap: 14px;
+    border: 1px solid rgba(255, 196, 128, .38);
+    background: rgba(46, 26, 8, .88);
+  }
+  .ticket-bulk-notice-copy {
+    display: grid;
+    gap: 4px;
+    flex: 1 1 320px;
+    min-width: 0;
+  }
+  .ticket-bulk-notice-title {
+    margin: 0;
+    color: #ffe9b8;
+    font-size: 14px;
+    font-weight: 800;
+  }
+  .ticket-bulk-notice-code {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
 }
 
 /* ---------- Print contract ------------------------------------------------
