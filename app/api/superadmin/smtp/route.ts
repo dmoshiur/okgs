@@ -5,6 +5,18 @@ import { encryptSmtpPassword } from "@/lib/smtp-secrets";
 import { mailAvailable, sendMail } from "@/lib/mailer";
 
 export const dynamic = "force-dynamic";
+// AES-GCM uses node:crypto and the route must not be deployed to an Edge runtime.
+export const runtime = "nodejs";
+
+async function readJsonObject(request: Request): Promise<Record<string, unknown> | null> {
+  try {
+    const body: unknown = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+    return body as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
 
 function authResponse(error: unknown) {
   if (error instanceof Error && error.message === "UNAUTHORIZED") return NextResponse.json({ error: "Sign in required." }, { status: 401 });
@@ -42,9 +54,13 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  let stage = "authorization";
   try {
     const session = await requireSuperAdmin();
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    stage = "request body parsing";
+    const body = await readJsonObject(request);
+    if (!body) return NextResponse.json({ error: "Send a valid JSON request body." }, { status: 400 });
+
     const host = String(body.host ?? "").trim();
     const fromEmail = String(body.from_email ?? "").trim().toLowerCase();
     const replyTo = String(body.reply_to ?? "").trim().toLowerCase();
@@ -54,6 +70,7 @@ export async function PUT(request: Request) {
     const enabled = body.enabled === true || Number(body.enabled) === 1;
     const secure = body.secure === true || Number(body.secure) === 1;
     const port = Number(body.port ?? 587);
+    stage = "load current settings";
     const current = await getSmtpSettings();
 
     if (enabled && !host) return NextResponse.json({ error: "Enter the SMTP host before enabling mail." }, { status: 422 });
@@ -63,16 +80,19 @@ export async function PUT(request: Request) {
     if (enabled && username && !password && (clearPassword || !current?.password_encrypted)) return NextResponse.json({ error: "Enter the SMTP password for this account." }, { status: 422 });
 
     let encrypted = current?.password_encrypted ?? "";
+    stage = "encrypt password";
     try {
       if (password) encrypted = encryptSmtpPassword(password);
       else if (clearPassword) encrypted = "";
     } catch (error) {
+      console.error("[smtp:put] password encryption failed", error);
       const message = error instanceof Error && error.message === "SMTP_CONFIG_SECRET_OR_SESSION_SECRET_REQUIRED"
         ? "Set SMTP_CONFIG_SECRET (or SESSION_SECRET) in the deployment environment before saving SMTP credentials."
         : "SMTP password encryption failed.";
       return NextResponse.json({ error: message }, { status: 503 });
     }
 
+    stage = "persist settings";
     const saved = await saveSmtpSettings({
       host,
       port,
@@ -84,6 +104,7 @@ export async function PUT(request: Request) {
       reply_to: replyTo,
       enabled: enabled ? 1 : 0,
     });
+    stage = "write activity log";
     await logActivity({
       actor_id: session.id,
       actor_name: session.name,
@@ -92,35 +113,43 @@ export async function PUT(request: Request) {
       entity: "smtp_settings",
       detail: `${saved.host}:${saved.port} · ${saved.enabled ? "enabled" : "disabled"}`,
     });
-    return NextResponse.json({ ok: true, saved: true, password_set: Boolean(saved.password_encrypted), available: await mailAvailable() });
+    stage = "check mail availability";
+    const available = await mailAvailable();
+    return NextResponse.json({ ok: true, saved: true, password_set: Boolean(saved.password_encrypted), available });
   } catch (error) {
     const auth = authResponse(error);
     if (auth) return auth;
-    console.error("[smtp:put]", error);
+    console.error(`[smtp:put] failed during ${stage}`, error);
     return NextResponse.json({ error: "SMTP settings could not be saved." }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
+  let stage = "authorization";
   try {
     const session = await requireSuperAdmin();
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    stage = "request body parsing";
+    const body = await readJsonObject(request);
+    if (!body) return NextResponse.json({ error: "Send a valid JSON request body." }, { status: 400 });
     const to = String(body.to ?? "").trim().toLowerCase();
     if (!isEmailAddress(to)) return NextResponse.json({ error: "Enter a valid test-recipient email." }, { status: 422 });
+    stage = "check mail configuration";
     if (!(await mailAvailable())) return NextResponse.json({ error: "Configure and enable SMTP or Resend before sending a test." }, { status: 409 });
+    stage = "send test message";
     const result = await sendMail({
       to,
       subject: "OKGS SMTP test",
       text: "This is a test message from the OKGS SuperAdmin console. Email delivery is configured.",
       html: "<p>This is a test message from the OKGS SuperAdmin console. Email delivery is configured.</p>",
     });
+    stage = "write activity log";
     await logActivity({ actor_id: session.id, actor_name: session.name, actor_role: session.role, action: "mail.smtp.test", entity: "smtp_settings", detail: `${to} · ${result.delivered ? "delivered" : "failed"}` });
     if (!result.delivered) return NextResponse.json({ error: result.error || "The test message could not be sent." }, { status: 502 });
     return NextResponse.json({ ok: true, delivered: true, provider: result.provider });
   } catch (error) {
     const auth = authResponse(error);
     if (auth) return auth;
-    console.error("[smtp:test]", error);
+    console.error(`[smtp:test] failed during ${stage}`, error);
     return NextResponse.json({ error: "The SMTP test could not be sent." }, { status: 500 });
   }
 }

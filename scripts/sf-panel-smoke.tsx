@@ -3,7 +3,7 @@
  *
  * No browser is available in CI, so these assertions pin the contracts the bug
  * report was about: the global bottom nav, the English-only staff copy, the exact
- * .xlsx header row, the roll-range parser behind class-wise payment, the landscape
+ * .xlsx header row, the roll-range parser behind class-wise payment, the portrait
  * ticket markup and the rule that no UI state may live in the browser's storage.
  */
 import assert from "node:assert/strict";
@@ -110,7 +110,7 @@ assert.match(students, /section: filters\.section/, "bulk marking honours the se
 assert.match(students, /shift: filters\.shift/, "bulk marking honours the shift filter");
 pass("bulk payment filters by class/section/shift and expands 1, 2, 5, 8-12 into rolls");
 
-// ---------- 6 · landscape ticket -----------------------------------------
+// ---------- 6 · portrait ticket ------------------------------------------
 const html = renderToStaticMarkup(
   <TicketSheet
     kind="student"
@@ -157,11 +157,13 @@ assert.match(html, /Mother&#x27;s name|Mother's name/);
 assert.ok(html.includes("আব্দুল করিম") && html.includes("Mama") && html.includes("Fufa") && html.includes("Chacha"), "every registered guardian is listed");
 assert.match(html, /src="\/api\/qr\?token=demo"/, "the QR is rendered by the server from the signed token");
 assert.match(html, /ticket-pill is-paid/, "payment status is printed");
-assert.match(css, /@page\s*\{\s*size: A4 landscape/, "print stylesheet forces A4 landscape");
-assert.match(css, /\.ticket-sheet\s*\{[^}]*aspect-ratio: 297 \/ 210/, "the preview keeps the A4 landscape ratio");
+assert.match(css, /@page ticket-portrait\s*\{ size: A4 portrait; margin: 0\.5in; \}/, "the ticket uses its own A4 portrait print page");
+assert.match(css, /\.ticket-sheet\s*\{[^}]*aspect-ratio: 210 \/ 297/, "the preview keeps the A4 portrait ratio");
+assert.match(css, /\.ticket-body\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/, "photo, details and QR stack vertically");
+assert.match(css, /\.ticket-grid\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/, "ticket fields stay readable in two portrait columns");
 assert.match(css, /\.ticket-print-root\s*\{[^}]*min-height: 100vh/, "the ticket fills the screen");
 assert.match(css, /@media print[\s\S]{0,400}\.ticket-toolbar[\s\S]{0,80}display: none/, "the toolbar never prints");
-pass("ticket sheet renders family + guardian block, photo, pill and QR for A4 landscape");
+pass("portrait ticket sheet renders family + guardian block, photo, pill and QR");
 
 // ---------- 7 · gate log timestamps --------------------------------------
 const stamp = formatDateTimeEn("2026-10-08T14:03:36.351Z");

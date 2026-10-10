@@ -2,7 +2,7 @@
 
 /**
  * Toolbar above the printed sheets. Screen-only (`no-print`), and the one piece
- * of UI a teacher needs on a phone: a full-screen landscape preview, the number
+ * of UI a teacher needs on a phone: a full-screen portrait preview, the number
  * of copies, the sheet language, and whether the print dialog opens by itself.
  *
  * Nothing here is remembered in the browser — the copy count and the language
@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Languages, Maximize2, Minimize2, Printer, RotateCw } from "lucide-react";
+import { Languages, Maximize2, Minimize2, Printer } from "lucide-react";
 import { ticketLangOptions, type TicketLang } from "@/lib/ticket-locale";
 
 export function TicketToolbar({
@@ -35,7 +35,6 @@ export function TicketToolbar({
   const router = useRouter();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [full, setFull] = useState(false);
-  const [portrait, setPortrait] = useState(false);
 
   const href = useCallback(
     (next: number, nextAuto: boolean, nextLang?: TicketLang) => {
@@ -54,18 +53,6 @@ export function TicketToolbar({
     const sync = () => setFull(Boolean(document.fullscreenElement));
     document.addEventListener("fullscreenchange", sync);
     return () => document.removeEventListener("fullscreenchange", sync);
-  }, []);
-
-  // A phone held upright prints a cropped ticket — nudge towards landscape.
-  useEffect(() => {
-    const check = () => setPortrait(window.innerHeight > window.innerWidth && window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    window.addEventListener("orientationchange", check);
-    return () => {
-      window.removeEventListener("resize", check);
-      window.removeEventListener("orientationchange", check);
-    };
   }, []);
 
   async function toggleFull() {
@@ -119,11 +106,6 @@ export function TicketToolbar({
       <button type="button" className="ticket-print-now" onClick={() => window.print()}>
         <Printer size={15} /> Print {copies === 1 ? "ticket" : `${copies} tickets`}
       </button>
-      {portrait ? (
-        <p className="ticket-rotate-hint">
-          <RotateCw size={14} /> Turn the phone sideways — the ticket is laid out for landscape paper.
-        </p>
-      ) : null}
     </div>
   );
 }
