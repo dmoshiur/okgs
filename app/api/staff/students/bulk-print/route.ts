@@ -1,79 +1,139 @@
 import { defaultFairSlug, fail, ok, staff, str } from "@/lib/api";
 import { logActivity } from "@/lib/portal-db";
-import { paidStudentsForPrint, printableStudentCounts, recordTicketPrints } from "@/lib/student-db";
+import {
+  createTicketPrintJob,
+  paidStudentsForPrint,
+  printableStudentCounts,
+  recordTicketPrints,
+} from "@/lib/student-db";
+import { MAX_STUDENT_SELECTION, normalizeStudentIdentifiers, studentIdentifiersFromSearchParams } from "@/lib/student-selection";
 import { parseRollExpression } from "@/lib/roll-range";
 
 export const dynamic = "force-dynamic";
 
-/** Tickets per print run — a whole number of A4 pages, four tickets each. */
-const TICKETS_PER_PAGE = 4;
-const MAX_RUN = 100;
-/** Audit rows written for one bulk job. A whole-school job is asked to narrow the scope. */
-const MAX_JOB_ROWS = 500;
+/** Four A6 portrait tickets occupy each physical A4 sheet. */
+const TICKETS_PER_A4_SHEET = 4;
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function hasAny(source: Record<string, unknown>, keys: string[]) {
+  return keys.some((key) => Object.prototype.hasOwnProperty.call(source, key));
+}
 
 /**
  * POST /api/staff/students/bulk-print
  *
- * Body: `{ fair_slug?, class_name?, section?, shift?, rolls?, size?, page?, lang? }`
+ * Accepts filters and explicit student IDs in either the JSON payload or query
+ * string. Explicit IDs (database IDs or roster student codes) and roll ranges
+ * are applied in SQL. With no explicit IDs/rolls, the requested class/search
+ * scope is used; with no scope, all PAID roster students are included.
  *
- * Resolves the scope, reports how many students are PAID (and how many are
- * therefore excluded), writes one `ticket_prints` row per student in the job so
- * the audit log answers "who printed Class 8 and when", and returns the URL of
- * the A4 sheet for the browser to open.
- *
- * The PAID filter lives in the query, not in the client — an unpaid student can
- * never reach a printed ticket.
+ * Every job snapshots the exact matching PAID student IDs server-side. The
+ * resulting short URL remains reliable for large selections, and the print view
+ * cannot accidentally broaden a specific selection to the entire roster.
  */
 export async function POST(request: Request) {
   const guard = await staff();
   if ("status" in guard) return guard;
   const { session } = guard;
+  const url = new URL(request.url);
+  const body = record(await request.json().catch(() => ({})));
+  const nestedScope = record(body.scope);
+  const queryIds = studentIdentifiersFromSearchParams(url.searchParams);
 
-  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-  const fair = str(body.fair_slug) || (await defaultFairSlug());
-  const scope = {
-    class_name: str(body.class_name),
-    section: str(body.section),
-    shift: str(body.shift),
-    rolls: str(body.rolls),
+  const read = (keys: string[], queryKeys = keys, joinQueryValues = false) => {
+    for (const source of [body, nestedScope]) {
+      for (const key of keys) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) return source[key];
+      }
+    }
+    for (const key of queryKeys) {
+      const values = url.searchParams.getAll(key);
+      if (values.length) return joinQueryValues ? values.join(",") : values[0];
+    }
+    return "";
   };
 
-  const parsed = scope.rolls ? parseRollExpression(scope.rolls) : { rolls: new Set<string>(), error: "" };
-  if (parsed.error) return fail(parsed.error, 422);
+  const fair = str(read(["fair_slug", "fair"])) || (await defaultFairSlug());
+  const scope = {
+    class_name: str(read(["class_name", "class"])),
+    section: str(read(["section"])),
+    shift: str(read(["shift"])),
+    rolls: str(read(["rolls", "roll"], ["rolls", "roll"], true)),
+    q: str(read(["q", "search"])),
+  };
 
-  const filter = { fair_slug: fair, ...scope, rolls: parsed.rolls };
-  const counts = await printableStudentCounts(filter);
-  if (!counts.paid) {
+  const bodyIdKeys = ["student_ids", "student_id", "selected_student_ids", "ids", "id"];
+  const bodyHasIds = hasAny(body, bodyIdKeys) || hasAny(nestedScope, bodyIdKeys);
+  let hasExplicitIds = bodyHasIds || queryIds.provided;
+  let studentIds = bodyHasIds
+    ? normalizeStudentIdentifiers(...bodyIdKeys.flatMap((key) => [body[key], nestedScope[key]]))
+    : queryIds.ids;
+
+  if (hasExplicitIds && !studentIds.length) return fail("Provide at least one valid student ID to print.", 422);
+  if (studentIds.length > MAX_STUDENT_SELECTION) {
+    return fail(`A single print selection can contain up to ${MAX_STUDENT_SELECTION.toLocaleString()} students.`, 422);
+  }
+
+  const parsedRolls = scope.rolls ? parseRollExpression(scope.rolls) : { rolls: new Set<string>(), error: "" };
+  if (parsedRolls.error) return fail(parsedRolls.error, 422);
+
+  const filter = {
+    fair_slug: fair,
+    class_name: scope.class_name,
+    section: scope.section,
+    shift: scope.shift,
+    q: scope.q,
+    rolls: parsedRolls.rolls,
+    ...(hasExplicitIds ? { student_ids: studentIds } : {}),
+  };
+
+  const [counts, students] = await Promise.all([
+    printableStudentCounts(filter),
+    paidStudentsForPrint(filter),
+  ]);
+  if (!students.length) {
     return fail(
       counts.total
-        ? `No PAID students in this scope — ${counts.unpaid} student(s) have not paid yet.`
-        : "No students match this scope.",
+        ? `No PAID students in this selection — ${counts.unpaid} student(s) have not paid yet.`
+        : "No students match this selection.",
       422,
     );
   }
 
-  const size = Math.min(MAX_RUN, Math.max(TICKETS_PER_PAGE, Math.round((Number(body.size) || 20) / TICKETS_PER_PAGE) * TICKETS_PER_PAGE));
-  // `runs` counts how many times the office presses print; `sheets` counts A4
-  // pages (four tickets each). The two are different numbers and both are useful.
-  const runs = Math.max(1, Math.ceil(counts.paid / size));
-  const page = Math.min(runs, Math.max(1, Math.floor(Number(body.page) || 1)));
-  const sheetsInRun = Math.ceil(Math.min(size, counts.paid - (page - 1) * size) / TICKETS_PER_PAGE);
-  const lang = ["bn", "both"].includes(str(body.lang).toLowerCase()) ? str(body.lang).toLowerCase() : "";
+  const printedIds = students.map((student) => student.id);
+  const langValue = str(read(["lang"])).toLowerCase();
+  const lang = langValue === "bn" || langValue === "both" ? langValue : "en";
 
-  // The job covers the printed run; the audit write is capped so a whole-school
-  // print cannot turn into a 5,000-row transaction.
-  const jobStudents = await paidStudentsForPrint({ ...filter, limit: Math.min(size, MAX_JOB_ROWS), offset: (page - 1) * size });
+  // Keep the exact paid roster snapshot out of the URL. This supports selections
+  // of hundreds or thousands of students without request-line length limits.
+  const jobId = await createTicketPrintJob({
+    fair_slug: fair,
+    student_ids: printedIds,
+    class_name: scope.class_name,
+    section: scope.section,
+    shift: scope.shift,
+    rolls: scope.rolls,
+    q: scope.q,
+    lang,
+    created_by: session.user.id,
+  });
+
   const recorded = await recordTicketPrints({
     fair_slug: fair,
-    student_ids: jobStudents.map((student) => student.id),
+    student_ids: printedIds,
     copies: 1,
     printed_by: session.user.id,
     printed_by_name: session.user.name,
   });
 
-  const scopeLabel = [scope.class_name, scope.section ? `section ${scope.section}` : "", scope.shift ? `${scope.shift} shift` : "", scope.rolls ? `rolls ${scope.rolls}` : ""]
-    .filter(Boolean)
-    .join(" · ");
+  const scopeLabel = hasExplicitIds
+    ? `${printedIds.length} selected student(s)`
+    : [scope.class_name, scope.section ? `section ${scope.section}` : "", scope.shift ? `${scope.shift} shift` : "", scope.rolls ? `rolls ${scope.rolls}` : "", scope.q ? `search ${scope.q}` : ""]
+        .filter(Boolean)
+        .join(" · ") || "whole roster";
   await logActivity({
     actor_id: session.user.id,
     actor_name: session.user.name,
@@ -81,31 +141,20 @@ export async function POST(request: Request) {
     action: "tickets.bulk_print",
     entity: "students",
     entity_id: fair,
-    detail: `${recorded} ticket(s) printed · ${scopeLabel || "whole roster"} · ${counts.unpaid} unpaid excluded`,
+    detail: `${recorded} ticket(s) prepared · ${scopeLabel} · ${Math.max(0, counts.total - students.length)} unpaid excluded`,
   });
 
-  const params = new URLSearchParams();
-  if (fair) params.set("fair", fair);
-  if (scope.class_name) params.set("class", scope.class_name);
-  if (scope.section) params.set("section", scope.section);
-  if (scope.shift) params.set("shift", scope.shift);
-  if (scope.rolls) params.set("rolls", scope.rolls);
-  if (size !== 20) params.set("size", String(size));
-  if (page > 1) params.set("page", String(page));
-  if (lang) params.set("lang", lang);
+  const params = new URLSearchParams({ job: jobId });
+  if (lang !== "en") params.set("lang", lang);
 
   return ok({
     url: `/sf/print/tickets?${params.toString()}`,
-    paid: counts.paid,
-    unpaid: counts.unpaid,
+    paid: students.length,
+    unpaid: Math.max(0, counts.total - students.length),
     total: counts.total,
-    excluded: counts.unpaid,
-    runs,
-    run: page,
-    sheets_in_run: sheetsInRun,
-    sheets_total: Math.ceil(counts.paid / TICKETS_PER_PAGE),
-    size,
-    per_page: TICKETS_PER_PAGE,
+    excluded: Math.max(0, counts.total - students.length),
+    sheets_total: Math.ceil(students.length / TICKETS_PER_A4_SHEET),
+    tickets_per_sheet: TICKETS_PER_A4_SHEET,
     recorded,
   });
 }
