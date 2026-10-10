@@ -19,7 +19,6 @@ export function TicketToolbar({
   guestId,
   auto,
   hint,
-  total,
   lang,
 }: {
   copies: number;
@@ -27,8 +26,6 @@ export function TicketToolbar({
   guestId?: string;
   auto: boolean;
   hint: string;
-  /** Names of the copies, e.g. ["Student copy", "Parent copy", "Parent copy"]. */
-  total: string[];
   /** When set, the language toggle is shown and written back to `?lang=`. */
   lang?: TicketLang;
 }) {
@@ -74,7 +71,6 @@ export function TicketToolbar({
             onClick={() => router.push(href(value, auto, lang))}
           >
             {value}
-            <small>{total[value - 1] ? `— ${total[value - 1]}` : ""}</small>
           </button>
         ))}
       </div>

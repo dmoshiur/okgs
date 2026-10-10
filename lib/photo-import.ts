@@ -26,6 +26,9 @@ export interface PhotoEntry {
   key: string;
   match: PhotoMatchKey;
   photo_url: string;
+  /** Optional parent photo URLs synced in the same pass. */
+  father_photo_url?: string;
+  mother_photo_url?: string;
   /** Row number as the office sees it in Excel (1-based). */
   row: number;
 }
@@ -53,6 +56,9 @@ export const photoImportColumns = {
   code: ["ID", "STUDENT ID", "STUDENT_ID", "SCHOOL ID", "STUDENT CODE", "ADMISSION NO", "আইডি", "স্কুল আইডি"],
   roll: ["ROLL", "ROLL NO", "ROLL NO.", "ROLL NUMBER", "রোল", "রোল নম্বর"],
   photo: ["PHOTO", "PHOTO URL", "PHOTO_URL", "PICTURE", "IMAGE", "IMAGE URL", "CLOUDINARY URL", "LINK", "ছবি", "ছবির লিংক"],
+  /** Optional parent columns — synced in the same pass when present. */
+  fatherPhoto: ["FATHER PHOTO", "FATHER PHOTO URL", "FATHER_PHOTO_URL", "FATHER PICTURE", "FATHER IMAGE", "পিতার ছবি"],
+  motherPhoto: ["MOTHER PHOTO", "MOTHER PHOTO URL", "MOTHER_PHOTO_URL", "MOTHER PICTURE", "MOTHER IMAGE", "মাতার ছবি"],
 } as const;
 
 const EMPTY_RESULT: PhotoImportParse = {
@@ -101,6 +107,8 @@ function locatePhotoHeader(rows: unknown[][]) {
     const code = find(photoImportColumns.code);
     const roll = find(photoImportColumns.roll);
     const photo = find(photoImportColumns.photo);
+    const fatherPhoto = find(photoImportColumns.fatherPhoto);
+    const motherPhoto = find(photoImportColumns.motherPhoto);
     // A photo column plus one key column is the minimum usable sheet.
     if (photo && (code || roll)) {
       return {
@@ -108,6 +116,8 @@ function locatePhotoHeader(rows: unknown[][]) {
         code: code?.position,
         roll: roll?.position,
         photo: photo.position,
+        fatherPhoto: fatherPhoto?.position,
+        motherPhoto: motherPhoto?.position,
         columns: { code: code?.label ?? "", roll: roll?.label ?? "", photo: photo.label },
       };
     }
@@ -142,7 +152,9 @@ export function parsePhotoSheet(rows: unknown[][]): PhotoImportParse {
     const code = toLatinDigits(at(header.code)).trim();
     const roll = toLatinDigits(at(header.roll)).trim();
     const photo = at(header.photo);
-    if (!code && !roll && !photo) continue;
+    const fatherPhoto = at(header.fatherPhoto);
+    const motherPhoto = at(header.motherPhoto);
+    if (!code && !roll && !photo && !fatherPhoto && !motherPhoto) continue;
 
     total += 1;
     const excelRow = rowIndex + 1;
@@ -168,7 +180,11 @@ export function parsePhotoSheet(rows: unknown[][]): PhotoImportParse {
     }
     seen.add(dedupeKey);
     if (!isCloudinaryPhoto(photo)) nonCloudinary += 1;
-    entries.push({ key, match, photo_url: photo, row: excelRow });
+    // Parent photos are optional columns; invalid cells are dropped, not fatal.
+    const entry: PhotoEntry = { key, match, photo_url: photo, row: excelRow };
+    if (isPhotoUrl(fatherPhoto)) entry.father_photo_url = fatherPhoto;
+    if (isPhotoUrl(motherPhoto)) entry.mother_photo_url = motherPhoto;
+    entries.push(entry);
   }
 
   return { entries, errors, total, headerRow: header.rowIndex + 1, nonCloudinary, columns: header.columns };
@@ -181,13 +197,23 @@ export function parsePhotoCsv(text: string): PhotoImportParse {
 }
 
 /** The sheet the office should fill in — served as a download from the panel. */
-export function photoTemplateCsv(sample?: { student_id: string; roll: string; photo_url: string }[]) {
+export function photoTemplateCsv(sample?: { student_id: string; roll: string; photo_url: string; father_photo_url?: string; mother_photo_url?: string }[]) {
   const rows = sample ?? [
-    { student_id: "2026-0101", roll: "1", photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/students/2026-0101.jpg" },
+    {
+      student_id: "2026-0101",
+      roll: "1",
+      photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/students/2026-0101.jpg",
+      father_photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/fathers/2026-0101.jpg",
+      mother_photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/mothers/2026-0101.jpg",
+    },
     { student_id: "2026-0102", roll: "2", photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/students/2026-0102.jpg" },
   ];
   return [
-    "student_id,roll,photo_url",
-    ...rows.map((row) => [row.student_id, row.roll, row.photo_url].map((value) => (/[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value)).join(",")),
+    "student_id,roll,photo_url,father_photo_url,mother_photo_url",
+    ...rows.map((row) =>
+      [row.student_id, row.roll, row.photo_url, row.father_photo_url ?? "", row.mother_photo_url ?? ""]
+        .map((value) => (/[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value))
+        .join(","),
+    ),
   ].join("\n");
 }

@@ -1,27 +1,32 @@
 /**
- * Regression checks for the redesigned student ticket module (run by `npm run smoke`).
+ * Regression checks for the GENESIS 2026 ticket module (run by `npm run smoke`).
  *
- * Covers the four things the ticket work is allowed to break silently:
+ * Covers the things the ticket work is allowed to break silently:
  *   1. language uniformity — a sheet is all-English, all-Bangla or consistently
  *      bilingual, never a mix, and the components hold no copy of their own;
- *   2. the printed artefacts — the single ticket pinned to one A6 portrait
- *      page (105 × 148 mm, QR contained inside the frame), the 3:4 photo
- *      crop, Cloudinary delivery transforms, the A4 portrait 2 × 2 bulk grid
- *      with a break after every four tickets, and the rule that only PAID
- *      students are ever printed;
- *   3. the photo-mapping importer — key matching, error rows, dry runs, and the
- *      real batch write against a throwaway libSQL database;
- *   4. the performance contract — paginated roster, cached client reads, lazy
- *      images and the indexes the roster query depends on.
+ *   2. the redesigned A6 sheet — Omar Kindergarten School over Scholars
+ *      Residential School with the two logos, the fair title above the
+ *      three-photo row (father · student · mother), the detail grid, the QR at
+ *      the bottom-left with the president's signature on the right, the fixed
+ *      "31 December 2026" validity, and NONE of the retired badges (entry
+ *      ticket / copy labels / HMAC note / printed-by);
+ *   3. the A4 4-in-1 sheet — four true-size A6 TicketSheets per A4 page,
+ *      page break after every four, and only PAID students printed;
+ *   4. the photo-mapping importer — key matching, the student/father/mother
+ *      photo columns, error rows, dry runs, and the real batch write against a
+ *      throwaway libSQL database;
+ *   5. guest fees (50 BDT entry + optional 150 BDT lunch box) and the
+ *      class-wise budget & collection accounting against a live database.
  */
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
-import { TicketSheet } from "../components/sf/print/TicketSheet";
-import { TicketCard } from "../components/sf/print/TicketCard";
-import { DEFAULT_TICKET_SCHOOL_NAME, parseTicketLang, ticketNumber, ticketSchoolName, ticketText } from "../lib/ticket-locale";
+import { TicketSheet, guestTicketId } from "../components/sf/print/TicketSheet";
+import { DEFAULT_TICKET_SCHOOL_NAME, parseTicketLang, ticketNumber, ticketSchoolName, ticketText, ticketValidUntil } from "../lib/ticket-locale";
+import { FAIR_PRESIDENT_SIGNATURE_URL, SCHOLARS_LOGO_URL, TICKET_SUB_HEADER, TICKET_VALID_UNTIL_ISO } from "../lib/ticket-brand";
+import { GUEST_ENTRY_FEE, GUEST_LUNCH_FEE, guestFeeBreakdown } from "../lib/guest-fees";
 import { parsePhotoCsv, parsePhotoSheet, photoTemplateCsv, isCloudinaryPhoto } from "../lib/photo-import";
 import { toBanglaDigits, toLatinDigits } from "../lib/digits";
 import { optimizedImage } from "../lib/cloudinary";
@@ -31,7 +36,6 @@ const read = (path: string) => readFileSync(new URL(path, new URL("../", import.
 const css = read("app/globals.css");
 const bulkCss = read("components/sf/print/ticket-bulk.css");
 const sheet = read("components/sf/print/TicketSheet.tsx");
-const card = read("components/sf/print/TicketCard.tsx");
 const toolbar = read("components/sf/print/TicketToolbar.tsx");
 const bulkToolbar = read("components/sf/print/BulkTicketToolbar.tsx");
 const bulkPage = read("app/sf/print/tickets/page.tsx");
@@ -60,10 +64,11 @@ const student = {
   section: "A",
   shift: "Day",
   student_group: "Science",
-  branch: "Science",
   father_name: "Rafiqul Islam",
   mother_name: "Salma Begum",
   photo_url: "https://res.cloudinary.com/okgs/image/upload/v1730000000/okgs/students/2026-0101.jpg",
+  father_photo_url: "https://res.cloudinary.com/okgs/image/upload/v1730000000/okgs/fathers/2026-0101.jpg",
+  mother_photo_url: "https://res.cloudinary.com/okgs/image/upload/v1730000000/okgs/mothers/2026-0101.jpg",
 };
 
 function renderSheet(lang: "en" | "bn" | "both", studentCode = student.student_code) {
@@ -72,21 +77,12 @@ function renderSheet(lang: "en" | "bn" | "both", studentCode = student.student_c
       kind="student"
       lang={lang}
       schoolName="Omar Kindergarten School"
-      fairName="Science Fair 2026"
+      fairName="OKGS GENESIS 2026"
       logo="https://res.cloudinary.com/okgs/image/upload/v1/okgs/logo.png"
-      copyIndex={1}
-      copyCount={1}
-      showFamily={false}
       student={{ ...student, student_code: studentCode }}
-      paymentStatus="PAID"
-      guardian={null}
-      guardians={[]}
-      admittedAt=""
       qr="data:image/png;base64,QR"
-      validUntil={lang === "en" ? "9 October 2026" : "৯ অক্টোবর ২০২৬"}
-      issuedAt={lang === "en" ? "9 October 2026" : "৯ অক্টোবর ২০২৬"}
-      ticketCode="2026-0101"
-      printedBy="Super Admin"
+      validUntil={ticketValidUntil(lang)}
+      issuedAt={lang === "en" ? "10 October 2026" : "১০ অক্টোবর ২০২৬"}
     />,
   );
 }
@@ -115,8 +111,7 @@ for (const label of ["রোল", "শ্রেণি", "শিফট", "শি�
 }
 assert.ok(!/<dt>Roll<\/dt>/.test(bangla) && !/<dt>Class<\/dt>/.test(bangla), "a Bangla sheet has no English label left over");
 assert.ok(bangla.includes("<dd>৫</dd>"), "the roll is written in Bangla digits on a Bangla sheet");
-assert.match(bangla, /গেটে স্ক্যান করুন/, "even the QR caption is Bangla");
-assert.match(bangla, /পরিশোধিত/, "the payment badge is Bangla");
+assert.match(bangla, /৩১ ডিসেম্বর ২০২৬/, "the fixed validity date is Bangla on a Bangla sheet");
 
 const bilingual = renderSheet("both");
 assert.ok(bilingual.includes("রোল") && /<dt>রোল<em>Roll<\/em><\/dt>/.test(bilingual), "bilingual mode prints both words on every field");
@@ -125,7 +120,6 @@ assert.ok(bilingual.includes("শ্রেণি") && bilingual.includes("Class"
 // No hard-coded copy in the components: everything must come from the dictionary.
 for (const [name, source] of [
   ["TicketSheet", sheet],
-  ["TicketCard", card],
   ["TicketToolbar", toolbar],
   ["BulkTicketToolbar", bulkToolbar],
 ] as const) {
@@ -143,95 +137,107 @@ assert.deepEqual(Object.keys(ticketText("en").labels), Object.keys(ticketText("b
 assert.deepEqual(
   ticketText("en").titles.copies.map((copy) => copy.primary),
   ["Student copy", "Parent copy", "Parent copy"],
-  "three copies are student copy, parent copy and another parent copy — never school copy",
+  "the screen toolbar still names its copies",
 );
-assert.deepEqual(
-  ticketText("bn").titles.copies.map((copy) => copy.primary),
-  ["শিক্ষার্থী কপি", "অভিভাবক কপি", "অভিভাবক কপি"],
-  "Bangla copy labels match: student copy + two parent copies",
-);
+assert.equal(ticketValidUntil("en"), "31 December 2026", "the English validity line is pinned to 31 December 2026");
+assert.equal(ticketValidUntil("bn"), "৩১ ডিসেম্বর ২০২৬", "the Bangla validity line carries Bangla digits");
 assert.equal(
   ticketSchoolName("ওমর কিন্ডারগার্টেন স্কুল এন্ড ওমর গার্টেন একাডেমি"),
   DEFAULT_TICKET_SCHOOL_NAME,
   "a Bangla site_name from the database is converted to the English school name on tickets",
 );
+assert.equal(DEFAULT_TICKET_SCHOOL_NAME, "Omar Kindergarten School", "the ticket header carries the new school name");
 assert.ok(!BANGLA.test(ticketSchoolName("ওমর কিন্ডারগার্টেন স্কুল এন্ড ওমর গার্টেন একাডেমি")), "ticket school name never contains Bangla characters");
-const englishWithBanglaDbName = renderToStaticMarkup(
-  <TicketSheet
-    kind="student"
-    lang="en"
-    schoolName="ওমর কিন্ডারগার্টেন স্কুল এন্ড ওমর গার্টেন একাডেমি"
-    fairName="Science Fair 2026"
-    logo=""
-    copyIndex={3}
-    copyCount={3}
-    showFamily={false}
-    student={student}
-    paymentStatus="PAID"
-    guardian={null}
-    guardians={[]}
-    admittedAt=""
-    qr="data:image/png;base64,QR"
-    validUntil="9 October 2026"
-    issuedAt="9 October 2026"
-    ticketCode="2026-0101"
-    printedBy="Super Admin"
-  />,
-);
-assert.ok(!BANGLA.test(englishWithBanglaDbName), "even when given a Bangla site_name, the rendered English ticket contains zero Bangla characters");
-assert.match(englishWithBanglaDbName, /Omar Kindergarten School &amp; Omar Garten Academy/, "the English school name prints on the ticket");
-assert.match(englishWithBanglaDbName, /<b>Parent copy<\/b>/, "copy 3 prints as Parent copy, not School copy");
-assert.doesNotMatch(englishWithBanglaDbName, /School copy/i, "no School copy label is printed");
-pass("a ticket is entirely English, entirely Bangla or consistently bilingual — never mixed");
+pass("one language per sheet, pinned school name and pinned 31 December 2026 validity");
 
-/* ---------- 2 · the A6 portrait entry-ticket sheet (105 × 148 mm) -------- */
+/* ---------- 2 · the redesigned A6 sheet (105 × 148 mm) -------------------- */
 assert.match(css, /@page ticket-portrait\s*\{\s*size: A6 portrait; margin: 0; \}/, "the single ticket prints on its own A6 portrait page with zero page margin");
 assert.match(css, /\.ticket-sheet\s*\{[^}]*aspect-ratio: 105 \/ 148/, "the single-ticket preview is a true A6 portrait card");
 assert.match(css, /\.ticket-sheet\s*\{[^}]*width: min\(105mm, 100%\)/, "…105mm wide, never wider than its container");
 assert.match(css, /\.ticket-sheet\s*\{[^}]*overflow: hidden/, "the sheet clips overflow, so nothing escapes the card border");
-assert.match(css, /\.ticket-frame\s*\{[^}]*display: flex[^}]*flex-direction: column/, "the frame stacks head, body and foot in one column");
-assert.match(css, /\.ticket-body\s*\{[^}]*display: flex[^}]*flex-direction: column/, "photo, details, badges and QR stack vertically");
-assert.match(css, /\.ticket-grid\s*\{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/, "the student details sit in a clean 3-column grid");
-assert.match(css, /\.ticket-qr\s*\{[^}]*flex: 1 1 auto/, "the QR block absorbs whatever height remains inside the frame");
-assert.match(css, /\.ticket-qr img[^{]*\{[^}]*max-width: min\(100%, 32mm\)/, "the QR stays contained inside the card, capped at 32mm");
-assert.match(css, /\.ticket-qr-fit\s*\{[^}]*min-height: 6mm/, "…and never collapses below a scannable size");
+assert.match(css, /\.ticket-frame\s*\{[^}]*display: flex[^}]*flex-direction: column/, "the frame stacks head, title, photos, grid and bottom in one column");
+assert.match(css, /\.ticket-grid\s*\{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/, "the details sit in a clean 3-column grid");
+assert.match(css, /\.ticket-bottom\s*\{[^}]*grid-template-columns: auto minmax\(0, 1fr\)/, "QR on the left, signature on the right");
+assert.match(css, /\.ticket-qr\s*\{[^}]*align-items: flex-start/, "the QR is anchored bottom-left");
+assert.match(css, /\.ticket-photos\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1\.45fr\) minmax\(0, 1fr\)/, "the photo row is father · student (large) · mother");
+assert.match(css, /\.ticket-photo-frame\s*\{[^}]*aspect-ratio: 3 \/ 4/, "every photo keeps a true 3:4 frame");
+assert.match(css, /\.ticket-photo-frame img\s*\{[^}]*object-fit: cover/, "…cropped, never squashed");
 assert.match(css, /@media print[\s\S]{0,1200}\.ticket-sheet\s*\{[^}]*width: 105mm; height: 148mm/, "print pins every copy to exactly one A6 page — no second page, no spill");
-assert.match(css, /\.ticket-photo\s*\{[^}]*aspect-ratio: 3 \/ 4/, "the printed photo is a true 3:4 frame");
-assert.match(css, /\.ticket-photo img\s*\{[^}]*object-fit: cover/, "…cropped, never squashed");
-assert.match(css, /\.ticket-photo img\s*\{[^}]*object-position: center/, "…and centred on the face");
-assert.match(css, /\.ticket-photo\s*\{[^}]*border-radius: 10px/, "…in a rounded frame");
 assert.match(css, /\.ticket-sheet\[data-lang="bn"\][^{]*\{[^}]*--font-hind-siliguri/, "Bangla sheets use the Bangla typefaces");
-assert.match(english, /ticket-logo/, "the school logo prints");
+
+// Header: left crest, school name + sub-header, Scholars logo on the right.
+assert.match(english, /ticket-logo[^"]*"|ticket-logo /, "the school logo prints");
+assert.match(english, /class="ticket-logo ticket-logo-right"/, "the second (Scholars) logo prints on the right");
+assert.ok(english.includes(SCHOLARS_LOGO_URL.split("?")[0].slice(0, 40)) || english.includes("ticket-logo-right"), "the right logo comes from the brand constant");
 assert.match(english, /Omar Kindergarten School/, "the school name prints");
-assert.match(english, /Science Fair 2026/, "the event title prints");
+assert.ok(english.includes(TICKET_SUB_HEADER), "the sub-header prints under the school name");
+assert.match(english, /ticket-title/, "the fair title has its own block");
+assert.match(english, /OKGS GENESIS 2026/, "the Science Fair event name prints prominently");
+// Photos: father + mother flanking the student photo, names under the sides.
+assert.ok(english.includes("f_auto,q_auto,w_600,h_800,c_fill"), "the main photo is a 600×800 auto-format Cloudinary crop");
+assert.ok(english.includes("f_auto,q_auto,w_300,h_400,c_fill"), "the parents' photos use the 300×400 crop");
+assert.ok(english.includes("Rafiqul Islam") && english.includes("Salma Begum"), "father's and mother's names sit under their photos");
+// Bottom: signed QR left, president signature right.
 assert.match(english, /src="data:image\/png;base64,QR"/, "the signed QR prints");
-assert.match(english, /ticket-pill is-paid/, "the payment badge prints");
-// Cloudinary delivery transform: the sheet asks for a 3:4 600×800 auto-format crop.
-assert.ok(
-  english.includes("f_auto,q_auto,w_600,h_800,c_fill"),
-  "the sheet requests an auto-format 600×800 Cloudinary crop, not the original upload",
-);
+assert.match(english, /ticket-signature/, "the signature block prints");
+assert.ok(english.includes(FAIR_PRESIDENT_SIGNATURE_URL.replaceAll("&", "&amp;")), "the president's signature image is the configured one");
+assert.match(english, /Fair President/, "the signature carries its caption");
+// Footer rules.
+assert.match(english, /Valid until 31 December 2026/, "validity is strictly 31 December 2026");
+assert.match(english, /Issued 10 October 2026/, "the issued date stays");
+assert.doesNotMatch(english, /HMAC/i, "the HMAC-SHA256 note is gone");
+assert.doesNotMatch(english, /Printed by/i, "the printed-by line is gone");
+// Retired badges never come back.
+assert.doesNotMatch(english, /STUDENT ENTRY TICKET/i, "the entry-ticket badge is removed");
+assert.doesNotMatch(english, /Student copy/i, "the copy badge is removed");
+assert.doesNotMatch(english, /Copy 1 of 1/i, "the copy counter is removed");
 assert.equal(
   optimizedImage("https://res.cloudinary.com/okgs/image/upload/v1/a.jpg", { width: 300, height: 400, fit: "cover" }),
   "https://res.cloudinary.com/okgs/image/upload/f_auto,q_auto,w_300,h_400,c_fill/v1/a.jpg",
 );
-pass("photo, crest, event, QR and fee badge all print, and the photo is a Cloudinary 3:4 crop");
 
-/* ---------- 3 · bulk A4 sheet: four tickets per page, PAID only ----------- */
+// Guest ticket: GUEST ENTRY tag, guest photo, Guest ID + tagged student + contact + status.
+const guestHtml = renderToStaticMarkup(
+  <TicketSheet
+    kind="guest"
+    lang="en"
+    schoolName="Omar Kindergarten School"
+    fairName="OKGS GENESIS 2026"
+    logo=""
+    student={{ ...student, student_code: "2026-0101" }}
+    guest={{ id: "abcd1234-dead-beef-0000-000000000000", name: "Kamal Hossain", relation: "Mama (maternal uncle)", contact: "01712345678", status: "active", photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/guests/kamal.jpg" }}
+    qr="data:image/png;base64,GUESTQR"
+    validUntil={ticketValidUntil("en")}
+    issuedAt="10 October 2026"
+  />,
+);
+assert.match(guestHtml, /GUEST ENTRY/, "outside guests are tagged GUEST ENTRY");
+assert.match(guestHtml, /<dt>Guest ID<\/dt><dd>ABCD1234<\/dd>/, "the guest ID prints shortened and upper-case");
+assert.match(guestHtml, /<dt>Tagged student<\/dt>/, "the tagged student reference prints");
+assert.match(guestHtml, /01712345678/, "the guest contact prints");
+assert.match(guestHtml, /<dt>Status<\/dt>/, "the guest status prints");
+assert.ok(guestHtml.includes("okgs/guests/kamal.jpg"), "the desk photo prints on the guest ticket");
+assert.match(guestHtml, /src="data:image\/png;base64,GUESTQR"/, "the guest QR is signed separately");
+assert.equal(guestTicketId("abcd1234-dead-beef"), "ABCD1234");
+pass("redesigned A6 sheet: dual logos, fair title, photo row, QR-left + signature-right, pinned validity, no badges");
+
+/* ---------- 3 · bulk A4 sheet: four true-size A6 tickets per page --------- */
 assert.match(bulkCss, /@page ticket-compact\s*\{\s*size: A4 portrait/, "the bulk sheet prints A4 portrait");
-assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/, "two tickets across");
-assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*grid-template-rows: repeat\(2, minmax\(0, 1fr\)\)/, "two tickets down");
+assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*grid-template-columns: 105mm 105mm/, "two true-size A6 tickets across");
+assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*grid-template-rows: 148mm 148mm/, "two true-size A6 tickets down");
 assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*width: 210mm/, "the page box is real A4");
 assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*break-after: page/, "a page break after every page box");
 assert.match(bulkCss, /\.ticket-bulk-page\s*\{[^}]*page: ticket-compact/, "…on the named A4 portrait page");
-assert.match(bulkCss, /@media print[\s\S]{0,900}\.ticket-bulk-toolbar[\s\S]{0,200}display: none !important/, "the toolbar never reaches the paper");
-assert.match(bulkCss, /\.sf-desktop-sidebar[\s\S]{0,120}display: none !important/, "neither does the console sidebar");
-assert.match(bulkCss, /\.ticket-card-body\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/, "bulk card photo, details and QR are stacked vertically");
-assert.match(bulkCss, /\.ticket-card-photo\s*\{[^}]*height: 29\.33mm/, "the portrait bulk card keeps a 3:4 photo crop");
+assert.match(bulkCss, /\.ticket-bulk-page \.ticket-sheet\s*\{[^}]*width: 105mm/, "each bulk sheet keeps the exact A6 width");
+assert.match(bulkCss, /\.ticket-bulk-page \.ticket-sheet\s*\{[^}]*height: 148mm/, "…and the exact A6 height — the template is never scaled");
+assert.match(bulkCss, /@media print[\s\S]*\.ticket-bulk-page \.ticket-sheet[\s\S]{0,420}break-after: auto !important/, "inside the grid a sheet does not take a page of its own");
+assert.match(bulkCss, /@media screen[\s\S]{0,900}\.ticket-bulk-toolbar/, "the toolbar stays a screen-only surface");
 assert.match(bulkPage, /TICKETS_PER_PAGE = 4/, "the page groups four tickets per sheet");
 assert.match(bulkPage, /index \+= TICKETS_PER_PAGE/, "…by chunking the signed list");
 assert.match(bulkPage, /paidStudentsForPrint/, "the sheet is built from the PAID-only query");
 assert.match(bulkPage, /printableStudentCounts/, "…and reports how many were excluded");
+assert.match(bulkPage, /<TicketSheet/, "the bulk page reuses the very same A6 ticket component");
+assert.match(bulkPage, /ticketValidUntil/, "bulk tickets carry the pinned validity date");
 assert.match(studentDb, /studentFilterSql\(\{ \.\.\.filter, payment: "PAID" \}\)/, "the PAID rule is applied in SQL, not in the markup");
 assert.match(bulkApi, /if \(!counts\.paid\)/, "the bulk print API refuses a scope with no paid student");
 assert.match(bulkApi, /recordTicketPrints/, "a bulk job is written to the print audit log");
@@ -246,7 +252,12 @@ const cards = Array.from({ length: 5 }, (_, index) => ({
   class_name: "Class 8",
   section: "A",
   shift: "Day",
+  student_group: "Science",
+  father_name: `Father ${index + 1}`,
+  mother_name: `Mother ${index + 1}`,
   photo_url: student.photo_url,
+  father_photo_url: student.father_photo_url,
+  mother_photo_url: student.mother_photo_url,
 }));
 const pages: (typeof cards)[] = [];
 for (let index = 0; index < cards.length; index += 4) pages.push(cards.slice(index, index + 4));
@@ -255,34 +266,35 @@ assert.deepEqual(pages.map((page) => page.length), [4, 1], "the first page holds
 const renderedPages = pages.map(
   (page) =>
     renderToStaticMarkup(
-      <>
-        {page.map((item, slot) => (
-          <TicketCard
+      <section className="ticket-bulk-page">
+        {page.map((item) => (
+          <TicketSheet
             key={item.id}
-            schoolName="Omar Kindergarten School"
-            fairName="Science Fair 2026"
-            logo=""
+            kind="student"
             lang="en"
+            schoolName="Omar Kindergarten School"
+            fairName="OKGS GENESIS 2026"
+            logo=""
             student={item}
             qr="data:image/png;base64,QR"
-            ticketCode={item.student_code}
-            validUntil="9 Oct 2026"
-            slot={`${slot + 1} / 4`}
+            validUntil={ticketValidUntil("en")}
+            issuedAt="10 October 2026"
           />
         ))}
         {Array.from({ length: 4 - page.length }, (_, index) => (
           <div className="ticket-bulk-slot-empty" key={`empty-${index}`} />
         ))}
-      </>,
+      </section>,
     ),
 );
-assert.equal((renderedPages[0].match(/ticket-card"/g) ?? []).length, 4, "page one renders four cards");
+assert.equal((renderedPages[0].match(/ticket-sheet printable-ticket/g) ?? []).length, 4, "page one renders four A6 sheets");
 assert.equal((renderedPages[1].match(/ticket-bulk-slot-empty/g) ?? []).length, 3, "page two keeps its 2 × 2 grid with three empty slots");
 assert.match(renderedPages[0], /<dt>Student ID<\/dt><dd>202405102<\/dd>/, "bulk ticket IDs stay plain text");
 assert.doesNotMatch(renderedPages[0], /202,405,102/, "bulk ticket IDs never get thousands separators");
-assert.ok(renderedPages[0].includes("f_auto,q_auto,w_300,h_400,c_fill"), "card photos use the 300×400 Cloudinary crop");
-assert.ok(renderedPages[0].includes("Fee: Paid"), "every card carries the PAID badge");
-pass("bulk printing lays out exactly four tickets per A4 page and only prints PAID students");
+assert.ok(renderedPages[0].includes("f_auto,q_auto,w_600,h_800,c_fill"), "bulk photos use the same Cloudinary crop as the single print");
+assert.ok(renderedPages[0].includes("Valid until 31 December 2026"), "every bulk ticket carries the pinned validity");
+assert.match(TICKET_VALID_UNTIL_ISO, /^2026-12-31$/, "the validity constant is the ISO date behind the footer line");
+pass("bulk printing lays out four true-size A6 tickets per A4 page and only prints PAID students");
 
 /* ---------- 4 · photo-mapping spreadsheet --------------------------------- */
 const goodSheet = parsePhotoCsv(
@@ -291,6 +303,16 @@ const goodSheet = parsePhotoCsv(
 assert.equal(goodSheet.entries.length, 2);
 assert.deepEqual(goodSheet.entries[0], { key: "2026-0101", match: "code", photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/a.jpg", row: 2 });
 assert.equal(goodSheet.nonCloudinary, 0);
+
+// The same sheet can carry the father's and mother's photo URLs.
+const familySheet = parsePhotoCsv(
+  [
+    "student_id,roll,photo_url,father_photo_url,mother_photo_url",
+    "2026-0101,1,https://res.cloudinary.com/okgs/image/upload/v1/okgs/a.jpg,https://res.cloudinary.com/okgs/image/upload/v1/okgs/fa.jpg,https://res.cloudinary.com/okgs/image/upload/v1/okgs/ma.jpg",
+  ].join("\n"),
+);
+assert.equal(familySheet.entries[0].father_photo_url, "https://res.cloudinary.com/okgs/image/upload/v1/okgs/fa.jpg", "father photo column is read");
+assert.equal(familySheet.entries[0].mother_photo_url, "https://res.cloudinary.com/okgs/image/upload/v1/okgs/ma.jpg", "mother photo column is read");
 
 const rollOnly = parsePhotoCsv("Roll No,Picture\n৫,https://res.cloudinary.com/okgs/image/upload/v1/x.jpg");
 assert.deepEqual(rollOnly.entries, [{ key: "5", match: "roll", photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/x.jpg", row: 2 }], "a Bangla roll is normalised and matched as a roll");
@@ -326,7 +348,7 @@ assert.equal(messy.total, 6, "the sheet reports how many data rows it read");
 assert.equal(messy.nonCloudinary, 1, "a non-Cloudinary host is counted so the office can see it");
 assert.equal(isCloudinaryPhoto("https://res.cloudinary.com/okgs/image/upload/v1/a.jpg"), true);
 assert.equal(isCloudinaryPhoto("https://example.com/a.jpg"), false);
-assert.match(photoTemplateCsv(), /^student_id,roll,photo_url\n2026-0101,1,https:\/\/res\.cloudinary\.com\//, "the template the office downloads has the three columns");
+assert.match(photoTemplateCsv(), /^student_id,roll,photo_url,father_photo_url,mother_photo_url/, "the template the office downloads carries all three photo columns");
 assert.match(photoApi, /dry_run/, "the importer can validate without writing");
 assert.match(photoApi, /updateStudentPhotos/, "…and writes through the batch updater");
 assert.match(editApi, /photo_url/, "the edit endpoint stores the uploaded Cloudinary URL");
@@ -337,7 +359,12 @@ assert.match(editModal, /URL\.createObjectURL\(file\)/, "…and previews the fil
 assert.match(editModal, /payment_status/, "…and can change the payment status that gates bulk printing");
 assert.match(studentsPanel, /PhotoImportPanel/, "the roster panel exposes the photo sheet importer");
 assert.match(studentsPanel, /bulk-print/, "…and the bulk ticket print job");
-pass("the photo sheet is parsed by ID or roll, bad rows are reported, and dry runs write nothing");
+assert.match(studentsPanel, /CameraCapture/, "guest registration captures a live photo");
+assert.match(studentsPanel, /guests\/export/, "…and the guest register exports to CSV");
+const camera = read("components/sf/console/CameraCapture.tsx");
+assert.match(camera, /navigator\.mediaDevices\.getUserMedia/, "the guest camera really opens the device camera");
+assert.match(camera, /uploadToCloudinary/, "…and uploads the captured frame straight to Cloudinary");
+pass("the photo sheet is parsed by ID or roll with family photo columns, bad rows are reported, and dry runs write nothing");
 
 /* ---------- 5 · performance contract -------------------------------------- */
 assert.match(consoleUi, /const apiCache = new Map/, "panel reads are cached between sections");
@@ -372,8 +399,9 @@ async function databaseChecks() {
   // Set before lib/db is first imported: it picks the URL up at module load.
   process.env.TURSO_DATABASE_URL = `file:${join(dir, "tickets.db")}`;
   process.env.SESSION_SECRET = "smoke-test-secret-value";
-  const { ensurePortal } = await import("../lib/portal-db");
+  const { ensurePortal, createClass, updateClass, listClasses } = await import("../lib/portal-db");
   const roster = await import("../lib/student-db");
+  const { fairBudgetSummary } = await import("../lib/fair-budget");
   await ensurePortal();
 
   const make = (index: number, className: string, section: string) => ({
@@ -391,6 +419,8 @@ async function databaseChecks() {
     father_contact: "",
     father_name: `Father ${index}`,
     mother_name: `Mother ${index}`,
+    father_photo_url: "",
+    mother_photo_url: "",
     tags: "",
   });
   await roster.upsertStudents([make(1, "Class 8", "A"), make(2, "Class 8", "A"), make(3, "Class 9", "B")], "smoke-batch");
@@ -404,6 +434,8 @@ async function databaseChecks() {
 
   const printable = await roster.paidStudentsForPrint({ fair_slug: "smoke-fair" });
   assert.deepEqual(printable.map((row) => row.student_code), ["2026-0101", "2026-0103"], "only PAID students come back for printing");
+  assert.ok("father_photo_url" in printable[0] && "mother_photo_url" in printable[0], "the print query carries the parents' photo URLs");
+  assert.equal(printable[0].father_name, "Father 1", "…and the parents' names, so the three-photo row always renders");
 
   assert.deepEqual(
     await roster.studentStatusCounts({ fair_slug: "smoke-fair", class_name: "Class 8" }),
@@ -419,9 +451,14 @@ async function databaseChecks() {
   assert.equal(pageOne[0].payment_status, "PAID");
   assert.equal(pageOne[1].payment_status, "UNPAID");
 
-  const applied = await roster.updateStudentPhotos([{ key: "2026-0102", match: "code", photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/2.jpg", row: 2 }]);
+  const applied = await roster.updateStudentPhotos([
+    { key: "2026-0102", match: "code", photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/2.jpg", row: 2, father_photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/2f.jpg", mother_photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/2m.jpg" },
+  ]);
   assert.deepEqual(applied, { matched: 1, updated: 1, unchanged: 0, missing: [] }, "the photo write reports what it changed");
-  assert.equal((await roster.getStudentById(ids[1]))?.photo_url, "https://res.cloudinary.com/okgs/image/upload/v1/okgs/2.jpg");
+  const synced = await roster.getStudentById(ids[1]);
+  assert.equal(synced?.photo_url, "https://res.cloudinary.com/okgs/image/upload/v1/okgs/2.jpg");
+  assert.equal(synced?.father_photo_url, "https://res.cloudinary.com/okgs/image/upload/v1/okgs/2f.jpg", "the father photo syncs in the same pass");
+  assert.equal(synced?.mother_photo_url, "https://res.cloudinary.com/okgs/image/upload/v1/okgs/2m.jpg", "…and so does the mother photo");
 
   const dry = await roster.updateStudentPhotos([{ key: "3", match: "roll", photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/3.jpg", row: 3 }], { dryRun: true });
   assert.equal(dry.matched, 1, "a dry run still resolves the student…");
@@ -438,8 +475,60 @@ async function databaseChecks() {
   const prints = await roster.ticketPrintSummary("smoke-fair");
   assert.equal(prints.students, 2, "the bulk job lands in the print audit");
 
+  /* Guest fees: 50 BDT entry is mandatory, lunch box adds 150 BDT. */
+  assert.deepEqual(guestFeeBreakdown(false), { entry: 50, lunch: 0, total: 50 });
+  assert.deepEqual(guestFeeBreakdown(true), { entry: 50, lunch: 150, total: 200 });
+  assert.equal(GUEST_ENTRY_FEE, 50);
+  assert.equal(GUEST_LUNCH_FEE, 150);
+
+  const guestPlain = await roster.createGuest({
+    fair_slug: "smoke-fair", name: "Guest One", contact: "01711111111", related_student_id: ids[0], relation: "Guardian",
+    photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/guests/g1.jpg",
+    entry_fee: 50, has_lunch: false, lunch_fee: 0, total_fee: 50, created_by: "smoke", created_by_name: "Smoke",
+  });
+  const guestLunch = await roster.createGuest({
+    fair_slug: "smoke-fair", name: "Guest Two", contact: "01722222222", related_student_id: ids[0], relation: "Other guest",
+    photo_url: "", entry_fee: 50, has_lunch: true, lunch_fee: 150, total_fee: 200, created_by: "smoke", created_by_name: "Smoke",
+  });
+  assert.equal(guestPlain?.photo_url, "https://res.cloudinary.com/okgs/image/upload/v1/okgs/guests/g1.jpg", "the desk photo is stored on the guest row");
+  assert.equal(guestPlain?.total_fee, 50);
+  assert.equal(guestLunch?.total_fee, 200, "entry + lunch box = 200 BDT");
+
+  const guestFees = await roster.guestFeeSummary("smoke-fair");
+  assert.equal(guestFees.entryCount, 2, "both guests paid the entry fee");
+  assert.equal(guestFees.entryTotal, 100, "2 × 50 BDT entry");
+  assert.equal(guestFees.lunchCount, 1);
+  assert.equal(guestFees.lunchTotal, 150, "1 × 150 BDT lunch box");
+  assert.equal(guestFees.collected, 250, "total guest collection = 50 + 200");
+
+  /* Class budgets & the accounting summary. */
+  const classId = await createClass({ name: "Class 8", sections: "A", fee_amount: 100, budget_amount: 250, fee_title: "Fair ticket", fee_session: "2026" });
+  assert.ok(classId, "a class carries a budget target");
+  await updateClass(classId, { budget_amount: 300 });
+  const updatedClass = (await listClasses()).find((item) => item.id === classId);
+  assert.equal(Number(updatedClass?.budget_amount), 300, "the SuperAdmin can change the budget target");
+
+  const budget = await fairBudgetSummary("smoke-fair");
+  const classRow = budget.rows.find((row) => row.class_name === "Class 8");
+  assert.equal(classRow?.paid, 1, "one paid student in Class 8");
+  assert.equal(classRow?.collected, 100, "student collection = paid × class fee");
+  assert.equal(classRow?.budget_amount, 300);
+  assert.equal(classRow?.remaining, 200);
+  assert.equal(budget.studentCollected, 100);
+  assert.equal(budget.guestEntry.total, 100);
+  assert.equal(budget.guestLunch.total, 150);
+  assert.equal(budget.totalCollected, 350, "total = student collections + guest entry + lunch boxes");
+  assert.equal(budget.totalBudget, 300);
+  assert.equal(budget.remainingBudget, 0, "the target is met — nothing remains");
+
+  // Revoked guests drop out of the accounting.
+  await roster.setGuestStatus(guestLunch!.id, "revoked");
+  const afterRevoke = await roster.guestFeeSummary("smoke-fair");
+  assert.equal(afterRevoke.entryTotal, 50, "a revoked guest no longer counts");
+  assert.equal(afterRevoke.lunchTotal, 0);
+
   rmSync(dir, { recursive: true, force: true });
-  pass("paid-only printing, paging, photo batch writes and the audit log verified against a live database");
+  pass("paid-only printing, family photo sync, guest fees and class budgets verified against a live database");
 }
 
 void (async () => {

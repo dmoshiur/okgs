@@ -26,6 +26,8 @@ export const studentSchema = [
     father_contact TEXT NOT NULL DEFAULT '',
     father_name TEXT NOT NULL DEFAULT '',
     mother_name TEXT NOT NULL DEFAULT '',
+    father_photo_url TEXT NOT NULL DEFAULT '',
+    mother_photo_url TEXT NOT NULL DEFAULT '',
     tags TEXT NOT NULL DEFAULT '',
     import_batch TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT '',
@@ -58,7 +60,9 @@ export const studentSchema = [
      the class summary and the bulk ticket sheet all read through it. */
   `CREATE INDEX IF NOT EXISTS payments_fair_status_student_idx ON payments(fair_slug, status, student_id)`,
 
-  /* External guests / guardians (Mama, Fufa, Chacha, …) linked to a student. */
+  /* External guests / guardians (Mama, Fufa, Chacha, …) linked to a student.
+     Guests are photographed at the desk (camera → Cloudinary) and pay the
+     mandatory 50 BDT entry fee plus the optional 150 BDT lunch box. */
   `CREATE TABLE IF NOT EXISTS guests (
     id TEXT PRIMARY KEY,
     fair_slug TEXT NOT NULL DEFAULT '',
@@ -66,6 +70,12 @@ export const studentSchema = [
     contact TEXT NOT NULL DEFAULT '',
     related_student_id TEXT NOT NULL DEFAULT '',
     relation TEXT NOT NULL DEFAULT 'Other',
+    photo_url TEXT NOT NULL DEFAULT '',
+    entry_fee REAL NOT NULL DEFAULT 50,
+    has_lunch INTEGER NOT NULL DEFAULT 0,
+    lunch_fee REAL NOT NULL DEFAULT 0,
+    total_fee REAL NOT NULL DEFAULT 50,
+    fee_status TEXT NOT NULL DEFAULT 'PAID',
     status TEXT NOT NULL DEFAULT 'active',
     created_by TEXT NOT NULL DEFAULT '',
     created_by_name TEXT NOT NULL DEFAULT '',

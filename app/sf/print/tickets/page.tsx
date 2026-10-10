@@ -9,9 +9,9 @@ import { qrDataUrl } from "@/lib/qr";
 import { makeTicketToken, ticketExpiry } from "@/lib/ticket-token";
 import { paidStudentsForPrint, printableStudentCounts } from "@/lib/student-db";
 import { parseRollExpression } from "@/lib/roll-range";
-import { parseTicketLang, ticketDate, ticketFairName, ticketNumber, ticketSchoolName, ticketText, type TicketLang } from "@/lib/ticket-locale";
+import { parseTicketLang, ticketDate, ticketFairName, ticketSchoolName, ticketText, ticketValidUntil, type TicketLang } from "@/lib/ticket-locale";
 import { AutoPrint } from "@/components/print/AutoPrint";
-import { TicketCard } from "@/components/sf/print/TicketCard";
+import { TicketSheet } from "@/components/sf/print/TicketSheet";
 import { BulkTicketToolbar } from "@/components/sf/print/BulkTicketToolbar";
 import "@/components/sf/print/ticket-bulk.css";
 
@@ -51,6 +51,10 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: nu
  *
  * The bulk ticket sheet: **only PAID students** are printed, four to an A4
  * portrait page in a 2 × 2 grid, with a page break after every page box.
+ *
+ * Four true-size A6 TicketSheets (105 × 148 mm) fill the A4 page exactly —
+ * the 4-in-1 layout places the very same ticket template on the sheet without
+ * breaking or re-styling it.
  *
  * Unpaid and pending students are excluded in the database query
  * (`paidStudentsForPrint`), never in the markup — a printed sheet is the office's
@@ -94,16 +98,18 @@ export default async function BulkTicketsPage({ searchParams }: { searchParams: 
   const students = rollError || !counts.paid ? [] : await paidStudentsForPrint({ ...filter, limit: size, offset: (run - 1) * size });
 
   const expiresAt = ticketExpiry(fair?.ends_on);
-  const validUntil = ticketDate(new Date(expiresAt * 1000).toISOString(), lang, "short");
+  const validUntil = ticketValidUntil(lang);
+  const issuedAt = ticketDate(new Date().toISOString(), lang, "long");
   const schoolName = ticketSchoolName(readSetting(content.settings, "site_name_en") || settingValue(content.settings, "site_name"));
   const logo = readSetting(content.settings, "logo_url");
   const fairName = ticketFairName(fair);
 
   // Sign one QR per student, on the server, so the paper always carries the QR
-  // the backend issued. 260 px is plenty for a 24 mm print and keeps the page light.
+  // the backend issued. 300 px is plenty for the A6 bottom-left QR box and
+  // keeps a four-ticket page light.
   const cards = await mapLimit(students, 8, async (student) => ({
     student,
-    qr: await qrDataUrl(makeTicketToken({ k: "s", i: student.id, f: fairSlug, e: expiresAt }), { size: 260, margin: 1 }),
+    qr: await qrDataUrl(makeTicketToken({ k: "s", i: student.id, f: fairSlug, e: expiresAt }), { size: 300, margin: 1 }),
   }));
 
   const sheets: (typeof cards)[] = [];
@@ -145,28 +151,32 @@ export default async function BulkTicketsPage({ searchParams }: { searchParams: 
       )}
 
       {sheets.map((group, sheetIndex) => (
-        <section className="ticket-bulk-page" key={`${run}-${sheetIndex}`} aria-label={`A4 sheet ${sheetIndex + 1} of ${sheets.length}`}>
-          {group.map((card, cardIndex) => (
-            <TicketCard
+        <section className="ticket-bulk-page" key={`${run}-${sheetIndex}`} aria-label={`A4 sheet ${sheetIndex + 1} of ${sheets.length} — ticket ${sheetIndex * TICKETS_PER_PAGE + 1} to ${sheetIndex * TICKETS_PER_PAGE + group.length} of ${cards.length}`}>
+          {group.map((card) => (
+            <TicketSheet
               key={card.student.id}
+              kind="student"
+              lang={lang}
               schoolName={schoolName}
               fairName={fairName}
               logo={logo}
-              lang={lang}
               student={{
-                id: card.student.id,
                 name: card.student.name,
                 student_code: card.student.student_code,
                 roll: card.student.roll,
                 class_name: card.student.class_name,
                 section: card.student.section,
                 shift: card.student.shift,
+                student_group: card.student.student_group,
+                father_name: card.student.father_name,
+                mother_name: card.student.mother_name,
                 photo_url: card.student.photo_url,
+                father_photo_url: card.student.father_photo_url,
+                mother_photo_url: card.student.mother_photo_url,
               }}
               qr={card.qr}
-              ticketCode={`${card.student.student_code} · ${text.labels.roll.primary} ${ticketNumber(card.student.roll, lang) || "—"}`}
               validUntil={validUntil}
-              slot={`${sheetIndex * TICKETS_PER_PAGE + cardIndex + 1} / ${TICKETS_PER_PAGE}`}
+              issuedAt={issuedAt}
             />
           ))}
           {Array.from({ length: TICKETS_PER_PAGE - group.length }, (_, index) => (

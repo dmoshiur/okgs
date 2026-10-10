@@ -80,10 +80,10 @@ assert.match(css, /html\[data-color-scheme="dark"\][^{]*\{[^}]*--sf-card:/, "dar
 pass("scanner, nav and gate badges are English with tone classes that survive both colour schemes");
 
 // ---------- 4 · the .xlsx contract ----------------------------------------
-assert.deepEqual(STUDENT_COLUMNS, studentColumnHeaders, "the importer and the schema agree on the 15 headers");
+assert.deepEqual(STUDENT_COLUMNS, studentColumnHeaders, "the importer and the schema agree on the 17 headers");
 assert.deepEqual(
   studentColumnHeaders,
-  ["SL", "ID", "Roll", "Photo", "Name", "Branch", "Shift", "Class", "Section", "Group", "SMS Contact", "Father Contact", "Father Name", "Mother Name", "Tags"],
+  ["SL", "ID", "Roll", "Photo", "Name", "Branch", "Shift", "Class", "Section", "Group", "SMS Contact", "Father Contact", "Father Name", "Mother Name", "Father Photo", "Mother Photo", "Tags"],
 );
 assert.match(importer, /locateHeader\(rows\)/, "the header row is found, not assumed");
 assert.match(importer, /toLatinDigits\(text\("roll"\)\)/, "Bengali digits are normalised only in numeric fields");
@@ -115,12 +115,8 @@ const html = renderToStaticMarkup(
   <TicketSheet
     kind="student"
     schoolName="OKGS"
-    fairName="Science Fair 2026"
+    fairName="OKGS GENESIS 2026"
     logo=""
-    copyIndex={2}
-    copyCount={3}
-    copyLabel="Parent copy"
-    showFamily
     student={{
       name: "আব্দুল্লাহ আল মামুন",
       student_code: "2026-0101",
@@ -129,41 +125,37 @@ const html = renderToStaticMarkup(
       section: "A",
       shift: "Day",
       student_group: "Fair",
-      branch: "Science",
       father_name: "মোঃ রফিকুল ইসলাম",
       mother_name: "সালমা বেগম",
       photo_url: "https://cdn.okgs.info/photo/101.jpg",
+      father_photo_url: "https://cdn.okgs.info/photo/101-father.jpg",
+      mother_photo_url: "https://cdn.okgs.info/photo/101-mother.jpg",
     }}
-    paymentStatus="PAID"
-    guardian={null}
-    guardians={[
-      { name: "আব্দুল করিম", relation: "Mama", contact: "01712345678" },
-      { name: "শাহাদাত হোসেন", relation: "Fufa", contact: "01812345678" },
-      { name: "মোঃ বশির", relation: "Chacha", contact: "" },
-    ]}
-    admittedAt=""
     qr="/api/qr?token=demo"
-    validUntil="9 Oct 2026"
+    validUntil="31 December 2026"
     issuedAt="8 Oct 2026"
-    ticketCode="2026-0101 · Roll 5"
-    printedBy="Super Admin"
   />,
 );
 assert.match(html, /class="ticket-sheet/, "one sheet per copy");
-assert.match(html, /Parent copy/, "each copy is labelled for whom it belongs to");
-assert.match(html, /ticket-photo[\s\S]{0,200}photo\/101\.jpg/, "the photo is printed on the ticket");
-assert.match(html, /Father&#x27;s name|Father's name/, "copy 2 onward carries the father's name");
-assert.match(html, /Mother&#x27;s name|Mother's name/);
-assert.ok(html.includes("আব্দুল করিম") && html.includes("Mama") && html.includes("Fufa") && html.includes("Chacha"), "every registered guardian is listed");
+assert.match(html, /Omar Kindergarten School/, "the ticket header carries the school name");
+assert.match(html, /Scholars Residential School/, "…and the sub-header under it");
+assert.match(html, /ticket-logo-right/, "the Scholars logo sits on the right");
+assert.match(html, /OKGS GENESIS 2026/, "the Science Fair title prints above the photos");
+assert.match(html, /ticket-photo-frame[\s\S]{0,200}photo\/101\.jpg/, "the student photo is printed on the ticket");
+assert.ok(html.includes("101-father.jpg") && html.includes("101-mother.jpg"), "father's and mother's photos print in the top row");
+assert.ok(html.includes("মোঃ রফিকুল ইসলাম") && html.includes("সালমা বেগম"), "the parents' names sit under their photos");
 assert.match(html, /src="\/api\/qr\?token=demo"/, "the QR is rendered by the server from the signed token");
-assert.match(html, /ticket-pill is-paid/, "payment status is printed");
+assert.match(html, /ticket-signature/, "the president's signature prints bottom-right");
+assert.match(html, /Valid until 31 December 2026/, "validity is pinned to 31 December 2026");
+assert.doesNotMatch(html, /STUDENT ENTRY TICKET|Student copy|Copy 1 of 1/i, "the old badges are gone");
+assert.doesNotMatch(html, /HMAC|Printed by/i, "…and so are the HMAC note and the printed-by line");
 assert.match(css, /@page ticket-portrait\s*\{ size: A6 portrait; margin: 0; \}/, "the ticket uses its own A6 portrait print page with zero margin");
 assert.match(css, /\.ticket-sheet\s*\{[^}]*aspect-ratio: 105 \/ 148/, "the preview keeps the A6 portrait ratio (105 × 148 mm)");
-assert.match(css, /\.ticket-body\s*\{[^}]*display: flex[^}]*flex-direction: column/, "photo, details, badges and QR stack vertically");
+assert.match(css, /\.ticket-frame\s*\{[^}]*display: flex[^}]*flex-direction: column/, "the sheet stacks head, title, photos, grid and bottom vertically");
 assert.match(css, /\.ticket-grid\s*\{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/, "ticket fields stay readable in three compact columns");
 assert.match(css, /\.ticket-print-root\s*\{[^}]*min-height: 100vh/, "the ticket fills the screen");
 assert.match(css, /@media print[\s\S]{0,400}\.ticket-toolbar[\s\S]{0,80}display: none/, "the toolbar never prints");
-pass("portrait ticket sheet renders family + guardian block, photo, pill and QR");
+pass("portrait ticket renders dual logos, fair title, three-photo row, QR + signature and the pinned validity");
 
 // ---------- 7 · gate log timestamps --------------------------------------
 const stamp = formatDateTimeEn("2026-10-08T14:03:36.351Z");

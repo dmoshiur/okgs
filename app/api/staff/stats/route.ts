@@ -1,4 +1,5 @@
 import { defaultFairSlug, ok, staff, str } from "@/lib/api";
+import { fairBudgetSummary } from "@/lib/fair-budget";
 import {
   dueTotals,
   expenseTotals,
@@ -49,6 +50,7 @@ export async function GET(request: Request) {
     gate,
     ticketScans,
     roster,
+    budget,
   ] = await Promise.all([
     fundTotals(fairSlug),
     fundTotalsByClass(fairSlug),
@@ -64,6 +66,7 @@ export async function GET(request: Request) {
     scanSummary(fair),
     listScanLogs({ fair_slug: fair, limit: 12 }),
     rosterSummary(fair),
+    fairBudgetSummary(fair),
   ]);
 
   const pendingFunds = await listFunds({ fair_slug: fairSlug, status: "pending", limit: 25 });
@@ -90,6 +93,7 @@ export async function GET(request: Request) {
     ticketScans,
     gate,
     roster,
+    budget,
     pendingFunds,
     roles,
     activity,

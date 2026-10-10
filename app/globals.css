@@ -7507,16 +7507,18 @@ html[data-color-scheme="dark"] .ticket-print-root {
 /* Named page keeps the ticket size and orientation scoped; receipts and
    reports keep theirs. The card is authored at physical size, so the browser
    preview and the print preview show the same document: 105mm wide, 148mm
-   tall, one vertical flow — crest + school name + badge, centred photo, name
-   and a 3-column detail grid, status pills, signed QR, footer — all of it
-   INSIDE the frame border. Every element is box-sizing: border-box (global
-   reset) and the sheet clips overflow, so nothing can escape the card.
+   tall — logo pair + institution name, the fair title, the three-photo row
+   (father · student · mother), the detail grid, the signed QR beside the
+   president's signature, and the validity footer — all of it INSIDE the
+   frame border. Every element is box-sizing: border-box (global reset) and
+   the sheet clips overflow, so nothing can escape the card.
 
-   The QR block is the only flexible member: when the content above it grows
-   (bilingual labels, the family block on parent copies) the QR shrinks —
-   the frame, the footer and the page break never do. */
+   The bottom row (QR + signature) is the only flexible member: when the
+   content above it grows the QR shrinks — the frame, the footer and the
+   page break never do. The very same sheet is set four-up on the A4 bulk
+   page; nothing about its structure or styling changes there. */
 @page ticket-portrait { size: A6 portrait; margin: 0; }
-.ticket-print-root { min-height: 100vh; min-height: 100dvh; display: grid; gap: 12px; place-content: center justify-items center; align-items: center; padding: 16px 12px 28px; background: #101a2b; color: #f1f5fb; }
+.ticket-print-root { min-height: 100vh; min-height: 100dvh; display: grid; gap: 12px; place-content: center justify-items: center; align-items: center; padding: 16px 12px 28px; background: #101a2b; color: #f1f5fb; }
 .ticket-print-root .ticket-toolbar { position: sticky; top: 0; z-index: 5; width: min(100%, calc(100vw - 24px)); display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding: 8px; border-radius: var(--r, 12px); background: rgba(15, 23, 42, .78); color: #f1f5fb; }
 .ticket-print-root .ticket-toolbar > * { flex: 0 0 auto; }
 .ticket-print-root .ticket-toolbar .ticket-hint { flex: 1 1 200px; min-width: 0; color: #cbd5e1; font-size: 12.5px; line-height: 1.4; }
@@ -7565,82 +7567,56 @@ html[data-color-scheme="dark"] .ticket-print-root {
 .ticket-sheet:last-child { break-after: auto; page-break-after: auto; }
 /* The frame is the bordered card: a flex column sharing out the fixed 148mm.
    Overflow is clipped here as well — double insurance for the border. */
-.ticket-frame { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 2mm; min-height: 0; padding: 4mm; overflow: hidden; }
+.ticket-frame { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 1.8mm; min-height: 0; padding: 4mm; overflow: hidden; }
 .ticket-frame::before { content: ""; position: absolute; inset: 1.6mm; border: .4mm solid var(--t-gold); border-radius: 7px; pointer-events: none; }
 .ticket-frame::after { content: ""; position: absolute; inset: 0; border: 1.4mm solid var(--t-accent); border-radius: 10px; pointer-events: none; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
 
-/* ---------- Header: crest, institution, event, ticket kind --------------- */
-.ticket-head { position: relative; flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5mm; min-width: 0; padding: 2mm 2.5mm; border: .4mm solid var(--t-accent); border-radius: 8px; background: linear-gradient(135deg, #f7f9fd 0%, #eaf0f9 55%, #e2ebf7 100%); text-align: center; }
-.ticket-school { display: flex; align-items: center; justify-content: center; gap: 2.5mm; min-width: 0; }
-.ticket-school-copy { min-width: 0; text-align: left; }
-.ticket-school strong { display: block; font-size: 4.1mm; line-height: 1.16; color: var(--t-accent); letter-spacing: -.01em; overflow-wrap: anywhere; }
-.ticket-school small { display: block; margin-top: .4mm; color: var(--t-soft); font-size: 2.3mm; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; overflow-wrap: anywhere; }
+/* ---------- Header: school logo · institution pair · Scholars logo -------- */
+.ticket-head { position: relative; flex: 0 0 auto; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 2.5mm; min-width: 0; padding: 1.6mm 2.5mm; border: .4mm solid var(--t-accent); border-radius: 8px; background: linear-gradient(135deg, #f7f9fd 0%, #eaf0f9 55%, #e2ebf7 100%); }
+.ticket-school-copy { min-width: 0; text-align: center; }
+.ticket-school-copy strong { display: block; font-size: 4.2mm; line-height: 1.14; color: var(--t-accent); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.ticket-school-copy small { display: block; margin-top: .5mm; color: var(--t-gold); font-size: 2.6mm; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; overflow-wrap: anywhere; }
 .ticket-logo { width: 10mm; height: 10mm; object-fit: contain; flex: 0 0 auto; padding: .6mm; background: #fff; border: .4mm solid var(--t-line); border-radius: 8px; }
 .ticket-logo-fallback { display: grid; place-items: center; border-radius: 50%; background: var(--t-accent); color: #fff; font-size: 3.4mm; font-weight: 800; }
-/* The badge: ticket kind + copy label + copy counter, flowing onto as many
-   lines as the language needs, always centred under the school name. */
-.ticket-kind { position: relative; flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; column-gap: 1.8mm; row-gap: .3mm; padding: .9mm 3mm; border-radius: 999px; background: var(--t-accent); color: #fff; text-align: center; box-shadow: 0 2px 8px rgba(18, 53, 92, .28); }
-.ticket-kind span { font-size: 2.7mm; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-.ticket-kind i { font-size: 2mm; line-height: 1.25; font-style: normal; font-weight: 600; letter-spacing: .03em; opacity: .92; }
-/* Only the kind's second-language line takes a full width; the copy label's
-   secondary line stays beside it. */
-.ticket-kind i:first-of-type { flex-basis: 100%; }
-.ticket-kind b { font-size: 2.2mm; letter-spacing: .05em; }
-.ticket-kind em { font-style: normal; font-size: 2mm; opacity: .9; }
-.is-guest .ticket-kind { background: var(--t-gold); box-shadow: 0 2px 8px rgba(138, 100, 20, .28); }
 
-/* ---------- Body: portrait stack — photo · details · badges · signed QR --- */
-.ticket-body { position: relative; flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; gap: 2mm; min-height: 0; width: 100%; padding: .5mm 0; overflow: hidden; }
-/* The portrait is a true 3:4 crop, centred, in a rounded frame — never squashed. */
-.ticket-photo { display: grid; place-items: center; flex: 0 0 auto; margin: 0; width: 22mm; aspect-ratio: 3 / 4; overflow: hidden; border: .5mm solid var(--t-accent); border-radius: 10px; background: repeating-linear-gradient(45deg, #f8fafc 0 8px, #eef2f7 8px 16px); box-shadow: 0 3px 10px rgba(15, 23, 42, .12); }
-.ticket-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
-.ticket-photo span { font-size: 7mm; font-weight: 800; color: #64748b; }
-.ticket-info { display: flex; flex-direction: column; gap: 1.8mm; width: 100%; min-width: 0; flex: 0 0 auto; }
-.ticket-name { margin: 0; font-size: 5mm; line-height: 1.15; font-weight: 800; color: var(--t-ink); letter-spacing: -.01em; text-align: center; overflow-wrap: anywhere; }
-/* Student details in a clean 3-column grid: ID · Roll · Class / Section ·
-   Shift · Group. Values wrap anywhere, so long text never blows a column. */
-.ticket-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.6mm 3mm; margin: 0; min-width: 0; padding: 1.6mm 1mm; border-top: .4mm solid var(--t-line); border-bottom: .4mm solid var(--t-line); }
+/* ---------- Science Fair title, directly above the photos ---------------- */
+.ticket-title { margin: 0; flex: 0 0 auto; text-align: center; font-size: 5.6mm; line-height: 1.12; font-weight: 900; letter-spacing: .02em; text-transform: uppercase; color: var(--t-accent); overflow-wrap: anywhere; }
+/* Outside guests are tagged clearly, in the fair's gold. */
+.ticket-guest-tag { flex: 0 0 auto; justify-self: center; align-self: center; margin: 0 auto; padding: .8mm 4mm; border: .5mm solid var(--t-gold); border-radius: 999px; background: #fff7e6; color: var(--t-gold); font-size: 3mm; line-height: 1.2; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
+
+/* ---------- Photo row: father · student/guest · mother -------------------- */
+.ticket-photos { flex: 0 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr) minmax(0, 1fr); align-items: start; gap: 2mm; width: 100%; min-width: 0; }
+.ticket-photos.is-single { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+.ticket-photo-cell { display: flex; flex-direction: column; align-items: center; gap: .8mm; margin: 0; min-width: 0; }
+.ticket-photo-frame { display: grid; place-items: center; width: 100%; aspect-ratio: 3 / 4; overflow: hidden; border: .5mm solid var(--t-accent); border-radius: 8px; background: repeating-linear-gradient(45deg, #f8fafc 0 8px, #eef2f7 8px 16px); box-shadow: 0 3px 10px rgba(15, 23, 42, .12); }
+.ticket-photo-cell.is-large .ticket-photo-frame { border-width: .7mm; border-radius: 10px; }
+.ticket-photo-frame img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+.ticket-photo-initial { font-size: 6mm; font-weight: 800; color: #64748b; }
+.ticket-photo-cell figcaption { max-width: 100%; color: var(--t-soft); font-size: 2.2mm; line-height: 1.2; font-weight: 700; text-align: center; overflow-wrap: anywhere; }
+/* The student/guest full name under the photo grid. */
+.ticket-name { margin: 0; flex: 0 0 auto; text-align: center; font-size: 4.8mm; line-height: 1.15; font-weight: 800; color: var(--t-ink); letter-spacing: -.01em; overflow-wrap: anywhere; }
+
+/* ---------- Details grid -------------------------------------------------- */
+.ticket-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.6mm 3mm; margin: 0; min-width: 0; padding: 1.6mm 1mm; border-top: .4mm solid var(--t-line); border-bottom: .4mm solid var(--t-line); flex: 0 0 auto; }
 .ticket-field { min-width: 0; }
-.ticket-field dt, .ticket-field span { display: block; color: var(--t-faint); font-size: 2.1mm; line-height: 1.2; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; overflow-wrap: anywhere; }
+.ticket-field dt { display: block; color: var(--t-faint); font-size: 2.1mm; line-height: 1.2; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; overflow-wrap: anywhere; }
 .ticket-field dt em { display: block; font-size: 1.9mm; line-height: 1.2; font-style: normal; font-weight: 600; letter-spacing: .03em; text-transform: none; opacity: .85; }
-.ticket-field dd, .ticket-field strong { display: block; margin: 0; color: var(--t-ink); font-size: 3.5mm; line-height: 1.2; font-weight: 700; overflow-wrap: anywhere; }
-.ticket-family { display: grid; gap: 1.5mm; padding-top: 1.5mm; border-top: .4mm dashed var(--t-line); min-width: 0; }
-.ticket-family-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3mm; min-width: 0; }
-.ticket-guardians { display: grid; gap: 1mm; padding: 1.2mm 1.6mm; border: .4mm solid var(--t-gold); border-radius: 6px; background: #fffaf0; min-width: 0; }
-.ticket-guardian-title { color: #6d4c08; font-size: 2mm; line-height: 1.25; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
-.ticket-guardian-list { display: grid; gap: .6mm; margin: 0; padding-left: 3.4mm; color: var(--t-ink); font-size: 2.4mm; line-height: 1.25; }
-.ticket-guardian-list li { min-width: 0; overflow-wrap: anywhere; }
-.ticket-guardian-list strong { color: var(--t-ink); }
-.ticket-guardian-note { margin: 0; color: var(--t-soft); font-size: 2.2mm; line-height: 1.3; }
-.ticket-blank { display: flex; flex-wrap: wrap; gap: .6mm 3mm; color: var(--t-faint); font-size: 2.2mm; font-style: italic; }
-.ticket-status-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.5mm; align-items: center; }
-.ticket-pill { display: inline-flex; padding: .7mm 2.4mm; border-radius: 999px; font-size: 2.4mm; line-height: 1.25; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; border: .4mm solid transparent; white-space: nowrap; }
-.ticket-pill.is-paid { color: #08553a; background: #d9f5e6; border-color: #0b6b43; }
-.ticket-pill.is-unpaid { color: #8d160c; background: #ffe4e0; border-color: #a31d12; }
-.ticket-pill.is-admitted { color: #12355c; background: #e2ecfb; border-color: #1d4f91; }
-/* The QR area absorbs whatever height remains inside the frame. The image
-   grows to fill it up to a 32mm square cap, so it is always fully contained
-   INSIDE the card border — it can never overlap the footer. */
-.ticket-qr { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1mm; width: 100%; min-width: 0; min-height: 0; text-align: center; }
-.ticket-qr-fit { flex: 1 1 auto; min-height: 6mm; width: 100%; display: flex; align-items: center; justify-content: center; }
-.ticket-qr img, .ticket-qr svg { display: block; width: auto; height: auto; min-width: 0; min-height: 0; max-width: min(100%, 32mm); max-height: 100%; aspect-ratio: 1; object-fit: contain; padding: 1.2mm; background: #fff; border: .4mm solid var(--t-ink); border-radius: 6px; }
-.ticket-qr small { color: var(--t-soft); font-size: 2.2mm; line-height: 1.25; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
-.ticket-qr small em { display: block; font-style: normal; font-weight: 600; text-transform: none; letter-spacing: .02em; }
-.ticket-qr code { font-size: 2mm; line-height: 1.25; color: var(--t-ink); overflow-wrap: anywhere; }
+.ticket-field dd { display: block; margin: 0; color: var(--t-ink); font-size: 3.5mm; line-height: 1.2; font-weight: 700; overflow-wrap: anywhere; }
 
-/* ---------- Footer: validity, issue date, print info ---------------------- */
-.ticket-foot { position: relative; flex: 0 0 auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8mm 3mm; padding-top: 1.5mm; border-top: .4mm solid var(--t-line); color: var(--t-soft); font-size: 2.1mm; line-height: 1.3; min-width: 0; }
+/* ---------- Bottom: signed QR (left) · president's signature (right) ------ */
+.ticket-bottom { flex: 1 1 auto; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: end; gap: 3mm; width: 100%; min-width: 0; min-height: 0; }
+.ticket-qr { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; min-width: 0; min-height: 0; height: 100%; }
+.ticket-qr-fit { flex: 1 1 auto; min-height: 6mm; display: flex; align-items: flex-end; justify-content: flex-start; }
+.ticket-qr img, .ticket-qr svg { display: block; width: auto; height: auto; min-width: 0; min-height: 0; max-width: 30mm; max-height: 100%; aspect-ratio: 1; object-fit: contain; padding: 1.2mm; background: #fff; border: .4mm solid var(--t-ink); border-radius: 6px; }
+.ticket-signature { display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-end; gap: .8mm; min-width: 0; padding-right: 2mm; }
+.ticket-signature-img { display: block; width: 32mm; max-width: 100%; height: auto; max-height: 14mm; object-fit: contain; object-position: right bottom; }
+.ticket-signature-rule { width: 30mm; border-top: .4mm solid var(--t-ink); }
+.ticket-signature-caption { color: var(--t-soft); font-size: 2.2mm; line-height: 1.25; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; text-align: right; }
+.ticket-signature-caption em { display: block; font-style: normal; font-weight: 600; text-transform: none; letter-spacing: .02em; }
+
+/* ---------- Footer: validity + issue date --------------------------------- */
+.ticket-foot { position: relative; flex: 0 0 auto; display: flex; justify-content: space-between; gap: 3mm; padding-top: 1.4mm; border-top: .4mm solid var(--t-line); color: var(--t-soft); font-size: 2.2mm; line-height: 1.3; font-weight: 600; min-width: 0; }
 .ticket-foot span { overflow-wrap: anywhere; }
-
-/* Parent copies carry the family block; the photo steps down a size, the gaps
-   tighten and the QR cap comes down with them, so the QR keeps a scannable
-   share of the fixed 148mm even on the fullest sheet. */
-.ticket-sheet:has(.ticket-family) .ticket-photo { width: 16mm; }
-.ticket-sheet:has(.ticket-family) .ticket-frame { gap: 1.5mm; }
-.ticket-sheet:has(.ticket-family) .ticket-body { gap: 1.5mm; }
-.ticket-sheet:has(.ticket-family) .ticket-info { gap: 1.4mm; }
-.ticket-sheet:has(.ticket-family) .ticket-qr img,
-.ticket-sheet:has(.ticket-family) .ticket-qr svg { max-width: min(100%, 26mm); }
 
 @media print {
   .no-print, .ticket-toolbar { display: none !important; }
@@ -7658,7 +7634,6 @@ html[data-color-scheme="dark"] .ticket-print-root {
   .ticket-frame::before, .ticket-frame::after { display: none; }
   * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
-
 /* Staff print surfaces (receipts, memos, reports) never show the app chrome. */
 @media print {
   .sf-bottom-nav, .sf-more-root, .app-top, .sf-page-actions { display: none !important; }
@@ -7732,8 +7707,11 @@ html[data-color-scheme="dark"] .ticket-print-root {
   }
   .printable-ticket:last-child, .ticket-sheet:last-child { break-after: auto !important; page-break-after: auto !important; }
   .ticket-frame { padding: 4mm !important; border: 1mm solid var(--t-accent, #12355c) !important; border-radius: 0 !important; overflow: hidden !important; }
-  .ticket-head { display: flex !important; flex-direction: column !important; }
-  .ticket-body { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 2mm !important; }
+  .ticket-head { display: grid !important; grid-template-columns: auto minmax(0, 1fr) auto !important; }
+  .ticket-photos { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr) minmax(0, 1fr) !important; }
+  .ticket-photos.is-single { grid-template-columns: minmax(0, 1fr) !important; }
+  .ticket-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .ticket-bottom { display: grid !important; grid-template-columns: auto minmax(0, 1fr) !important; align-items: end !important; }
   .ticket-sheet img { visibility: visible !important; opacity: 1 !important; }
   .no-print, nav, .sidebar, .top-nav, .app-top, .app-tabs, .sf-bottom-nav, .sf-more-root,
   .sf-desktop-sidebar, .ticket-toolbar, .ticket-bulk-toolbar { display: none !important; }

@@ -42,7 +42,7 @@ async function main() {
     assert.equal((await findUserByLogin("01912345678"))?.id, user.id);
     console.log("PASS multi-identifier login, normalized phone index, ambiguity and student redirect");
 
-    await upsertStudents([{ student_code: user.student_id, name: user.name, serial_no: 1, roll: "12", photo_url: "", branch: "Main", shift: "Morning", class_name: "Class 8", section: "A", student_group: "", sms_contact: user.phone, father_contact: "", father_name: "", mother_name: "", tags: "" }], "test");
+    await upsertStudents([{ student_code: user.student_id, name: user.name, serial_no: 1, roll: "12", photo_url: "", branch: "Main", shift: "Morning", class_name: "Class 8", section: "A", student_group: "", sms_contact: user.phone, father_contact: "", father_name: "", mother_name: "", father_photo_url: "", mother_photo_url: "", tags: "" }], "test");
     const roster = await getStudentByCode(user.student_id);
     assert.ok(roster);
     await setPaymentStatus({ fair_slug: "test-fair", student_ids: [roster.id], status: "PAID", actor_id: user.id, actor_name: "Office" });

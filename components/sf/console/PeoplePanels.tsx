@@ -406,26 +406,32 @@ export function UsersPanel({ canManageAdmins, canManageSuperAdmins = false, fair
 
 export function ClassesPanel({ fairSlug }: { fairSlug: string }) {
   interface FeeSummary { expected: number; collected: number; pending: number; students: number; fee_amount: number; title: string; session_year: string }
-  interface FeeDraft { fee_amount: string; fee_title: string; fee_session: string }
-  const { data, loading, reload } = useApi<{ classes: (ClassRow & { fee_summary: FeeSummary })[]; fee_totals?: { expected: number; collected: number; pending: number } }>(`/api/staff/classes?fair=${encodeURIComponent(fairSlug)}`, [fairSlug]);
+  interface FeeDraft { fee_amount: string; fee_title: string; fee_session: string; budget_amount: string }
+  const { data, loading, reload } = useApi<{ classes: (ClassRow & { fee_summary: FeeSummary; budget_amount?: number })[]; fee_totals?: { expected: number; collected: number; pending: number } }>(`/api/staff/classes?fair=${encodeURIComponent(fairSlug)}`, [fairSlug]);
   const year = String(new Date().getFullYear());
-  const [form, setForm] = useState({ name: "", sections: "A, B", level: "", fee_amount: "", fee_title: "Class fee", fee_session: year });
+  const [form, setForm] = useState({ name: "", sections: "A, B", level: "", fee_amount: "", fee_title: "Class fee", fee_session: year, budget_amount: "" });
   const [feeDrafts, setFeeDrafts] = useState<Record<string, FeeDraft>>({});
   const [message, setMessage] = useState("");
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState("");
 
   const classes = data?.classes ?? [];
-  const draftFor = (item: ClassRow) => feeDrafts[item.id] ?? { fee_amount: String(item.fee_amount ?? 0), fee_title: item.fee_title || "Class fee", fee_session: item.fee_session || year };
+  const draftFor = (item: ClassRow & { budget_amount?: number }) =>
+    feeDrafts[item.id] ?? {
+      fee_amount: String(item.fee_amount ?? 0),
+      fee_title: item.fee_title || "Class fee",
+      fee_session: item.fee_session || year,
+      budget_amount: String(item.budget_amount ?? 0),
+    };
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setProblem("");
     setBusy("create");
     try {
-      await postJson("/api/staff/classes", { ...form, fair_slug: fairSlug, level: Number(form.level) || 0, fee_amount: Number(form.fee_amount) || 0 });
+      await postJson("/api/staff/classes", { ...form, fair_slug: fairSlug, level: Number(form.level) || 0, fee_amount: Number(form.fee_amount) || 0, budget_amount: Number(form.budget_amount) || 0 });
       setMessage(`${form.name} added.`);
-      setForm({ name: "", sections: "A, B", level: "", fee_amount: "", fee_title: "Class fee", fee_session: year });
+      setForm({ name: "", sections: "A, B", level: "", fee_amount: "", fee_title: "Class fee", fee_session: year, budget_amount: "" });
       await reload();
     } catch (issue) {
       setProblem(issue instanceof Error ? issue.message : "Could not add.");
@@ -439,9 +445,9 @@ export function ClassesPanel({ fairSlug }: { fairSlug: string }) {
     setProblem("");
     setBusy(item.id);
     try {
-      const result = await postJson<{ fee_sync?: { created: number; updated: number } }>("/api/staff/classes", { id: item.id, fair_slug: fairSlug, ...draft, fee_amount: Number(draft.fee_amount) || 0 }, "PATCH");
+      const result = await postJson<{ fee_sync?: { created: number; updated: number } }>("/api/staff/classes", { id: item.id, fair_slug: fairSlug, ...draft, fee_amount: Number(draft.fee_amount) || 0, budget_amount: Number(draft.budget_amount) || 0 }, "PATCH");
       const sync = result.fee_sync;
-      setMessage(sync?.created ? `${item.name}: ${en(sync.created)} students have dues created.` : `${item.name} fee settings updated.`);
+      setMessage(sync?.created ? `${item.name}: ${en(sync.created)} students have dues created.` : `${item.name} fee & budget settings updated.`);
       await reload();
     } catch (issue) {
       setProblem(issue instanceof Error ? issue.message : "Could not update the fee.");
@@ -483,9 +489,10 @@ export function ClassesPanel({ fairSlug }: { fairSlug: string }) {
                 </div>
                 <div className="class-fee-edit">
                   <label><span className="v2-label">Fee per student</span><input className="v2-input" type="number" min={0} value={draft.fee_amount} onChange={(event) => setFeeDrafts((state) => ({ ...state, [item.id]: { ...draft, fee_amount: event.target.value } }))} /></label>
+                  <label><span className="v2-label">Fair budget target (BDT)</span><input className="v2-input" type="number" min={0} value={draft.budget_amount} onChange={(event) => setFeeDrafts((state) => ({ ...state, [item.id]: { ...draft, budget_amount: event.target.value } }))} /></label>
                   <label><span className="v2-label">Fee / item name</span><input className="v2-input" value={draft.fee_title} onChange={(event) => setFeeDrafts((state) => ({ ...state, [item.id]: { ...draft, fee_title: event.target.value } }))} /></label>
                   <label><span className="v2-label">Session</span><input className="v2-input" value={draft.fee_session} onChange={(event) => setFeeDrafts((state) => ({ ...state, [item.id]: { ...draft, fee_session: event.target.value } }))} /></label>
-                  <button className="v2-btn v2-btn-sm" type="button" disabled={busy === item.id} onClick={() => void saveFee(item)}>{busy === item.id ? "Saving…" : "Save fee"}</button>
+                  <button className="v2-btn v2-btn-sm" type="button" disabled={busy === item.id} onClick={() => void saveFee(item)}>{busy === item.id ? "Saving…" : "Save fee & budget"}</button>
                 </div>
               </article>
             );
@@ -501,6 +508,7 @@ export function ClassesPanel({ fairSlug }: { fairSlug: string }) {
           <label><span className="v2-label">Sections (comma-separated)</span><input className="v2-input" value={form.sections} onChange={(event) => setForm({ ...form, sections: event.target.value })} /></label>
           <label><span className="v2-label">Order</span><input className="v2-input" type="number" value={form.level} onChange={(event) => setForm({ ...form, level: event.target.value })} /></label>
           <label><span className="v2-label">Fee per student (optional)</span><input className="v2-input" type="number" min={0} value={form.fee_amount} onChange={(event) => setForm({ ...form, fee_amount: event.target.value })} /></label>
+          <label><span className="v2-label">Fair budget target in BDT (optional)</span><input className="v2-input" type="number" min={0} value={form.budget_amount} onChange={(event) => setForm({ ...form, budget_amount: event.target.value })} placeholder="e.g. 25000" /></label>
           <label><span className="v2-label">Fee / item name</span><input className="v2-input" value={form.fee_title} onChange={(event) => setForm({ ...form, fee_title: event.target.value })} /></label>
           <label><span className="v2-label">Session</span><input className="v2-input" value={form.fee_session} onChange={(event) => setForm({ ...form, fee_session: event.target.value })} /></label>
           <button className="v2-btn" type="submit" disabled={busy === "create"}>{busy === "create" ? "Adding…" : "Class Add"}</button>
