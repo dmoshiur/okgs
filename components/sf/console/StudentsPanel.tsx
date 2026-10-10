@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   Ban,
   CircleDashed,
+  Download,
   FileSpreadsheet,
   ImagePlus,
   Pencil,
@@ -19,10 +20,12 @@ import {
   X,
 } from "lucide-react";
 import { en, formatDateTimeEn } from "@/lib/format";
+import { GUEST_ENTRY_FEE, GUEST_LUNCH_FEE } from "@/lib/guest-fees";
 import { guestRelations } from "@/lib/student-schema";
 import { ticketLangOptions, type TicketLang } from "@/lib/ticket-locale";
 import { Empty, Notice, Panel, postJson, useApi } from "@/components/sf/console/ui";
 import { StudentPhoto } from "@/components/sf/StudentPhoto";
+import { CameraCapture } from "@/components/sf/console/CameraCapture";
 import { StudentEditModal } from "@/components/sf/console/StudentEditModal";
 import { PhotoImportPanel } from "@/components/sf/console/PhotoImportPanel";
 
@@ -55,6 +58,12 @@ export interface GuestItem {
   name: string;
   contact: string;
   relation: string;
+  photo_url: string;
+  entry_fee: number;
+  has_lunch: number;
+  lunch_fee: number;
+  total_fee: number;
+  fee_status: string;
   status: string;
   related_student_id: string;
   related_student_name?: string;
@@ -316,7 +325,7 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
         <Panel title="Import student roster (.xlsx)">
           <div className="sf-import-box">
             <p className="v2-muted sf-help">
-              Row 1 is the sheet title. Row 2 must contain these exact headers: <code>SL, ID, Roll, Photo, Name, Branch, Shift, Class, Section, Group, SMS Contact, Father Contact, Father Name, Mother Name, Tags</code>. Data starts on row 3. Existing students are updated by their ID.
+              Row 1 is the sheet title. Row 2 must contain these exact headers: <code>SL, ID, Roll, Photo, Name, Branch, Shift, Class, Section, Group, SMS Contact, Father Contact, Father Name, Mother Name, Father Photo, Mother Photo, Tags</code>. Data starts on row 3. Existing students are updated by their ID. The Photo, Father Photo and Mother Photo columns carry image URLs (Cloudinary links), so every picture on the printed ticket can be synced in bulk.
             </p>
             <div className="sf-import-row">
               <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(event) => setImportFile(event.target.files?.[0] ?? null)} />
@@ -502,8 +511,18 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
         </p>
       </Panel>
 
-      <Panel title="External guests & guardians">
+      <Panel
+        title="External guests & guardians"
+        action={
+          <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" onClick={() => { window.location.href = `/api/staff/guests/export?fair=${encodeURIComponent(fairSlug)}`; }}>
+            <Download size={14} /> Export CSV
+          </button>
+        }
+      >
         {guests.error ? <Notice kind="bad">{guests.error}</Notice> : null}
+        <p className="v2-muted sf-help">
+          Entry fee {en(GUEST_ENTRY_FEE)} BDT (mandatory) · lunch box {en(GUEST_LUNCH_FEE)} BDT (optional) — totals 50 or 200 BDT per guest. Photos are captured at the desk and uploaded to Cloudinary.
+        </p>
         <div className="sf-table-wrap">
           <table className="sf-table">
             <thead>
@@ -512,6 +531,7 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
                 <th>Relation</th>
                 <th>Visiting student</th>
                 <th>Contact</th>
+                <th>Fee</th>
                 <th>Status</th>
                 <th aria-label="Actions" />
               </tr>
@@ -519,17 +539,32 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
             <tbody>
               {allGuests.map((guest) => (
                 <tr key={guest.id}>
-                  <td className="sf-wrap-cell"><strong>{guest.name}</strong><small className="v2-muted sf-block">Registered {formatDateTimeEn(guest.created_at)}</small></td>
+                  <td className="sf-wrap-cell">
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {guest.photo_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={guest.photo_url} alt="" style={{ width: 34, height: 44, objectFit: "cover", borderRadius: 6, border: "1px solid var(--line)" }} />
+                      ) : null}
+                      <span>
+                        <strong>{guest.name}</strong>
+                        <small className="v2-muted sf-block">Registered {formatDateTimeEn(guest.created_at)}</small>
+                      </span>
+                    </span>
+                  </td>
                   <td>{guest.relation}</td>
                   <td className="sf-wrap-cell">
                     {guest.related_student_name || "—"}
                     <small className="v2-muted sf-block">{[guest.related_student_code, guest.related_student_class, guest.related_student_section].filter(Boolean).join(" · ")}</small>
                   </td>
                   <td>{guest.contact || "—"}</td>
+                  <td>
+                    ৳{en(guest.total_fee ?? GUEST_ENTRY_FEE)}
+                    <small className="v2-muted sf-block">{Number(guest.has_lunch) ? "Entry + lunch box" : "Entry only"}</small>
+                  </td>
                   <td><span className={`sf-badge ${guest.status === "active" ? "is-good" : "is-bad"}`}>{guest.status === "active" ? "Active" : "Revoked"}</span></td>
                   <td className="sf-actions">
                     <a className="v2-btn v2-btn-sm" href={`/sf/print/guest/${guest.id}?fair=${encodeURIComponent(fairSlug)}`} target="_blank" rel="noreferrer">
-                      <Printer size={14} /> Pass
+                      <Printer size={14} /> Ticket
                     </a>
                     {guest.status === "active" ? (
                       <button type="button" className="v2-btn v2-btn-sm v2-btn-danger" onClick={() => setGuestStatus(guest, "revoked")}><Ban size={14} /> Revoke</button>
@@ -539,7 +574,7 @@ export function StudentsPanel({ fairSlug, fairName, canProvision = false }: { fa
                   </td>
                 </tr>
               ))}
-              {!allGuests.length && !guests.loading ? <tr><td colSpan={6}><Empty>No outside guests registered yet.</Empty></td></tr> : null}
+              {!allGuests.length && !guests.loading ? <tr><td colSpan={7}><Empty>No outside guests registered yet.</Empty></td></tr> : null}
             </tbody>
           </table>
         </div>
@@ -626,15 +661,27 @@ function GuestModal({
   const [contact, setContact] = useState("");
   const [relation, setRelation] = useState<string>(guestRelations[0]);
   const [studentId, setStudentId] = useState(initialStudentId);
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [hasLunch, setHasLunch] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  const totalFee = GUEST_ENTRY_FEE + (hasLunch ? GUEST_LUNCH_FEE : 0);
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError("");
     try {
-      await postJson("/api/staff/guests", { fair_slug: fairSlug, name, contact, relation, related_student_id: studentId });
+      await postJson("/api/staff/guests", {
+        fair_slug: fairSlug,
+        name,
+        contact,
+        relation,
+        related_student_id: studentId,
+        photo_url: photoUrl,
+        has_lunch: hasLunch,
+      });
       await onSaved(name);
     } catch (issue) {
       setError(errorText(issue));
@@ -650,9 +697,16 @@ function GuestModal({
           <h3 id="guest-modal-title">Register outside guest</h3>
           <button type="button" className="v2-btn v2-btn-sm v2-btn-ghost" onClick={onClose} aria-label="Close"><X size={15} /></button>
         </header>
-        <p className="v2-muted sf-help">A temporary guest (for example a Mama, Fufa or Chacha) who may accompany a student. The guest gets a signed QR pass that is scanned at the gate.</p>
+        <p className="v2-muted sf-help">A temporary guest (for example a Mama, Fufa or Chacha) who may accompany a student. Capture the guest&apos;s photo with the device camera — it uploads to Cloudinary at once and prints on the guest ticket with a signed QR.</p>
         {error ? <Notice kind="bad">{error}</Notice> : null}
         <div className="sf-form-grid">
+          <CameraCapture
+            label="Guest photo"
+            folder="guests"
+            photoUrl={photoUrl}
+            onPhoto={setPhotoUrl}
+            onError={(message) => setError(message)}
+          />
           <label><span className="v2-label">Guest name *</span><input className="v2-input" required value={name} onChange={(event) => setName(event.target.value)} /></label>
           <label><span className="v2-label">Contact</span><input className="v2-input" inputMode="tel" placeholder="01XXXXXXXXX" value={contact} onChange={(event) => setContact(event.target.value)} /></label>
           <label><span className="v2-label">Guardian relation *</span>
@@ -671,10 +725,25 @@ function GuestModal({
             </select>
             <small className="v2-muted">Only students in the current list are shown. Adjust the filters to find others.</small>
           </label>
+          <fieldset className="sf-copies">
+            <legend className="v2-label">Guest fee (collected at the desk)</legend>
+            <div style={{ display: "grid", gap: 6 }}>
+              <span className="v2-muted" style={{ fontSize: 13 }}>
+                Entry fee <b>৳{en(GUEST_ENTRY_FEE)}</b> — mandatory
+              </span>
+              <label className={`sf-radio ${hasLunch ? "is-on" : ""}`} style={{ cursor: "pointer" }}>
+                <input type="checkbox" checked={hasLunch} onChange={(event) => setHasLunch(event.target.checked)} />
+                Lunch box — ৳{en(GUEST_LUNCH_FEE)} (optional)
+              </label>
+              <span style={{ fontSize: 14, fontWeight: 700 }}>
+                Total: ৳{en(totalFee)} <span className="v2-muted" style={{ fontWeight: 500 }}>({hasLunch ? "Entry + Lunch Box = 200 BDT" : "Entry only = 50 BDT"})</span>
+              </span>
+            </div>
+          </fieldset>
         </div>
         <footer className="sf-modal-foot">
           <button type="button" className="v2-btn v2-btn-ghost" onClick={onClose}>Cancel</button>
-          <button type="submit" className="v2-btn" disabled={busy || !name.trim() || !studentId}><UserPlus size={15} /> {busy ? "Saving…" : "Register guest"}</button>
+          <button type="submit" className="v2-btn" disabled={busy || !name.trim() || !studentId}><UserPlus size={15} /> {busy ? "Saving…" : `Register guest · ৳${en(totalFee)}`}</button>
         </footer>
       </form>
     </div>

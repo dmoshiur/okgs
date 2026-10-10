@@ -78,6 +78,8 @@ export interface PortalClass {
   fee_amount: number;
   fee_title: string;
   fee_session: string;
+  /** SuperAdmin-set ticket/fair budget target for this class (BDT). */
+  budget_amount: number;
   sort_order: number;
   is_active: number;
   created_at: string;
@@ -495,6 +497,19 @@ const portalMigrations: Record<string, Record<string, string>> = {
     fee_amount: "REAL NOT NULL DEFAULT 0",
     fee_title: "TEXT NOT NULL DEFAULT 'শ্রেণি ফি'",
     fee_session: "TEXT NOT NULL DEFAULT ''",
+    budget_amount: "REAL NOT NULL DEFAULT 0",
+  },
+  students: {
+    father_photo_url: "TEXT NOT NULL DEFAULT ''",
+    mother_photo_url: "TEXT NOT NULL DEFAULT ''",
+  },
+  guests: {
+    photo_url: "TEXT NOT NULL DEFAULT ''",
+    entry_fee: "REAL NOT NULL DEFAULT 50",
+    has_lunch: "INTEGER NOT NULL DEFAULT 0",
+    lunch_fee: "REAL NOT NULL DEFAULT 0",
+    total_fee: "REAL NOT NULL DEFAULT 50",
+    fee_status: "TEXT NOT NULL DEFAULT 'PAID'",
   },
   funds: {
     due_id: "TEXT NOT NULL DEFAULT ''",
@@ -968,7 +983,7 @@ export async function listClasses(activeOnly = false) {
   return rows;
 }
 
-export async function createClass(values: { name: string; level?: number; sections?: string; note?: string; fee_amount?: number; fee_title?: string; fee_session?: string; sort_order?: number; is_active?: number }) {
+export async function createClass(values: { name: string; level?: number; sections?: string; note?: string; fee_amount?: number; fee_title?: string; fee_session?: string; budget_amount?: number; sort_order?: number; is_active?: number }) {
   const id = randomUUID();
   const record = {
     id,
@@ -979,6 +994,7 @@ export async function createClass(values: { name: string; level?: number; sectio
     fee_amount: Math.max(0, Number(values.fee_amount) || 0),
     fee_title: values.fee_title ?? "শ্রেণি ফি",
     fee_session: values.fee_session ?? String(new Date().getFullYear()),
+    budget_amount: Math.max(0, Number(values.budget_amount) || 0),
     sort_order: values.sort_order ?? 0,
     is_active: values.is_active ?? 1,
     created_at: nowIso(),
@@ -991,7 +1007,7 @@ export async function createClass(values: { name: string; level?: number; sectio
 
 export async function updateClass(id: string, values: Partial<PortalClass>) {
   const clean: Record<string, string | number> = {};
-  for (const key of ["name", "level", "sections", "note", "fee_amount", "fee_title", "fee_session", "sort_order", "is_active"] as const) {
+  for (const key of ["name", "level", "sections", "note", "fee_amount", "fee_title", "fee_session", "budget_amount", "sort_order", "is_active"] as const) {
     if (key in values && values[key] !== undefined) clean[key] = values[key] as string | number;
   }
   if (!Object.keys(clean).length) return;

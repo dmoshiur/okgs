@@ -40,14 +40,16 @@ function phoneText(value: unknown) {
  *
  * Layout: row 1 is a title, row 2 holds the exact column headers
  *   SL, ID, Roll, Photo, Name, Branch, Shift, Class, Section, Group,
- *   SMS Contact, Father Contact, Father Name, Mother Name, Tags
+ *   SMS Contact, Father Contact, Father Name, Mother Name,
+ *   Father Photo, Mother Photo, Tags
  * and data starts on row 3. The file is parsed as UTF-8 XML inside the
- * workbook, so Bangla names are kept exactly as typed.
+ * workbook, so Bangla names are kept exactly as typed. The photo columns
+ * carry image URLs (Cloudinary links) for the student, father and mother, so
+ * a roster sync brings every picture the printed ticket needs.
  */
 /**
  * The school's export is fixed: row 1 is the report title, row 2 the column
- * headers `SL, ID, Roll, Photo, Name, Branch, Shift, Class, Section, Group,
- * SMS Contact, Father Contact, Father Name, Mother Name, Tags`, data from row 3.
+ * headers named above, data from row 3.
  * A sheet whose header row has slipped (someone deleted the title, or Excel put
  * the headers in row 1) is still read — we search the first ten rows for the
  * header line instead of trusting a position.
@@ -153,6 +155,8 @@ export async function POST(request: Request) {
     seen.add(code);
 
     const photo = text("photo_url");
+    const fatherPhoto = text("father_photo_url");
+    const motherPhoto = text("mother_photo_url");
     records.push({
       serial_no: Number.parseInt(cellNumber(at(row, "serial_no")), 10) || 0,
       student_code: code,
@@ -168,6 +172,8 @@ export async function POST(request: Request) {
       father_contact: phoneText(at(row, "father_contact")),
       father_name: text("father_name"),
       mother_name: text("mother_name"),
+      father_photo_url: /^https?:\/\//i.test(fatherPhoto) ? fatherPhoto : "",
+      mother_photo_url: /^https?:\/\//i.test(motherPhoto) ? motherPhoto : "",
       tags: text("tags"),
     });
   }

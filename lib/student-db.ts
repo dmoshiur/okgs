@@ -29,6 +29,8 @@ export interface StudentRow {
   father_contact: string;
   father_name: string;
   mother_name: string;
+  father_photo_url: string;
+  mother_photo_url: string;
   tags: string;
   import_batch: string;
   created_at: string;
@@ -50,6 +52,17 @@ export interface GuestRow {
   contact: string;
   related_student_id: string;
   relation: string;
+  /** Cloudinary photo captured at the registration desk. */
+  photo_url: string;
+  /** Mandatory entry fee — always 50 BDT. */
+  entry_fee: number;
+  /** 1 when the guest opted for the 150 BDT lunch box. */
+  has_lunch: number;
+  lunch_fee: number;
+  /** Entry + lunch: 50 or 200 BDT. */
+  total_fee: number;
+  /** PAID once the desk has collected the money. */
+  fee_status: string;
   status: string;
   created_by: string;
   created_by_name: string;
@@ -92,6 +105,8 @@ export const STUDENT_COLUMNS = [
   "Father Contact",
   "Father Name",
   "Mother Name",
+  "Father Photo",
+  "Mother Photo",
   "Tags",
 ] as const;
 
@@ -110,6 +125,8 @@ export interface StudentImportRecord {
   father_contact: string;
   father_name: string;
   mother_name: string;
+  father_photo_url: string;
+  mother_photo_url: string;
   tags: string;
 }
 
@@ -287,6 +304,11 @@ export interface PrintableStudent {
   shift: string;
   student_group: string;
   photo_url: string;
+  /** The redesigned ticket prints all three photos with the parents' names. */
+  father_name: string;
+  mother_name: string;
+  father_photo_url: string;
+  mother_photo_url: string;
 }
 
 /**
@@ -302,7 +324,8 @@ export async function paidStudentsForPrint(
   const limit = Math.max(1, Math.min(2000, Math.floor(filter.limit ?? 20)));
   const offset = Math.max(0, Math.floor(filter.offset ?? 0));
   return query<PrintableStudent>(
-    `SELECT s.id, s.student_code, s.roll, s.name, s.class_name, s.section, s.shift, s.student_group, s.photo_url
+    `SELECT s.id, s.student_code, s.roll, s.name, s.class_name, s.section, s.shift, s.student_group,
+       s.photo_url, s.father_name, s.mother_name, s.father_photo_url, s.mother_photo_url
      ${STUDENT_JOIN} ${where} ${STUDENT_ORDER}
      LIMIT ${limit} OFFSET ${offset}`,
     [filter.fair_slug, ...args],
@@ -340,6 +363,8 @@ export interface StudentPatch {
   father_name?: string;
   mother_name?: string;
   photo_url?: string;
+  father_photo_url?: string;
+  mother_photo_url?: string;
   tags?: string;
   serial_no?: number;
 }
@@ -358,6 +383,8 @@ const STUDENT_PATCH_COLUMNS = [
   "father_name",
   "mother_name",
   "photo_url",
+  "father_photo_url",
+  "mother_photo_url",
   "tags",
 ] as const;
 
@@ -394,12 +421,14 @@ export interface PhotoUpdateResult {
  * Batch photo mapping — the writer behind the CSV/XLSX photo import.
  *
  * A sheet row carries either the school ID or the roll plus a Cloudinary URL.
+ * The optional `father_photo_url` / `mother_photo_url` columns sync the parents'
+ * photos in the same pass, so every picture the ticket prints can be bulk-loaded.
  * Students are resolved once, in a single query, and the writes go out in
  * `db.batch` chunks so a 2,000-row sheet is a handful of round-trips instead of
  * 2,000 of them. Rows whose key matches nobody are reported, never guessed.
  */
 export async function updateStudentPhotos(
-  entries: { key: string; match: "code" | "roll"; photo_url: string; row: number }[],
+  entries: { key: string; match: "code" | "roll"; photo_url: string; row: number; father_photo_url?: string; mother_photo_url?: string }[],
   options: { dryRun?: boolean } = {},
 ): Promise<PhotoUpdateResult> {
   await ensurePortal();
@@ -440,13 +469,29 @@ export async function updateStudentPhotos(
       continue;
     }
     matched += 1;
-    if (student.photo_url === entry.photo_url) {
+    const father = entry.father_photo_url ?? "";
+    const mother = entry.mother_photo_url ?? "";
+    const sets: string[] = [];
+    const args: (string | number)[] = [];
+    if (student.photo_url !== entry.photo_url) {
+      sets.push("photo_url = ?");
+      args.push(entry.photo_url);
+    }
+    if (father && student.father_photo_url !== father) {
+      sets.push("father_photo_url = ?");
+      args.push(father);
+    }
+    if (mother && student.mother_photo_url !== mother) {
+      sets.push("mother_photo_url = ?");
+      args.push(mother);
+    }
+    if (!sets.length) {
       unchanged += 1;
       continue;
     }
     statements.push({
-      sql: `UPDATE students SET photo_url = ?, updated_at = ? WHERE id = ?`,
-      args: [entry.photo_url, stamp, student.id],
+      sql: `UPDATE students SET ${sets.join(", ")}, updated_at = ? WHERE id = ?`,
+      args: [...args, stamp, student.id],
     });
   }
 
@@ -628,13 +673,18 @@ export async function upsertStudents(records: StudentImportRecord[], batch: stri
     const chunk = records.slice(index, index + 100);
     await db.batch(
       chunk.map((record) => ({
-        sql: `INSERT INTO students (id, serial_no, student_code, roll, photo_url, name, branch, shift, class_name, section, student_group, sms_contact, father_contact, father_name, mother_name, tags, import_batch, created_at, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        sql: `INSERT INTO students (id, serial_no, student_code, roll, photo_url, name, branch, shift, class_name, section, student_group, sms_contact, father_contact, father_name, mother_name, father_photo_url, mother_photo_url, tags, import_batch, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               ON CONFLICT(student_code) DO UPDATE SET
-                serial_no = excluded.serial_no, roll = excluded.roll, photo_url = excluded.photo_url, name = excluded.name,
+                serial_no = excluded.serial_no, roll = excluded.roll,
+                photo_url = CASE WHEN excluded.photo_url <> '' THEN excluded.photo_url ELSE students.photo_url END,
+                name = excluded.name,
                 branch = excluded.branch, shift = excluded.shift, class_name = excluded.class_name, section = excluded.section,
                 student_group = excluded.student_group, sms_contact = excluded.sms_contact, father_contact = excluded.father_contact,
-                father_name = excluded.father_name, mother_name = excluded.mother_name, tags = excluded.tags,
+                father_name = excluded.father_name, mother_name = excluded.mother_name,
+                father_photo_url = CASE WHEN excluded.father_photo_url <> '' THEN excluded.father_photo_url ELSE students.father_photo_url END,
+                mother_photo_url = CASE WHEN excluded.mother_photo_url <> '' THEN excluded.mother_photo_url ELSE students.mother_photo_url END,
+                tags = excluded.tags,
                 import_batch = excluded.import_batch, updated_at = excluded.updated_at`,
         args: [
           randomUUID(),
@@ -652,6 +702,8 @@ export async function upsertStudents(records: StudentImportRecord[], batch: stri
           record.father_contact,
           record.father_name,
           record.mother_name,
+          record.father_photo_url,
+          record.mother_photo_url,
           record.tags,
           batch,
           stamp,
@@ -747,6 +799,12 @@ export async function createGuest(values: {
   contact: string;
   related_student_id: string;
   relation: string;
+  photo_url?: string;
+  entry_fee: number;
+  has_lunch: boolean;
+  lunch_fee: number;
+  total_fee: number;
+  fee_status?: string;
   created_by: string;
   created_by_name: string;
 }) {
@@ -754,9 +812,26 @@ export async function createGuest(values: {
   const id = randomUUID();
   const stamp = nowIso();
   await run(
-    `INSERT INTO guests (id, fair_slug, name, contact, related_student_id, relation, status, created_by, created_by_name, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)`,
-    [id, values.fair_slug, values.name, values.contact, values.related_student_id, values.relation, values.created_by, values.created_by_name, stamp, stamp],
+    `INSERT INTO guests (id, fair_slug, name, contact, related_student_id, relation, photo_url, entry_fee, has_lunch, lunch_fee, total_fee, fee_status, status, created_by, created_by_name, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)`,
+    [
+      id,
+      values.fair_slug,
+      values.name,
+      values.contact,
+      values.related_student_id,
+      values.relation,
+      values.photo_url ?? "",
+      values.entry_fee,
+      values.has_lunch ? 1 : 0,
+      values.lunch_fee,
+      values.total_fee,
+      values.fee_status === "UNPAID" ? "UNPAID" : "PAID",
+      values.created_by,
+      values.created_by_name,
+      stamp,
+      stamp,
+    ],
   );
   return getGuestById(id);
 }
@@ -764,6 +839,82 @@ export async function createGuest(values: {
 export async function setGuestStatus(id: string, status: "active" | "revoked") {
   await run(`UPDATE guests SET status = ?, updated_at = ? WHERE id = ?`, [status, nowIso(), id]);
   return getGuestById(id);
+}
+
+/** Flip a guest's fee between collected (PAID) and due (UNPAID). */
+export async function setGuestFeeStatus(id: string, feeStatus: "PAID" | "UNPAID") {
+  await run(`UPDATE guests SET fee_status = ?, updated_at = ? WHERE id = ?`, [feeStatus, nowIso(), id]);
+  return getGuestById(id);
+}
+
+export interface GuestFeeSummary {
+  /** Non-revoked guests who paid the 50 BDT entry fee. */
+  entryCount: number;
+  entryTotal: number;
+  /** Paid guests who also took the 150 BDT lunch box. */
+  lunchCount: number;
+  lunchTotal: number;
+  /** Every non-revoked guest, paid or not. */
+  registered: number;
+  /** Entry + lunch actually collected. */
+  collected: number;
+}
+
+/**
+ * Guest money for one fair — the dashboard's "guest entry fees" and "lunch box
+ * sales" figures. Only non-revoked guests count, and only rows marked PAID are
+ * treated as collected; the fee amounts come from the stored row, never from a
+ * client payload.
+ */
+export async function guestFeeSummary(fairSlug: string): Promise<GuestFeeSummary> {
+  const rows = await query<{
+    registered: number;
+    entry_count: number;
+    entry_total: number;
+    lunch_count: number;
+    lunch_total: number;
+    collected: number;
+  }>(
+    `SELECT
+       COUNT(*) AS registered,
+       COALESCE(SUM(CASE WHEN fee_status = 'PAID' THEN 1 ELSE 0 END), 0) AS entry_count,
+       COALESCE(SUM(CASE WHEN fee_status = 'PAID' THEN COALESCE(entry_fee, 0) ELSE 0 END), 0) AS entry_total,
+       COALESCE(SUM(CASE WHEN fee_status = 'PAID' AND has_lunch = 1 THEN 1 ELSE 0 END), 0) AS lunch_count,
+       COALESCE(SUM(CASE WHEN fee_status = 'PAID' AND has_lunch = 1 THEN COALESCE(lunch_fee, 0) ELSE 0 END), 0) AS lunch_total,
+       COALESCE(SUM(CASE WHEN fee_status = 'PAID' THEN COALESCE(total_fee, 0) ELSE 0 END), 0) AS collected
+     FROM guests WHERE fair_slug = ? AND status = 'active'`,
+    [fairSlug],
+  );
+  const row = rows[0] ?? { registered: 0, entry_count: 0, entry_total: 0, lunch_count: 0, lunch_total: 0, collected: 0 };
+  return {
+    registered: Number(row.registered ?? 0),
+    entryCount: Number(row.entry_count ?? 0),
+    entryTotal: Number(row.entry_total ?? 0),
+    lunchCount: Number(row.lunch_count ?? 0),
+    lunchTotal: Number(row.lunch_total ?? 0),
+    collected: Number(row.collected ?? 0),
+  };
+}
+
+/**
+ * How many students of each class have PAID the fair ticket — the class-wise
+ * breakdown behind the dashboard's student-collection figures.
+ */
+export async function paidStudentsByClass(fairSlug: string) {
+  const rows = await query<{ class_name: string; paid: number; total: number }>(
+    `SELECT s.class_name,
+       COALESCE(SUM(CASE WHEN p.status = 'PAID' THEN 1 ELSE 0 END), 0) AS paid,
+       COUNT(*) AS total
+     FROM students s LEFT JOIN payments p ON p.student_id = s.id AND p.fair_slug = ?
+     GROUP BY s.class_name
+     ORDER BY length(s.class_name) ASC, s.class_name ASC`,
+    [fairSlug],
+  );
+  return rows.map((row) => ({
+    class_name: String(row.class_name || "—"),
+    paid: Number(row.paid ?? 0),
+    total: Number(row.total ?? 0),
+  }));
 }
 
 export async function activeGuestsForStudent(studentId: string, fairSlug: string) {

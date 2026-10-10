@@ -1,36 +1,33 @@
 /**
- * Portrait A6 entry ticket (105 × 148 mm). One sheet per copy, with a vertical
- * ID-card layout. Server-rendered so the printed page and the QR are produced
- * by the backend.
+ * A6 portrait entry ticket (105 × 148 mm) — the GENESIS 2026 redesign.
  *
- * Layout contract (kept stable for the print CSS):
- *   head  — school logo, school name, event title, ticket kind + copy label
- *   body  — student photo · details · signed QR, stacked vertically
- *   foot  — validity, issue date, who printed it, signature note
+ * Layout contract (top → bottom, everything INSIDE the bordered frame):
+ *   head   — school logo · "Omar Kindergarten School" over "Scholars
+ *            Residential School" · Scholars logo
+ *   title  — the Science Fair event name, large and bold
+ *   photos — father photo + name · student/guest photo (large) · mother
+ *            photo + name — followed by the student/guest full name
+ *   grid   — Student ID · Roll · Class · Section · Shift · Group for a
+ *            student; Guest ID · Tagged student · Contact · Status for an
+ *            outside guest (tagged "GUEST ENTRY")
+ *   bottom — signed QR on the left, Fair President's signature on the right
+ *   foot   — "Valid until 31 December 2026" · "Issued <date>"
  *
- * Overflow contract: the sheet is exactly one A6 page in browser view and in
- * print (`@page ticket-portrait { size: A6 portrait; margin: 0; }`), and every
- * block lives INSIDE the bordered frame. The QR block is the only flexible
- * member of the column — it absorbs the remaining height, so the QR can never
- * spill over the footer or off the page.
+ * Overflow contract: the sheet is exactly one A6 page on screen and in print
+ * (`@page ticket-portrait { size: A6 portrait; margin: 0; }`). The bottom row
+ * (QR + signature) is the only flexible member of the column, so it absorbs
+ * whatever height remains and the QR can never spill over the footer.
  *
- * Copy 1 is the student copy. From copy 2 onward the parents' names and the
- * external guardian block (Mama / Fufa / Chacha / guest) are printed too.
+ * The very same component is set four-up on the A4 bulk sheet — the grid
+ * print scales nothing and restyles nothing, it simply places four A6 sheets.
  *
- * Every word on the sheet comes from `ticketText(lang)` — see lib/ticket-locale.ts.
- * The component itself holds no English or Bangla string literals, which is what
- * makes the three language modes (English / Bangla / bilingual) uniform.
+ * Every word on the sheet comes from `ticketText(lang)` — see
+ * lib/ticket-locale.ts. Branding constants (logos, signature, school names)
+ * live in lib/ticket-brand.ts.
  */
 import { optimizedImage } from "@/lib/cloudinary";
-import {
-  ticketDate,
-  ticketNumber,
-  ticketSchoolName,
-  ticketText,
-  ticketValue,
-  type TicketLabel,
-  type TicketLang,
-} from "@/lib/ticket-locale";
+import { FAIR_PRESIDENT_SIGNATURE_URL, SCHOLARS_LOGO_URL, TICKET_SCHOOL_NAME, TICKET_SUB_HEADER } from "@/lib/ticket-brand";
+import { ticketText, ticketValue, type TicketLabel, type TicketLang } from "@/lib/ticket-locale";
 
 export interface TicketStudent {
   name: string;
@@ -40,43 +37,40 @@ export interface TicketStudent {
   section: string;
   shift: string;
   student_group: string;
-  branch: string;
   father_name: string;
   mother_name: string;
   photo_url: string;
+  father_photo_url: string;
+  mother_photo_url: string;
 }
 
-export interface TicketGuardian {
+export interface TicketGuestInfo {
+  id: string;
   name: string;
   relation: string;
   contact: string;
+  status: string;
+  photo_url: string;
 }
 
 export interface TicketSheetProps {
   kind: "student" | "guest";
   schoolName: string;
   fairName: string;
+  /** Left logo — the school crest from site settings. */
   logo: string;
-  copyIndex: number;
-  copyCount: number;
-  /** Optional: when omitted the label is taken from the ticket language. */
-  copyLabel?: string;
-  showFamily: boolean;
+  /** Right logo — Scholars Residential School (brand constant by default). */
+  secondaryLogo?: string;
+  /** President's signature image (brand constant by default). */
+  signatureUrl?: string;
   /** `en` (default), `bn` or `both` — every label on the sheet follows it. */
   lang?: TicketLang;
   student: TicketStudent;
-  paymentStatus: "PAID" | "UNPAID";
-  guardian: TicketGuardian | null;
-  /** Every approved external guardian of this student — Mama, Fufa, Chacha, … */
-  guardians?: TicketGuardian[];
-  guest?: { name: string; relation: string; contact: string; status: string };
-  admittedAt: string;
+  guest?: TicketGuestInfo | null;
   qr: string;
-  /** Already formatted for the sheet's language. */
+  /** Already formatted for the sheet's language ("31 December 2026"). */
   validUntil: string;
   issuedAt: string;
-  ticketCode: string;
-  printedBy: string;
 }
 
 function initialsOf(value: string) {
@@ -84,17 +78,37 @@ function initialsOf(value: string) {
   return words.slice(0, 2).map((word) => word[0]).join("").toUpperCase() || "?";
 }
 
-/** One `Label / value` pair. In bilingual mode the English sits under the Bangla. */
-function Field({ label, value, lang, wide, plain }: { label: TicketLabel; value: string; lang: TicketLang; wide?: boolean; plain?: boolean }) {
-  const displayValue = plain ? ticketValue(value, lang) : ticketNumber(value, lang);
+/** Printable guest reference — the UUID shortened to a gate-friendly token. */
+export function guestTicketId(id: string) {
+  return id.replace(/[^a-z0-9]/gi, "").slice(0, 8).toUpperCase() || "—";
+}
+
+/**
+ * One `Label / value` pair. In bilingual mode the English sits under the
+ * Bangla. Values are printed as-is (IDs never get thousands separators —
+ * `ticketValue` only rewrites digits on a Bangla sheet).
+ */
+function Field({ label, value, lang }: { label: TicketLabel; value: string; lang: TicketLang }) {
   return (
-    <div className={`ticket-field${wide ? " is-wide" : ""}`}>
+    <div className="ticket-field">
       <dt>
         {label.primary}
         {label.secondary ? <em>{label.secondary}</em> : null}
       </dt>
-      <dd>{displayValue || "—"}</dd>
+      <dd>{ticketValue(value, lang) || "—"}</dd>
     </div>
+  );
+}
+
+/** A 3:4 photo cell; shows initials when no picture is stored. */
+function PhotoCell({ src, name, large, alt, optimized }: { src: string; name: string; large?: boolean; alt: string; optimized: string }) {
+  return (
+    <figure className={`ticket-photo-cell${large ? " is-large" : ""}`}>
+      <span className="ticket-photo-frame">
+        {optimized ? <img src={optimized} alt={alt} /> : <span className="ticket-photo-initial">{initialsOf(src || name || alt)}</span>}
+      </span>
+      {name ? <figcaption>{name}</figcaption> : null}
+    </figure>
   );
 }
 
@@ -102,136 +116,96 @@ export function TicketSheet(props: TicketSheetProps) {
   const { student, guest } = props;
   const lang = props.lang ?? "en";
   const t = ticketText(lang);
-  const schoolName = ticketSchoolName(props.schoolName);
+  // The redesign pins the printed institution name — the site setting only
+  // feeds toolbars and hints, never the paper.
+  const schoolName = TICKET_SCHOOL_NAME;
   const isGuest = props.kind === "guest";
   const headline = isGuest ? guest?.name ?? "" : student.name;
-  const revoked = isGuest && guest?.status !== "active";
-  const kindLabel = isGuest ? t.titles.guestPass : t.titles.studentTicket;
-  const copySource = isGuest ? t.titles.guestCopy : t.titles.copies[props.copyIndex - 1] ?? t.titles.copies[0];
-  const copyLabel = props.copyLabel || copySource.primary;
-  const copyAlt = !props.copyLabel || props.copyLabel === copySource.primary ? copySource.secondary : "";
-  // Every approved outside guardian is printed, plus two blank lines a gate
-  // warden can fill by hand for a walk-in relative.
-  const listed = props.guardians?.length ? props.guardians : props.guardian ? [props.guardian] : [];
-  const spare = listed.length < 2 ? [t.notes.blankName, t.notes.blankRelation] : [];
-  const paid = props.paymentStatus === "PAID";
-  // `f_auto,q_auto,w_600,h_800,c_fill` keeps the printed photo a 3:4 crop and small.
-  const photo = optimizedImage(student.photo_url, { width: 600, height: 800, fit: "cover" });
+  const secondaryLogo = props.secondaryLogo ?? SCHOLARS_LOGO_URL;
+  const signatureUrl = props.signatureUrl ?? FAIR_PRESIDENT_SIGNATURE_URL;
+
+  // 3:4 crops, auto-format — the same sizes the single print has always used.
+  const mainPhoto = optimizedImage(isGuest ? guest?.photo_url ?? "" : student.photo_url, { width: 600, height: 800, fit: "cover" });
+  const fatherPhoto = optimizedImage(student.father_photo_url, { width: 300, height: 400, fit: "cover" });
+  const motherPhoto = optimizedImage(student.mother_photo_url, { width: 300, height: 400, fit: "cover" });
 
   return (
     <section
-      className={`ticket-sheet printable-ticket ${isGuest ? "is-guest" : ""} ${paid || isGuest ? "" : "is-unpaid-sheet"}`}
+      className={`ticket-sheet printable-ticket ${isGuest ? "is-guest" : ""}`}
       data-lang={lang}
-      aria-label={`${isGuest ? "Guest pass" : "Student ticket"} ${props.copyIndex} of ${props.copyCount}`}
+      aria-label={`${isGuest ? "Guest entry ticket" : "Student ticket"} — ${headline || "unnamed"}`}
     >
       <div className="ticket-frame">
         <header className="ticket-head">
-          <div className="ticket-school">
-            {props.logo ? (
-              <img src={props.logo} alt="" className="ticket-logo" />
-            ) : (
-              <span className="ticket-logo ticket-logo-fallback">{initialsOf(schoolName)}</span>
-            )}
-            <div className="ticket-school-copy">
-              <strong>{schoolName}</strong>
-              <small>{ticketValue(props.fairName, lang)}</small>
-            </div>
+          {props.logo ? (
+            <img src={props.logo} alt="" className="ticket-logo" />
+          ) : (
+            <span className="ticket-logo ticket-logo-fallback">{initialsOf(schoolName)}</span>
+          )}
+          <div className="ticket-school-copy">
+            <strong>{schoolName}</strong>
+            <small>{TICKET_SUB_HEADER}</small>
           </div>
-          <div className="ticket-kind">
-            <span>{kindLabel.primary}</span>
-            {kindLabel.secondary ? <i>{kindLabel.secondary}</i> : null}
-            <b>{copyLabel}</b>
-            {copyAlt ? <i>{copyAlt}</i> : null}
-            <em>{t.titles.copyOf(props.copyIndex, props.copyCount)}</em>
-          </div>
+          {secondaryLogo ? (
+            <img src={secondaryLogo} alt="" className="ticket-logo ticket-logo-right" />
+          ) : (
+            <span className="ticket-logo ticket-logo-fallback">SR</span>
+          )}
         </header>
 
-        <div className="ticket-body">
-          <figure className="ticket-photo">
-            {!isGuest && photo ? <img src={photo} alt="" /> : <span>{initialsOf(headline)}</span>}
-          </figure>
+        <h2 className="ticket-title">{ticketValue(props.fairName, lang)}</h2>
 
-          <div className="ticket-info">
-            <h2 className="ticket-name">{headline || "—"}</h2>
-            {isGuest ? (
-              <dl className="ticket-grid">
-                <Field label={t.labels.relation} value={guest?.relation ?? ""} lang={lang} />
-                <Field label={t.labels.contact} value={guest?.contact ?? ""} lang={lang} />
-                <Field label={t.labels.visitingStudent} value={student.name} lang={lang} />
-                <Field label={t.labels.studentId} value={student.student_code} lang={lang} plain />
-                <Field label={t.labels.className} value={student.class_name} lang={lang} />
-                <Field label={t.labels.section} value={student.section} lang={lang} />
-              </dl>
-            ) : (
-              <dl className="ticket-grid">
-                <Field label={t.labels.studentId} value={student.student_code} lang={lang} plain />
-                <Field label={t.labels.roll} value={student.roll} lang={lang} />
-                <Field label={t.labels.className} value={student.class_name} lang={lang} />
-                <Field label={t.labels.section} value={student.section} lang={lang} />
-                <Field label={t.labels.shift} value={student.shift} lang={lang} />
-                <Field label={t.labels.group} value={student.student_group} lang={lang} />
-              </dl>
-            )}
+        {isGuest ? <div className="ticket-guest-tag">{t.titles.guestEntry.primary}</div> : null}
 
-            {!isGuest && props.showFamily ? (
-              <div className="ticket-family">
-                <div className="ticket-family-row">
-                  <Field label={t.labels.father} value={student.father_name} lang={lang} />
-                  <Field label={t.labels.mother} value={student.mother_name} lang={lang} />
-                </div>
-                <div className="ticket-guardians">
-                  <span className="ticket-guardian-title">{t.notes.guardians.primary}</span>
-                  {listed.length ? (
-                    <ul className="ticket-guardian-list">
-                      {listed.map((person) => (
-                        <li key={`${person.name}-${person.relation}`}>
-                          <strong>{person.name || t.notes.unnamed.primary}</strong>
-                          {person.relation ? ` — ${person.relation}` : ""}
-                          {person.contact ? ` · ${ticketValue(person.contact, lang)}` : ""}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="ticket-guardian-note">{t.notes.noGuardian.primary}</p>
-                  )}
-                  {spare.length ? (
-                    <div className="ticket-blank">
-                      {spare.map((label) => (
-                        <span key={label.primary}>{label.primary} ____________________________</span>
-                      ))}
-                      <span>{t.notes.blankContact.primary} ________________</span>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
+        <div className={`ticket-photos${isGuest ? " is-single" : ""}`}>
+          {isGuest ? (
+            <PhotoCell src={guest?.photo_url ?? ""} name="" large alt={headline} optimized={mainPhoto} />
+          ) : (
+            <>
+              <PhotoCell src={student.father_photo_url} name={student.father_name} alt={`Father of ${student.name}`} optimized={fatherPhoto} />
+              <PhotoCell src={student.photo_url} name="" large alt={student.name} optimized={mainPhoto} />
+              <PhotoCell src={student.mother_photo_url} name={student.mother_name} alt={`Mother of ${student.name}`} optimized={motherPhoto} />
+            </>
+          )}
+        </div>
 
-            <div className="ticket-status-row">
-              {isGuest ? (
-                <span className={`ticket-pill ${revoked ? "is-unpaid" : "is-paid"}`}>{revoked ? t.status.revoked : t.status.activeGuest}</span>
-              ) : (
-                <span className={`ticket-pill ${paid ? "is-paid" : "is-unpaid"}`}>
-                  {t.status.feeLabel.primary}: {paid ? t.status.paid : t.status.unpaid}
-                </span>
-              )}
-              <span className={`ticket-pill ${props.admittedAt ? "is-admitted" : ""}`}>
-                {props.admittedAt
-                  ? `${t.status.admittedPrefix} ${ticketDate(props.admittedAt, lang, "short")}`
-                  : t.status.notAdmitted}
-              </span>
-            </div>
-          </div>
+        <h3 className="ticket-name">{headline || "—"}</h3>
 
+        {isGuest ? (
+          <dl className="ticket-grid">
+            <Field label={t.labels.guestId} value={guest ? guestTicketId(guest.id) : ""} lang={lang} />
+            <Field label={t.labels.taggedStudent} value={student.name} lang={lang} />
+            <Field label={t.labels.contact} value={guest?.contact ?? ""} lang={lang} />
+            <Field label={t.labels.status} value={guest?.status === "revoked" ? t.status.revoked : t.status.activeGuest} lang={lang} />
+            <Field label={t.labels.studentId} value={student.student_code} lang={lang} />
+            <Field label={t.labels.className} value={student.class_name} lang={lang} />
+          </dl>
+        ) : (
+          <dl className="ticket-grid">
+            <Field label={t.labels.studentId} value={student.student_code} lang={lang} />
+            <Field label={t.labels.roll} value={student.roll} lang={lang} />
+            <Field label={t.labels.className} value={student.class_name} lang={lang} />
+            <Field label={t.labels.section} value={student.section} lang={lang} />
+            <Field label={t.labels.shift} value={student.shift} lang={lang} />
+            <Field label={t.labels.group} value={student.student_group} lang={lang} />
+          </dl>
+        )}
+
+        <div className="ticket-bottom">
           <div className="ticket-qr">
             <div className="ticket-qr-fit">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={props.qr} alt="" />
             </div>
-            <small>
-              {t.notes.scanAtGate.primary}
-              {t.notes.scanAtGate.secondary ? <em>{t.notes.scanAtGate.secondary}</em> : null}
-            </small>
-            <code>{ticketValue(props.ticketCode, lang)}</code>
+          </div>
+          <div className="ticket-signature">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={signatureUrl} alt="" className="ticket-signature-img" />
+            <span className="ticket-signature-rule" aria-hidden="true" />
+            <span className="ticket-signature-caption">
+              {t.titles.fairPresident.primary}
+              {t.titles.fairPresident.secondary ? <em>{t.titles.fairPresident.secondary}</em> : null}
+            </span>
           </div>
         </div>
 
@@ -242,10 +216,6 @@ export function TicketSheet(props: TicketSheetProps) {
           <span>
             {t.notes.issued.primary} {props.issuedAt}
           </span>
-          <span>
-            {t.notes.printedBy.primary} {props.printedBy}
-          </span>
-          <span>{t.notes.signature.primary}</span>
         </footer>
       </div>
     </section>

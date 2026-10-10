@@ -98,6 +98,16 @@ interface Stats {
   ticketScans: TicketScanRow[];
   gate: { success: number; duplicate: number; expired: number; invalid: number; admitted: number };
   roster: { total: number; paid: number; unpaid: number; printed: number; entered: number; guests: number };
+  budget: {
+    rows: { class_name: string; fee_amount: number; budget_amount: number; students: number; paid: number; collected: number; remaining: number }[];
+    studentCollected: number;
+    guestEntry: { fee: number; count: number; total: number };
+    guestLunch: { fee: number; count: number; total: number };
+    guestRegistered: number;
+    totalCollected: number;
+    totalBudget: number;
+    remainingBudget: number;
+  };
   pendingFunds: FundRow[];
   roles: Record<string, number>;
   activity: { id: string; actor_name: string; action: string; detail: string; created_at: string }[];
@@ -246,9 +256,88 @@ export function FairConsole({
               <Metric label="Current balance" value={money(totals?.balance ?? 0)} note={(totals?.balance ?? 0) >= 0 ? "Surplus" : "Deficit"} icon={<BadgeCheck size={14} />} />
               <Metric label="Students paid" value={en(roster.paid)} note={`${en(roster.unpaid)} unpaid of ${en(roster.total)} in the roster`} icon={<Users size={14} />} />
               <Metric label="Admitted at the gate" value={en(gate.admitted)} note={`${en(gate.duplicate)} duplicate · ${en(gate.invalid)} invalid`} icon={<QrCode size={14} />} />
+              <Metric
+                accent
+                label="Fair collections"
+                value={money(data?.budget?.totalCollected ?? 0)}
+                note={
+                  data?.budget?.totalBudget
+                    ? `${Math.min(100, Math.round(((data.budget.totalCollected || 0) / data.budget.totalBudget) * 100))}% of the ${money(data.budget.totalBudget)} class budgets`
+                    : "No class budgets set yet — set them in Classes"
+                }
+                icon={<Wallet size={14} />}
+              />
             </div>
 
             <PortalAnnouncements lang="en" />
+
+            <Panel
+              title="Class-wise budget & collections"
+              action={
+                data?.budget ? (
+                  <span className="badge-soft">
+                    Collected {money(data.budget.totalCollected)} · Target {money(data.budget.totalBudget)} · Remaining {money(data.budget.remainingBudget)}
+                  </span>
+                ) : undefined
+              }
+            >
+              {data?.budget ? (
+                <div className="sf-stack" style={{ gap: 12 }}>
+                  {data.budget.totalBudget > 0 ? (
+                    <div style={{ height: 10, borderRadius: 999, background: "var(--line-2, #e2e8f0)", overflow: "hidden" }} aria-hidden="true">
+                      <div
+                        style={{
+                          width: `${Math.min(100, Math.round((data.budget.totalCollected / Math.max(1, data.budget.totalBudget)) * 100))}%`,
+                          height: "100%",
+                          borderRadius: 999,
+                          background: "linear-gradient(90deg, #1d4f91, #2e7d5b)",
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                  <div className="sf-table-wrap">
+                    <table className="sf-table">
+                      <thead>
+                        <tr>
+                          <th>Class</th>
+                          <th>Paid students</th>
+                          <th>Student collections</th>
+                          <th>Target budget</th>
+                          <th>Remaining</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(data.budget.rows ?? []).map((row) => (
+                          <tr key={row.class_name}>
+                            <td><strong>{row.class_name}</strong></td>
+                            <td>{en(row.paid)} / {en(row.students)}</td>
+                            <td>{money(row.collected)}</td>
+                            <td>{row.budget_amount ? money(row.budget_amount) : "—"}</td>
+                            <td>{row.budget_amount ? money(row.remaining) : "—"}</td>
+                          </tr>
+                        ))}
+                        {!(data.budget.rows ?? []).length ? (
+                          <tr><td colSpan={5}><Empty>No classes yet — add them in the Classes section.</Empty></td></tr>
+                        ) : null}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="sf-chip-stack">
+                    <span className="badge-soft">
+                      <Users size={13} /> Student collections {money(data.budget.studentCollected)} ({en((data.budget.rows ?? []).reduce((sum, row) => sum + row.paid, 0))} paid students)
+                    </span>
+                    <span className="badge-soft">
+                      <QrCode size={13} /> Guest entry fees {money(data.budget.guestEntry.total)} — {en(data.budget.guestEntry.count)} × {money(data.budget.guestEntry.fee)}
+                    </span>
+                    <span className="badge-soft">
+                      <Receipt size={13} /> Lunch box sales {money(data.budget.guestLunch.total)} — {en(data.budget.guestLunch.count)} × {money(data.budget.guestLunch.fee)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <Empty>Loading…</Empty>
+              )}
+            </Panel>
 
             <div className="sf-grid-2">
               <Panel title="Funds collected by class">

@@ -45,6 +45,7 @@ export async function POST(request: Request) {
     fee_amount: Math.max(0, num(body.fee_amount)),
     fee_title: str(body.fee_title, "Class fee") || "Class fee",
     fee_session: str(body.fee_session) || String(new Date().getFullYear()),
+    budget_amount: Math.max(0, num(body.budget_amount)),
     sort_order: num(body.sort_order),
   });
   const createdClass = (await listClasses()).find((item) => item.id === id);
@@ -70,6 +71,7 @@ export async function PATCH(request: Request) {
     ...(("fee_amount" in body) ? { fee_amount: Math.max(0, num(body.fee_amount)) } : {}),
     ...(("fee_title" in body) ? { fee_title: str(body.fee_title) || "Class fee" } : {}),
     ...(("fee_session" in body) ? { fee_session: str(body.fee_session) } : {}),
+    ...(("budget_amount" in body) ? { budget_amount: Math.max(0, num(body.budget_amount)) } : {}),
     ...(("sort_order" in body) ? { sort_order: num(body.sort_order) } : {}),
     ...(("is_active" in body) ? { is_active: Number(body.is_active) ? 1 : 0 } : {}),
   });

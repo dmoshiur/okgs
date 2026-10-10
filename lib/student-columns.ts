@@ -19,6 +19,8 @@ export interface StudentColumn {
     | "father_contact"
     | "father_name"
     | "mother_name"
+    | "father_photo_url"
+    | "mother_photo_url"
     | "tags";
   header: string;
   aliases: string[];
@@ -44,6 +46,8 @@ export const studentColumns: StudentColumn[] = [
   { key: "father_contact", header: "Father Contact", aliases: ["GUARDIAN MOBILE", "FATHER MOBILE", "অভিভাবকের ফোন"], phone: true },
   { key: "father_name", header: "Father Name", aliases: ["FATHER'S NAME", "GUARDIAN NAME", "পিতার নাম"] },
   { key: "mother_name", header: "Mother Name", aliases: ["MOTHER'S NAME", "মাতার নাম"] },
+  { key: "father_photo_url", header: "Father Photo", aliases: ["FATHER PHOTO URL", "FATHER PICTURE", "FATHER IMAGE"] },
+  { key: "mother_photo_url", header: "Mother Photo", aliases: ["MOTHER PHOTO URL", "MOTHER PICTURE", "MOTHER IMAGE"] },
   { key: "tags", header: "Tags", aliases: ["TAG", "REMARKS", "NOTES"] },
 ];
 

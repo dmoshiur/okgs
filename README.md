@@ -26,8 +26,8 @@
 - **`/sf`** — ফেয়ার কনসোল (মোবাইল-ফার্স্ট, নিচে ট্যাব বার): ড্যাশবোর্ড (মোট ফান্ড, শ্রেণি+শাখা অনুযায়ী ছাত্রসংখ্যা, খরচ, বকেয়া), ফান্ড, পাওনা, খরচ, সংগ্রহ (প্রকল্প), QR পাস, **টিকার**, ইউজার, শ্রেণি, সেটিং।
   খরচ ট্যাবে **মাসিক সমন্বয় খাতা** — মাস বেছে সংগ্রহ বনাম খরচ বনাম বেতনের হিসাব, শিক্ষক/স্টাফ/অ্যাডমিন অ্যাকাউন্টে মাসিক বেতনের লেজার এন্ট্রি এবং এক ক্লিকে মাসের অবশিষ্ট ব্যালেন্স সমন্বয়; প্রতিটি এন্ট্রির স্বয়ংক্রিয় খরচ-মেমো (`/sf/print/memo/<id>`) তৈরি হয়।
 - **`/sf/scan`** — ক্যামেরা দিয়ে QR স্ক্যান (jsQR) + ম্যানুয়াল টোকেন; লগইন করা শিক্ষক/অ্যাডমিনের ক্যামেরা দিয়েই যাচাই। প্রতিটি **পাস** ও প্রতিটি **প্রকল্প-লেবেল** স্ক্যান করে যাচাই করা যায় (প্রকল্পের QR: কনসোল → সংগ্রহ → QR আইকন → `/api/qr?entry=<id>`)।
-- **টিকিট ও বাল্ক প্রিন্ট** — প্রতিটি টিকিট **এক ভাষায়**: টুলবারে `English · বাংলা · বাংলা + English` (`?lang=`), সব লেবেল, ব্যাজ ও ফুটার নোট সেই ভাষায় (বাংলা টিকিটে সংখ্যাও বাংলায়)। ছবি ৩:৪ ফ্রেমে বাঁ দিকে, সাথে লোগো, আইডি/রোল/শ্রেণি/শাখা/শিফট, ফি-ব্যাজ ও স্বাক্ষরিত QR। শিক্ষার্থী ট্যাবের **Print bulk tickets** বাটনে A4 পোর্ট্রেট শিটে **প্রতি পাতায় ৪টি টিকিট** (২×২ গ্রিড), প্রতি ৪টির পর পেজ ব্রেক — এবং **শুধু ফি-পরিশোধিত** শিক্ষার্থীদের টিকিট ছাপা হয় (বাকিরা SQL ফিল্টারেই বাদ পড়ে, UI থেকে বদলানো যায় না)।
-- **ছবি ব্যবস্থাপনা** — CSV/Excel শিটে `student_id` (বা `roll`) + `photo_url` (Cloudinary লিংক) আপলোড করলে পুরো রোস্টারের ছবি একসাথে বসে যায়; “Check without saving” আগে দেখিয়ে দেয় কোন সারি কার সাথে মিলবে আর কোনগুলো মেলেনি। অথবা প্রতি শিক্ষার্থীর **Edit** মডাল থেকে সরাসরি Cloudinary-তে ছবি আপলোড (সাথে সাথে প্রিভিউ) ও নাম/রোল/শ্রেণি/শাখা/শিফট/পেমেন্ট স্ট্যাটাস সম্পাদনা। বিস্তারিত: `CHANGES_SF_TICKETS.md`।
+- **টিকিট ও বাল্ক প্রিন্ট** — প্রতিটি টিকিট **এক ভাষায়**: টুলবারে `English · বাংলা · বাংলা + English` (`?lang=`), সব লেবেল ও ফুটার সেই ভাষায় (বাংলা টিকিটে সংখ্যাও বাংলায়)। হেডারে ওমর কিন্ডারগার্টেন স্কুল + “Scholars Residential School” ও দুই লোগো, তারপর মেলার নাম (বড়, বোল্ড), ছবির সারিতে **বাবা · শিক্ষার্থী (বড়) · মা** (নিচে নাম), আইডি/রোল/শ্রেণি/শাখা/শিফট/গ্রুপ গ্রিড, নিচে বাঁয়ে স্বাক্ষরিত QR ও ডানে মেলা সভাপতির স্বাক্ষর; ফুটারে “মেয়াদ ৩১ ডিসেম্বর ২০২৬” ও ইস্যু তারিখ। **বহিরাগত অতিথি** টিকিটে “GUEST ENTRY” ট্যাগ, ক্যামেরায় তোলা ছবি (সরাসরি Cloudinary), অতিথি আইডি/ট্যাগ করা শিক্ষার্থী/যোগাযোগ/স্ট্যাটাস আর বাধ্যতামূলক ৫০ টাকা ফি + ঐচ্ছিক ১৫০ টাকার লাঞ্চ বক্স। শিক্ষার্থী ট্যাবের **Print bulk tickets** বাটনে A4 পোর্ট্রেট শিটে **প্রতি পাতায় ৪টি টিকিট** (২×২ গ্রিডে ৪টি আসল A6 শিট — টেমপ্লেট বদলায় না), প্রতি ৪টির পর পেজ ব্রেক — এবং **শুধু ফি-পরিশোধিত** শিক্ষার্থীদের টিকিট ছাপা হয় (বাকিরা SQL ফিল্টারেই বাদ পড়ে, UI থেকে বদলানো যায় না)। ড্যাশবোর্ডে শ্রেণি-ভিত্তিক বাজেট বনাম সংগ্রহ (ছাত্র ফি + অতিথি ফি + লাঞ্চ বক্স) দেখা যায়; শ্রেণি ট্যাবে সুপারঅ্যাডমিন প্রতি শ্রেণির বাজেট টার্গেট ঠিক করেন।
+- **ছবি ব্যবস্থাপনা** — রোস্টার আমদানিতে এখন শিক্ষার্থী, বাবা ও মায়ের ছবির কলাম (১৭ কলাম); আর আলাদা ম্যাপিং শিটে `student_id` (বা `roll`) + `photo_url` + ঐচ্ছিক `father_photo_url` / `mother_photo_url` (Cloudinary লিংক) আপলোড করলে পুরো পরিবারের ছবি একসাথে বসে যায় — বাল্ক টিকিটে তিন ছবিই ছাপা হয়; “Check without saving” আগে দেখিয়ে দেয় কোন সারি কার সাথে মিলবে আর কোনগুলো মেলেনি। অতিথিদের ছবিসহ সব ফি-তথ্য “Export guest list (CSV)”-এ পাওয়া যায়। অথবা প্রতি শিক্ষার্থীর **Edit** মডাল থেকে সরাসরি Cloudinary-তে ছবি আপলোড (সাথে সাথে প্রিভিউ) ও নাম/রোল/শ্রেণি/শাখা/শিফট/পেমেন্ট স্ট্যাটাস সম্পাদনা। বিস্তারিত: `CHANGES_GENESIS_TICKET.md`।
 - **`/me`** — শিক্ষার্থী/প্রাক্তন শিক্ষার্থীর ড্যাশবোর্ড: পাওনা পরিশোধ, ফান্ড জমা, QR পাস তৈরি, ইতিহাস।
 - **`/pass/<token>`** — প্রিন্টযোগ্য QR কার্ড; **`/entry/<token>`** — প্রকল্প যাচাই পাতা।
 - **এক ক্লিকে পুরো সাইট মেলা-সাইট** — সেটিং ট্যাব → “মেলা মোড চালু”; যেকোনো সময় ফিরিয়ে আনা যায়।
@@ -134,11 +134,41 @@ CLOUDINARY_MAX_BYTES=12582912         # ঐচ্ছিক, ক্লায়�
 
 ## Ticket printing, fair settings and student access
 
-- **Print fix:** ticket pages explicitly restore print visibility/opacity, reset
-  collapsing root styles, and use A4 landscape with 0.5-inch margins. Copies stay
-  in document flow (one per page), so they cannot overlap. Ticket headers/footers
-  are retained; application navigation and toolbars are hidden. Auto-print waits
-  for fonts and ticket images, with an eight-second fallback.
+- **Print contract:** ticket pages explicitly restore print visibility/opacity and
+  print **one true A6 portrait sheet (105 × 148 mm)** per student — the browser
+  paper size is pinned to A6 with zero margins, so the sheet fills the page with
+  no clipping or overflow. Application navigation and toolbars are hidden in
+  print. Auto-print waits for fonts and ticket images, with an eight-second
+  fallback.
+- **Redesigned A6 ticket (`components/sf/print/TicketSheet.tsx`):** the header
+  carries the school logo, the fixed institution name **Omar Kindergarten
+  School**, the sub-header **Scholars Residential School** and the Scholars logo.
+  The fair name (e.g. **OKGS GENESIS 2026**) is printed large and bold above a
+  three-photo row — father (named) · student (large) · mother (named) — with the
+  student's full name underneath. Details list Student ID (no thousands
+  separators), Roll, Class, Section, Shift and Group. The signed QR sits
+  bottom-left with no caption; the Fair President's signature sits bottom-right.
+  The footer carries **Valid until 31 December 2026** and the issue date. There
+  are no "STUDENT ENTRY TICKET", "Student copy", "Copy N of 1", HMAC or
+  "Printed by" marks anywhere on the paper.
+- **Guest tickets:** `/sf/students` → **Register outside guest** opens a modal
+  that captures the guest's face with the live camera (`getUserMedia`, mirrored
+  preview, one-tap retake, graceful fallback to a file picker), uploads the
+  photo to Cloudinary and stores the returned URL. Every guest pays a mandatory
+  **BDT 50 entry fee** plus an optional **BDT 150 lunch box** (totals 50 or
+  200), all computed server-side in `lib/guest-fees.ts`. The guest ticket prints
+  the same A6 layout with a bold **GUEST ENTRY** tag, Guest ID, tagged student
+  reference, contact and status. Guests appear in the live table with photo,
+  fees and status, can be marked PAID/REVOKED, and export as a BOM-prefixed CSV
+  including their photo URLs. The gate scanner validates guest QR tokens
+  (prefix `g:`), records each scan and refuses revoked guests.
+- **Class budgets & fair accounting:** SuperAdmin sets a **budget target** per
+  class in `/sf/classes` (stored on `classes.budget_amount` — no extra table,
+  no backfill). The console dashboard's **Class-wise budget & collections**
+  panel computes everything live from the database: per-class student fees
+  collected vs budget, guest entry fees (50 BDT each), guest lunch boxes
+  (150 BDT each), and total collected vs total target. Revoked guests drop out
+  of the fee totals; there is no mock data anywhere.
 - **Fair settings:** Admins and SuperAdmins can rename a fair in `/sf/settings`.
   `POST /api/staff/settings` accepts `{ action: "fair-name", slug, name }` and
   returns `{ ok: true, success: true, message: "Settings updated", applied }`.
