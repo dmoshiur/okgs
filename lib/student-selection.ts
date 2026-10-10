@@ -4,6 +4,18 @@
 export const MAX_STUDENT_SELECTION = 10_000;
 
 /**
+ * Largest selection the bulk print view will render as one A4 stream.
+ *
+ * Every ticket costs a signed QR (≈6 kB of inline SVG) plus a 95 × 137 mm page
+ * box, so 2,000 tickets already means ~40 MB of streamed HTML and a printer spool
+ * of 500 A4 sheets. Rendering more than this in one request is what turned a big
+ * job into a server timeout/OOM instead of paper, so both the print API and the
+ * print route stop *before* fetching and answer with an actionable message
+ * ("narrow the scope / print class by class") rather than a 500 page.
+ */
+export const MAX_BULK_PRINT_TICKETS = 2_000;
+
+/**
  * Accepts arrays, comma/whitespace-separated IDs, and JSON arrays. Student
  * identifiers may be either roster row IDs or school-facing student codes;
  * `studentFilterSql` resolves either form against the database.

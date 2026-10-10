@@ -12,6 +12,10 @@
  *      ticket / copy labels / HMAC note / printed-by);
  *   3. the A4 4-in-1 sheet — four identical safe-area TicketSheets per A4 page,
  *      page break after every four, and only PAID students printed;
+ *   3b. the bulk print JOB — a snapshot that is missing, expired, damaged,
+ *      empty or oversized is a state the print route can put into a sentence,
+ *      the PAID rows arrive in bounded chunks, and no size of job can reach the
+ *      printer as a server error;
  *   4. the photo-mapping importer — key matching, the student/father/mother
  *      photo columns, error rows, dry runs, and the real batch write against a
  *      throwaway libSQL database;
@@ -41,6 +45,9 @@ const toolbar = read("components/sf/print/TicketToolbar.tsx");
 const bulkToolbar = read("components/sf/print/BulkTicketToolbar.tsx");
 const bulkPage = read("app/sf/print/tickets/page.tsx");
 const bulkApi = read("app/api/staff/students/bulk-print/route.ts");
+const bulkNotice = read("components/sf/print/TicketPrintNotice.tsx");
+const bulkErrorBoundary = read("app/sf/print/tickets/error.tsx");
+const selectionLimits = read("lib/student-selection.ts");
 const photoApi = read("app/api/staff/students/photos/route.ts");
 const editApi = read("app/api/staff/students/[id]/route.ts");
 const studentsApi = read("app/api/staff/students/route.ts");
@@ -245,7 +252,8 @@ assert.match(bulkPage, /TICKETS_PER_PAGE = 4/, "the page groups four tickets per
 assert.match(bulkPage, /index \+= TICKETS_PER_PAGE/, "…by chunking the complete signed list into physical sheets");
 assert.match(bulkPage, /paidStudentsForPrint\(filter\)/, "the sheet is built from the unpaginated PAID-only query");
 assert.match(bulkPage, /printableStudentCounts/, "…and reports how many were excluded");
-assert.match(bulkPage, /getTicketPrintJob/, "large selections are restored from a server-side print snapshot");
+assert.match(bulkPage, /openTicketPrintJob/, "large selections are restored from a server-side print snapshot, read through a lookup that cannot throw");
+assert.doesNotMatch(bulkPage, /getTicketPrintJob\(/, "the print route never dereferences the nullable snapshot itself — it asks for a state");
 assert.match(bulkPage, /student_ids: directSelection\.ids/, "directly supplied student IDs are applied to the print query");
 assert.match(bulkPage, /<TicketSheet/, "the bulk page reuses the very same A6 ticket component");
 assert.match(bulkPage, /ticketValidUntil/, "bulk tickets carry the pinned validity date");
@@ -258,6 +266,32 @@ assert.match(bulkApi, /createTicketPrintJob/, "the API snapshots the exact selec
 assert.match(bulkApi, /recordTicketPrints/, "every selected ticket is written to the print audit log");
 assert.doesNotMatch(bulkApi, /MAX_RUN|MAX_JOB_ROWS|body\.size|body\.page/, "the print API has no batch-size or pagination cap");
 assert.doesNotMatch(bulkToolbar, /Per run|run \/|\[20, 40, 100\]/, "the print toolbar no longer offers capped runs");
+
+/* ---------- 3b · a print job that cannot be rendered never reaches the printer as a crash --- */
+assert.match(bulkPage, /try \{\s*\n\s*result = await loadPrintView\(/, "the whole data load of the print route is guarded");
+assert.match(bulkPage, /\[\$\{LOG_TAG\}\] render failed/, "an unexpected fault is written to the server log with the job id");
+assert.match(bulkPage, /\[\$\{LOG_TAG\}\] refused · job=/, "a refused job is logged with the reason it was refused");
+for (const code of ["PRINT_JOB_EXPIRED", "PRINT_JOB_NOT_FOUND", "PRINT_JOB_UNREADABLE", "PRINT_JOB_OVERSIZE", "PRINT_JOB_EMPTY", "PRINT_STORE_UNAVAILABLE", "PRINT_SELECTION_TOO_WIDE", "PRINT_NO_PAID_STUDENTS", "PRINT_NO_MATCHING_STUDENTS", "PRINT_ROLL_EXPRESSION_INVALID"]) {
+  assert.ok(bulkPage.includes(code), `the print route names its failure ${code} so a log line and a screen say the same thing`);
+}
+assert.match(bulkPage, /counts\.paid > MAX_BULK_PRINT_TICKETS/, "an oversized selection is refused on the count, before a single ticket is built");
+assert.match(bulkApi, /students\.length > MAX_BULK_PRINT_TICKETS/, "…and the API refuses to save a job the print view could not render");
+assert.match(bulkPage, /TicketPrintNotice/, "every refusal renders the same screen-only notice");
+assert.match(bulkNotice, /no-print/, "the notice can never reach the paper");
+assert.match(bulkNotice, /role="alert"/, "…and it is announced to a screen reader");
+assert.match(bulkErrorBoundary, /export default function/, "the print route also has a render-error boundary");
+assert.match(bulkErrorBoundary, /error\.digest/, "…which shows the log digest instead of a stack");
+assert.doesNotMatch(bulkErrorBoundary, /error\.message/, "…and never prints internal error text at the operator");
+assert.match(bulkApi, /\.catch\(\(error: unknown\) =>/, "a failed audit write is logged, not thrown at the operator");
+assert.match(bulkApi, /print job could not be prepared/, "…and the endpoint itself answers with a sentence instead of a crash");
+
+// The bulk print fetch is chunked, and identifier resolution is one scan — the
+// two things that turned a 500+ ticket job into a timeout.
+assert.match(studentDb, /for \(let offset = 0; ; offset \+= chunk\)/, "the PAID print rows are fetched in bounded chunks");
+assert.match(studentDb, /LIMIT \$\{size\} OFFSET \$\{offset\}/, "…with an explicit page bound on every statement");
+assert.match(studentDb, /FROM students GROUP BY upper\(student_code\) HAVING COUNT\(\*\) = 1/, "an ambiguous school-code alias is resolved once for the whole query, not once per selected ID");
+assert.match(studentDb, /const PRINT_FETCH_CHUNK_SIZE = 400/, "…and the chunk size is a named constant");
+assert.match(selectionLimits, /export const MAX_BULK_PRINT_TICKETS = 2_000/, "the print ceiling is declared once, next to the selection ceiling");
 assert.deepEqual(normalizeStudentIdentifiers("row-0001, 2026-0102", ["row-0001", "row-0003"]), ["row-0001", "2026-0102", "row-0003"], "IDs and school-facing codes normalize and deduplicate");
 const selectedParams = new URLSearchParams("id=row-0001&id=row-0002&rolls=1%2C2");
 assert.deepEqual(studentIdentifiersFromSearchParams(selectedParams), { provided: true, ids: ["row-0001", "row-0002"] }, "query selection accepts repeated ID values without losing either student");
@@ -559,6 +593,61 @@ async function databaseChecks() {
   });
   const printJob = await roster.getTicketPrintJob(printJobId);
   assert.equal(printJob?.student_ids.length, 520, "the server-side print snapshot retains the full large selection");
+
+  /* A print snapshot that cannot be used is a state the route can explain —
+     never an exception, and never a fallback to the whole roster. */
+  const openJob = await roster.openTicketPrintJob(printJobId);
+  assert.equal(openJob.state, "ready", "a live snapshot opens with its student IDs");
+  assert.deepEqual(openJob.ids, printJob?.student_ids, "…and the shorthand array is the very list the print query filters on");
+  assert.equal((await roster.openTicketPrintJob("")).state, "missing", "an absent job id is an answer, not a crash");
+  assert.equal((await roster.openTicketPrintJob("00000000-0000-4000-8000-000000000000")).state, "missing", "an unknown job id never widens to the roster");
+  assert.deepEqual((await roster.openTicketPrintJob("00000000-0000-4000-8000-000000000000")).ids, [], "…and a caller can read .ids without a null check");
+
+  const storeJob = (id: string, snapshot: string, expiresAt: string) =>
+    dbRun(
+      `INSERT INTO ticket_print_jobs (id, fair_slug, student_ids_json, class_name, section, shift, rolls, q, lang, created_by, created_at, expires_at)
+       VALUES (?, 'large-print-fair', ?, '', '', '', '', '', 'en', 'smoke', ?, ?)`,
+      [id, snapshot, "2026-01-01T00:00:00.000Z", expiresAt],
+    );
+
+  await storeJob("11111111-1111-4111-8111-111111111111", "not-json", "2999-01-01T00:00:00.000Z");
+  assert.equal((await roster.openTicketPrintJob("11111111-1111-4111-8111-111111111111")).state, "unreadable", "a damaged snapshot is reported as unreadable instead of printing nobody silently");
+  assert.equal(await roster.getTicketPrintJob("11111111-1111-4111-8111-111111111111"), null, "…and the older accessor still answers null rather than throwing");
+  await storeJob("11111111-1111-4111-8111-111111111112", '{"students":[]}', "2999-01-01T00:00:00.000Z");
+  assert.equal((await roster.openTicketPrintJob("11111111-1111-4111-8111-111111111112")).state, "unreadable", "a snapshot that is JSON but not an array is unreadable too");
+
+  await storeJob("33333333-3333-4333-8333-333333333333", '["x"]', "2020-01-01T00:00:00.000Z");
+  assert.equal((await roster.openTicketPrintJob("33333333-3333-4333-8333-333333333333")).state, "expired", "a snapshot past its TTL is expired, not empty");
+  await storeJob("33333333-3333-4333-8333-333333333334", '["x"]', "");
+  assert.equal((await roster.openTicketPrintJob("33333333-3333-4333-8333-333333333334")).state, "expired", "a row with no usable timestamp fails closed");
+  await storeJob("33333333-3333-4333-8333-333333333335", '["x"]', "not-a-date");
+  assert.equal((await roster.openTicketPrintJob("33333333-3333-4333-8333-333333333335")).state, "expired", "…and so does a timestamp that cannot be parsed");
+
+  await storeJob("55555555-5555-4555-8555-555555555555", JSON.stringify(Array.from({ length: 10_001 }, (_, index) => `s${index}`)), "2999-01-01T00:00:00.000Z");
+  assert.equal((await roster.openTicketPrintJob("55555555-5555-4555-8555-555555555555")).state, "oversize", "a snapshot larger than a selection may hold is refused before 10,000 QR codes are built");
+  await storeJob("55555555-5555-4555-8555-555555555556", "[]", "2999-01-01T00:00:00.000Z");
+  assert.equal((await roster.openTicketPrintJob("55555555-5555-4555-8555-555555555556")).ids.length, 0, "an explicitly empty snapshot stays empty");
+
+  const nullSnapshotJob = await roster.createTicketPrintJob({
+    fair_slug: "large-print-fair",
+    student_ids: null as unknown as string[],
+    class_name: "", section: "", shift: "", rolls: "", q: "", lang: "en", created_by: "smoke",
+  });
+  assert.equal((await roster.openTicketPrintJob(nullSnapshotJob)).state, "ready", "a job prepared with no ID array is stored as an empty selection instead of throwing");
+  assert.equal((await roster.openTicketPrintJob(nullSnapshotJob)).ids.length, 0, "…and it prints nobody");
+  assert.equal(await roster.recordTicketPrints({ fair_slug: "large-print-fair", student_ids: null as unknown as string[], printed_by: "smoke", printed_by_name: "Smoke" }), 0, "the print audit tolerates a missing ID array too");
+
+  /* Chunked fetching must be invisible: the same complete list, in the same order. */
+  const chunkedPrint = await roster.paidStudentsForPrint({ fair_slug: "large-print-fair", class_name: "Bulk 500" }, { chunkSize: 7 });
+  assert.deepEqual(chunkedPrint.map((row) => row.student_code), largePrint.map((row) => row.student_code), "a 520-row job arrives identically in pages of seven");
+  assert.equal((await roster.paidStudentsForPrint({ fair_slug: "large-print-fair", class_name: "Bulk 500" }, { maxRows: 100 })).length, 100, "an optional ceiling bounds the fetch, and only when it is asked for");
+  assert.equal(await roster.paidStudentSelectionOverflows({ fair_slug: "large-print-fair", class_name: "Bulk 500" }, 500), true, "a caller can ask whether a scope is too wide before rendering it");
+  assert.equal(await roster.paidStudentSelectionOverflows({ fair_slug: "large-print-fair", class_name: "Bulk 500" }, 600), false, "…without widening a scope that fits");
+  const ghostSelection = await roster.paidStudentsForPrint({
+    fair_slug: "large-print-fair",
+    student_ids: [...largeRows.map((row) => row.id), ...Array.from({ length: 9_480 }, (_, index) => `ghost-${index}`)],
+  });
+  assert.equal(ghostSelection.length, 520, "10,000 requested identifiers still resolve to exactly the 520 real students — unknown IDs are dropped in SQL, not scanned for one by one");
 
   /* Guest fees: 50 BDT entry is mandatory, lunch box adds 150 BDT. */
   assert.deepEqual(guestFeeBreakdown(false), { entry: 50, lunch: 0, total: 50 });
