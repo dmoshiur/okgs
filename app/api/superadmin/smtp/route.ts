@@ -18,6 +18,12 @@ async function readJsonObject(request: Request): Promise<Record<string, unknown>
   }
 }
 
+/** A DNS host name or IP literal — rejects email addresses, URLs and whitespace. */
+function isSmtpHostname(value: string) {
+  if (/[\s@/]/.test(value)) return false;
+  return /^[a-z0-9.-]+$/i.test(value) || /^\[[0-9a-f:.]+\]$/i.test(value);
+}
+
 function authResponse(error: unknown) {
   if (error instanceof Error && error.message === "UNAUTHORIZED") return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   if (error instanceof Error && error.message === "FORBIDDEN") return NextResponse.json({ error: "Only a SuperAdmin can configure SMTP." }, { status: 403 });
@@ -74,6 +80,11 @@ export async function PUT(request: Request) {
     const current = await getSmtpSettings();
 
     if (enabled && !host) return NextResponse.json({ error: "Enter the SMTP host before enabling mail." }, { status: 422 });
+    if (host && !isSmtpHostname(host)) {
+      return NextResponse.json({
+        error: "The SMTP host must be a server name such as smtp.gmail.com or smtp.sendgrid.net — not an email address or URL. Put your email in Sender email instead.",
+      }, { status: 422 });
+    }
     if (enabled && !isEmailAddress(fromEmail)) return NextResponse.json({ error: "Enter a valid sender email address." }, { status: 422 });
     if (replyTo && !isEmailAddress(replyTo)) return NextResponse.json({ error: "Enter a valid reply-to email address." }, { status: 422 });
     if (!Number.isInteger(port) || port < 1 || port > 65535) return NextResponse.json({ error: "SMTP port must be between 1 and 65535." }, { status: 422 });
