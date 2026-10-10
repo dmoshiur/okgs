@@ -1,11 +1,18 @@
 /**
- * Portrait A4 entry ticket. One sheet per copy, with a vertical ID-card layout.
- * Server-rendered so the printed page and the QR are produced by the backend.
+ * Portrait A6 entry ticket (105 × 148 mm). One sheet per copy, with a vertical
+ * ID-card layout. Server-rendered so the printed page and the QR are produced
+ * by the backend.
  *
  * Layout contract (kept stable for the print CSS):
  *   head  — school logo, school name, event title, ticket kind + copy label
  *   body  — student photo · details · signed QR, stacked vertically
  *   foot  — validity, issue date, who printed it, signature note
+ *
+ * Overflow contract: the sheet is exactly one A6 page in browser view and in
+ * print (`@page ticket-portrait { size: A6 portrait; margin: 0; }`), and every
+ * block lives INSIDE the bordered frame. The QR block is the only flexible
+ * member of the column — it absorbs the remaining height, so the QR can never
+ * spill over the footer or off the page.
  *
  * Copy 1 is the student copy. From copy 2 onward the parents' names and the
  * external guardian block (Mama / Fufa / Chacha / guest) are printed too.
@@ -216,8 +223,10 @@ export function TicketSheet(props: TicketSheetProps) {
           </div>
 
           <div className="ticket-qr">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={props.qr} alt="" />
+            <div className="ticket-qr-fit">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={props.qr} alt="" />
+            </div>
             <small>
               {t.notes.scanAtGate.primary}
               {t.notes.scanAtGate.secondary ? <em>{t.notes.scanAtGate.secondary}</em> : null}

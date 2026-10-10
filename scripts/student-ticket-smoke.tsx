@@ -4,9 +4,11 @@
  * Covers the four things the ticket work is allowed to break silently:
  *   1. language uniformity — a sheet is all-English, all-Bangla or consistently
  *      bilingual, never a mix, and the components hold no copy of their own;
- *   2. the printed artefacts — 3:4 photo crop, Cloudinary delivery transforms,
- *      the A4 portrait 2 × 2 bulk grid with a break after every four tickets,
- *      and the rule that only PAID students are ever printed;
+ *   2. the printed artefacts — the single ticket pinned to one A6 portrait
+ *      page (105 × 148 mm, QR contained inside the frame), the 3:4 photo
+ *      crop, Cloudinary delivery transforms, the A4 portrait 2 × 2 bulk grid
+ *      with a break after every four tickets, and the rule that only PAID
+ *      students are ever printed;
  *   3. the photo-mapping importer — key matching, error rows, dry runs, and the
  *      real batch write against a throwaway libSQL database;
  *   4. the performance contract — paginated roster, cached client reads, lazy
@@ -134,6 +136,9 @@ assert.equal(toBanglaDigits("Roll 5 · 2026"), "Roll ৫ · ২০২৬", "digi
 assert.equal(toLatinDigits(toBanglaDigits("2026-0101")), "2026-0101", "the conversion round-trips");
 assert.equal(ticketNumber("12", "en"), "12");
 assert.equal(ticketNumber("12", "bn"), "১২");
+assert.equal(ticketNumber("1024", "en"), "1024", "a four-digit ID or roll never gets a thousands separator");
+assert.equal(ticketNumber("1024", "bn"), "১০২৪", "…not on a Bangla sheet either");
+assert.equal(ticketNumber("202405102", "en"), "202405102", "long numeric IDs print as plain digits");
 assert.deepEqual(Object.keys(ticketText("en").labels), Object.keys(ticketText("bn").labels), "both dictionaries cover the same fields");
 assert.deepEqual(
   ticketText("en").titles.copies.map((copy) => copy.primary),
@@ -179,10 +184,18 @@ assert.match(englishWithBanglaDbName, /<b>Parent copy<\/b>/, "copy 3 prints as P
 assert.doesNotMatch(englishWithBanglaDbName, /School copy/i, "no School copy label is printed");
 pass("a ticket is entirely English, entirely Bangla or consistently bilingual — never mixed");
 
-/* ---------- 2 · the portrait entry-ticket sheet -------------------------- */
-assert.match(css, /@page ticket-portrait\s*\{\s*size: A4 portrait; margin: 0\.5in; \}/, "the single ticket prints on its own A4 portrait page");
-assert.match(css, /\.ticket-sheet\s*\{[^}]*aspect-ratio: 210 \/ 297/, "the single-ticket preview is portrait");
-assert.match(css, /\.ticket-body\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/, "the photo, details and QR stack vertically");
+/* ---------- 2 · the A6 portrait entry-ticket sheet (105 × 148 mm) -------- */
+assert.match(css, /@page ticket-portrait\s*\{\s*size: A6 portrait; margin: 0; \}/, "the single ticket prints on its own A6 portrait page with zero page margin");
+assert.match(css, /\.ticket-sheet\s*\{[^}]*aspect-ratio: 105 \/ 148/, "the single-ticket preview is a true A6 portrait card");
+assert.match(css, /\.ticket-sheet\s*\{[^}]*width: min\(105mm, 100%\)/, "…105mm wide, never wider than its container");
+assert.match(css, /\.ticket-sheet\s*\{[^}]*overflow: hidden/, "the sheet clips overflow, so nothing escapes the card border");
+assert.match(css, /\.ticket-frame\s*\{[^}]*display: flex[^}]*flex-direction: column/, "the frame stacks head, body and foot in one column");
+assert.match(css, /\.ticket-body\s*\{[^}]*display: flex[^}]*flex-direction: column/, "photo, details, badges and QR stack vertically");
+assert.match(css, /\.ticket-grid\s*\{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/, "the student details sit in a clean 3-column grid");
+assert.match(css, /\.ticket-qr\s*\{[^}]*flex: 1 1 auto/, "the QR block absorbs whatever height remains inside the frame");
+assert.match(css, /\.ticket-qr img[^{]*\{[^}]*max-width: min\(100%, 32mm\)/, "the QR stays contained inside the card, capped at 32mm");
+assert.match(css, /\.ticket-qr-fit\s*\{[^}]*min-height: 6mm/, "…and never collapses below a scannable size");
+assert.match(css, /@media print[\s\S]{0,1200}\.ticket-sheet\s*\{[^}]*width: 105mm; height: 148mm/, "print pins every copy to exactly one A6 page — no second page, no spill");
 assert.match(css, /\.ticket-photo\s*\{[^}]*aspect-ratio: 3 \/ 4/, "the printed photo is a true 3:4 frame");
 assert.match(css, /\.ticket-photo img\s*\{[^}]*object-fit: cover/, "…cropped, never squashed");
 assert.match(css, /\.ticket-photo img\s*\{[^}]*object-position: center/, "…and centred on the face");

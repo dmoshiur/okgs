@@ -212,13 +212,20 @@ export function ticketText(lang: TicketLang = "en"): TicketStrings {
  * carry Latin numerals next to Bangla words.
  * ------------------------------------------------------------------ */
 
-/** Roll, ID and counts — Bangla digits on a Bangla sheet, Latin on English. */
+/**
+ * Roll, ID and counts — Bangla digits on a Bangla sheet, Latin on English.
+ *
+ * Never grouped: `Intl` thousands separators used to turn a roll or an ID of
+ * 1024 into "1,024" / "১,০২৪", which at the gate reads like two numbers.
+ * Ticket identifiers are printed as plain digits.
+ */
 export function ticketNumber(value: unknown, lang: TicketLang = "en") {
   const text = String(value ?? "").trim();
   if (!text) return "";
   const numeric = Number(text);
-  if (lang === "en") return Number.isFinite(numeric) && text !== "" && /^-?\d+(\.\d+)?$/.test(text) ? en(numeric) : text;
-  return toBanglaDigits(Number.isFinite(numeric) && /^-?\d+(\.\d+)?$/.test(text) ? en(numeric) : text);
+  const isNumber = Number.isFinite(numeric) && /^-?\d+(\.\d+)?$/.test(text);
+  const digits = isNumber ? String(numeric) : text;
+  return lang === "en" ? digits : toBanglaDigits(digits);
 }
 
 /** Free text (a name, a note) — only its digits change with the language. */

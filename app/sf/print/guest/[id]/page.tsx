@@ -53,7 +53,7 @@ export default async function GuestPassPage({ params, searchParams }: { params: 
         auto={String(query.auto ?? "1") !== "0"}
         lang={lang}
         total={[text.titles.guestCopy.primary]}
-        hint={`Outside guest pass for ${guest.name} — printed on A4 portrait, 1 sheet.`}
+        hint={`Outside guest pass for ${guest.name} — printed on A6 portrait (105 × 148 mm), 1 card.`}
       />
       <div className="ticket-sheets">
       <TicketSheet

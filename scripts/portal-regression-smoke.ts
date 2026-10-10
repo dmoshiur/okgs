@@ -123,7 +123,7 @@ async function main() {
     const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
     const css = read("app/globals.css");
     assert.match(css, /\.printable-ticket \*, \.ticket-sheet, \.ticket-sheet \*\s*\{\s*visibility: visible !important/);
-    assert.match(css, /@page ticket-portrait \{ size: A4 portrait; margin: 0.5in; \}/);
+    assert.match(css, /@page ticket-portrait \{ size: A6 portrait; margin: 0; \}/);
     assert.match(read("app/api/staff/settings/route.ts"), /isAdminRole\(session.role\)/);
     assert.match(read("app/api/staff/settings/route.ts"), /revalidatePath\("\/", "layout"\)/);
     assert.match(read("app/sf/print/ticket/[id]/page.tsx"), /!isStaffRole\(session.role\) && !isOwnTicket/);
