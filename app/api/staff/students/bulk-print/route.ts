@@ -39,7 +39,16 @@ export async function POST(request: Request) {
   if ("status" in guard) return guard;
   const { session } = guard;
   const url = new URL(request.url);
-  const body = record(await request.json().catch(() => ({})));
+  // A malformed selection must never silently become an unfiltered whole-roster job.
+  if (request.headers.get("sec-fetch-site") === "cross-site") return fail("Cross-site print requests are not allowed.", 403);
+  const text = await request.text();
+  let value: unknown = {};
+  if (text.trim()) {
+    if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) return fail("Send print selections as JSON.", 415);
+    try { value = JSON.parse(text); } catch { return fail("Send a valid JSON print selection.", 400); }
+  } else if (!url.search) return fail("Provide a print selection or an explicit filter scope.", 422);
+  if (!value || typeof value !== "object" || Array.isArray(value)) return fail("Send a JSON object with the print selection.", 422);
+  const body = record(value);
   const nestedScope = record(body.scope);
   const queryIds = studentIdentifiersFromSearchParams(url.searchParams);
 

@@ -5,7 +5,7 @@ import { getPortalSession } from "@/lib/portal-auth";
 import { isStaffRole } from "@/lib/roles";
 import { activeFair, fairMode, readSetting } from "@/lib/site";
 import { settingValue } from "@/lib/club-data";
-import { qrDataUrl } from "@/lib/qr";
+import { qrSvgDataUrl } from "@/lib/qr";
 import { makeTicketToken, ticketExpiry } from "@/lib/ticket-token";
 import { getTicketPrintJob, paidStudentsForPrint, printableStudentCounts } from "@/lib/student-db";
 import { MAX_STUDENT_SELECTION, normalizeStudentIdentifiers } from "@/lib/student-selection";
@@ -59,6 +59,9 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: nu
         const index = cursor;
         cursor += 1;
         out[index] = await fn(items[index], index);
+        // QR encoding is CPU work. Yield between cards so a 500+ print job
+        // cannot starve live canteen/gate requests on the same Node process.
+        await new Promise<void>((resolve) => setImmediate(resolve));
       }
     }),
   );
@@ -70,7 +73,7 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: nu
  *
  * The print view fetches every matching PAID student in one unpaginated query.
  * The DOM is a continuous sequence of physical A4 page boxes; each box keeps
- * the 2 × 2 grid of the same unmodified A6 portrait ticket.
+ * the 2 × 2 grid of the same safe 95 × 137 mm ticket.
  *
  * For direct links, `ids`, `student_ids`, repeated `id` parameters and `rolls`
  * are also supported. An explicit empty/invalid selection never falls back to
@@ -141,7 +144,7 @@ export default async function BulkTicketsPage({ searchParams }: { searchParams: 
   // list is intentionally not sliced: every selected/matching student is kept.
   const cards = await mapLimit(students, 8, async (student) => ({
     student,
-    qr: await qrDataUrl(makeTicketToken({ k: "s", i: student.id, f: fairSlug, e: expiresAt }), { size: 300, margin: 1 }),
+    qr: await qrSvgDataUrl(makeTicketToken({ k: "s", i: student.id, f: fairSlug, e: expiresAt }), { margin: 4 }),
   }));
 
   const sheets: (typeof cards)[] = [];
@@ -158,7 +161,7 @@ export default async function BulkTicketsPage({ searchParams }: { searchParams: 
     job || directSelection.provided ? `${students.length} selected` : "",
   ].filter(Boolean).join(" · ");
   const hint = students.length
-    ? `${schoolName} · ${fairName}${scopeLabel ? ` · ${scopeLabel}` : ""} — ${students.length} paid student(s), ${TICKETS_PER_PAGE} tickets per A4 page, ${sheets.length} A4 sheet(s) total.`
+    ? `${schoolName} · ${fairName}${scopeLabel ? ` · ${scopeLabel}` : ""} — ${students.length} paid student(s), ${TICKETS_PER_PAGE} tickets per A4 page, ${sheets.length} A4 sheet(s) total. 5 mm safe margins; print at 100% / Actual size.`
     : `${schoolName} · ${fairName} — nothing to print for this selection.`;
   const warning = invalidJob
     ? "This bulk print selection has expired or is not available. Return to Students and prepare the selection again."

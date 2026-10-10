@@ -36,7 +36,10 @@ export function parseTicketToken(token: string): TicketPayload | null {
   try {
     if (!timingSafeEqual(Buffer.from(signature), Buffer.from(signBody(body)))) return null;
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as Partial<TicketPayload>;
-    if ((payload.k !== "s" && payload.k !== "g") || typeof payload.i !== "string" || typeof payload.f !== "string" || typeof payload.e !== "number") {
+    if ((payload.k !== "s" && payload.k !== "g") ||
+      typeof payload.i !== "string" || !payload.i.trim() || payload.i.length > 128 ||
+      typeof payload.f !== "string" || !/^[a-z0-9-]{2,64}$/i.test(payload.f) ||
+      typeof payload.e !== "number" || !Number.isSafeInteger(payload.e) || payload.e <= 0 || payload.e > 8_640_000_000_000) {
       return null;
     }
     return { k: payload.k, i: payload.i, f: payload.f, e: payload.e };

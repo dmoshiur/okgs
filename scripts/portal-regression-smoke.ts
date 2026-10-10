@@ -9,7 +9,10 @@ async function main() {
   const directory = mkdtempSync(join(tmpdir(), "okgs-portal-"));
   process.env.TURSO_DATABASE_URL = `file:${join(directory, "test.db")}`;
   delete process.env.TURSO_AUTH_TOKEN;
-  delete process.env.RESEND_API_KEY;
+  // Never inherit real mail credentials or provider overrides in this local test.
+  for (const key of ["MAIL_PROVIDER", "RESEND_API_KEY", "MAIL_FROM", "SMTP_ADDRESS_FAMILY", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM_EMAIL", "SMTP_FROM_NAME", "SMTP_REPLY_TO"]) {
+    delete process.env[key];
+  }
   process.env.SESSION_SECRET = "regression-test-secret-not-for-production";
   process.env.NEXT_PUBLIC_SITE_URL = "https://school.example";
   const { db, listRows, updateRow } = await import("../lib/db");
@@ -123,7 +126,7 @@ async function main() {
     const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
     const css = read("app/globals.css");
     assert.match(css, /\.printable-ticket \*, \.ticket-sheet, \.ticket-sheet \*\s*\{\s*visibility: visible !important/);
-    assert.match(css, /@page ticket-portrait \{ size: A6 portrait; margin: 0; \}/);
+    assert.match(css, /@page ticket-portrait \{ size: 105mm 148mm; margin: 5mm; \}/);
     assert.match(read("app/api/staff/settings/route.ts"), /isAdminRole\(session.role\)/);
     assert.match(read("app/api/staff/settings/route.ts"), /revalidatePath\("\/", "layout"\)/);
     assert.match(read("app/sf/print/ticket/[id]/page.tsx"), /!isStaffRole\(session.role\) && !isOwnTicket/);

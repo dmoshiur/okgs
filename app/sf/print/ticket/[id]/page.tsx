@@ -21,7 +21,7 @@ type Search = Promise<Record<string, string | string[] | undefined>>;
 /**
  * /sf/print/ticket/:id?fair=&copies=1..3&lang=en|bn|both&auto=0|1
  *
- * Full-screen portrait preview of the A6-portrait ticket (105 × 148 mm), one
+ * Full-screen portrait preview of the safe 95 × 137 mm ticket on A6 portrait paper, one
  * sheet per copy. The page is rendered on the server and prints as-is — no
  * client fetch, so the QR on paper is always the QR the backend signed.
  *
@@ -53,7 +53,7 @@ export default async function StudentTicketPage({ params, searchParams }: { para
 
   const expiresAt = ticketExpiry(fair?.ends_on);
   const token = makeTicketToken({ k: "s", i: student.id, f: fairSlug, e: expiresAt });
-  const qr = await qrDataUrl(token, { size: 520 });
+  const qr = await qrDataUrl(token, { size: 520, margin: 4 });
 
   const schoolName = ticketSchoolName(readSetting(content.settings, "site_name_en") || settingValue(content.settings, "site_name"));
   const logo = readSetting(content.settings, "logo_url");
@@ -94,7 +94,7 @@ export default async function StudentTicketPage({ params, searchParams }: { para
         fairSlug={fairSlug}
         auto={autoPrint}
         lang={lang}
-        hint={`${schoolName} · ${fairName} — printed on A6 portrait (105 × 148 mm), ${copies} ${copies === 1 ? "card" : "cards"}. Nothing is saved in the browser; this page is the record.`}
+        hint={`${schoolName} · ${fairName} — 95 × 137 mm card on A6 paper with 5 mm safe margins. Print at 100% / Actual size, ${copies} ${copies === 1 ? "card" : "cards"}. Nothing is saved in the browser; this page is the record.`}
       />
       <div className="ticket-sheets">
         {Array.from({ length: copies }, (_, index) => (

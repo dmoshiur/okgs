@@ -202,6 +202,40 @@ its API key as the SMTP password. Production port-587 transports require
 STARTTLS. Set `NEXT_PUBLIC_SITE_URL` to your canonical HTTPS origin so reset links
 point to the correct deployment. Keep credentials in deployment secrets, not Git.
 
+**Render / SMTP networking:** a log such as `connect ENETUNREACH …:465` means
+that the outbound connection failed before authentication. The IPv6 address can
+also be the last address tried after IPv4 connection attempts failed. SMTP now
+resolves hostnames to IPv4 by default (`SMTP_ADDRESS_FAMILY=4`) while keeping the
+original hostname for TLS SNI and certificate verification. DNS/transport entries
+refresh after five minutes; failed DNS lookups are not cached. Use
+`SMTP_ADDRESS_FAMILY=0` for Nodemailer's automatic address selection or `6` for
+IPv6 resolution. IP literals are used as supplied; do not hard-code Gmail's IPs.
+This setting applies to both database and environment SMTP configurations.
+
+If your Render plan or another host blocks outbound SMTP ports, changing ports
+or forcing IPv4 will not bypass that restriction. Use the existing Resend HTTPS
+API instead. Verify your sending domain in Resend, then set these **deployment
+environment variables** and redeploy:
+
+```dotenv
+MAIL_PROVIDER=resend
+RESEND_API_KEY=your-resend-api-key
+MAIL_FROM=OKGS <no-reply@okgs.info>
+```
+
+`MAIL_FROM` must use your verified domain. `MAIL_PROVIDER=resend` skips SMTP
+entirely, even if an enabled Gmail configuration is saved in SuperAdmin settings,
+so there is no SMTP timeout before each message. The console's **Send test** action
+reports the provider actually used. No API key needs to be entered in the browser.
+
+The default `MAIL_PROVIDER=auto` keeps the existing priority: enabled database
+SMTP, then environment SMTP, then Resend. A pre-submission DNS/connect/greeting
+failure also falls back to Resend when `RESEND_API_KEY` and `MAIL_FROM` are set.
+Authentication/message rejections and ambiguous socket/send timeouts do not
+trigger a second send, avoiding duplicates. Set `MAIL_PROVIDER=smtp` to disable
+API fallback. Resend requests time out after ten seconds and failures are reported
+as undelivered, never as a successful test.
+
 Forgot Password accepts email, student ID or phone and emails a 60-minute,
 single-use secure token link **to the registered email**. Only the token hash is
 stored; password replacement and token consumption are transactional. Revoked
@@ -215,6 +249,7 @@ reset links in production. Accounts without an email must contact the office;
 npm run typecheck
 npm run smoke
 npm run test:portal
+npm run test:mailer
 npm run build
 ```
 
@@ -223,6 +258,12 @@ checks multi-identifier authentication, shared-phone rejection, roster payment
 and fair-name persistence, actual Nodemailer delivery, token expiry, replay and
 concurrent-consumption rejection, and production reset-link secrecy. No external
 SMTP credentials or deployment database are used.
+
+`test:mailer` uses an isolated temporary database and mocked DNS, SMTP and HTTPS.
+It checks IPv4 resolution/TLS hostname preservation, encrypted database settings,
+DNS caching/expiry and timeouts, safe connection fallback, duplicate-send avoidance,
+explicit provider selection, recipient isolation and honest API failure reporting.
+It never calls Gmail or Resend and requires no real mail credentials.
 
 `smoke` includes `scripts/student-ticket-smoke.tsx`, which renders the ticket in
 all three languages (proving a sheet is never half-translated), asserts the 3:4
@@ -234,3 +275,66 @@ Manual Chromium checks should also verify desktop/mobile navigation, settings
 save-and-reload, student-owned ticket access, the bulk A4 sheet at 4 tickets per
 page in the browser's own print preview, and Ctrl+P / Save as PDF with 1–3 ticket
 copies in light/dark modes.
+
+
+### Canteen station and safe ticket printing
+
+- Staff open **`/sf/canteen`** (also in the navigation and scanner station tabs).
+  It uses the same cookie-selected fair as the console; `/sf/scan` remains gate entry.
+- A student needs a live **PAID** roster payment for that fair. A guest needs their
+  own active, paid registered guest ticket, `has_lunch=1`, and a stored lunch fee
+  of at least BDT 150. Entry-only/family/project passes cannot inherit a student's lunch.
+- A camera scan or **Claim lunch box** records the claim. **Check only** consumes
+  nothing; its popup offers **Confirm lunch box handover**, which rechecks payment.
+  The popup shows verified name, own ID, lunch status and expandable details.
+  Guest short IDs are display references, not manual claim credentials; use their QR.
+- Claims are unique on `(subject_type, subject_id, Bangladesh calendar day)` —
+  not on QR text, print copy, fair, phone clock or client flags. Concurrent devices
+  cannot double-claim. Eligibility starts fresh automatically at 00:00 Asia/Dhaka;
+  previous claim/audit rows are retained. Gate admission is never consumed by lunch.
+- Staff-only JSON APIs: `POST /api/staff/lunch/scan` with `{token | code, fair_slug,
+  action: "check" | "claim"}`; `GET /api/staff/lunch/logs?fair=…&today=1` returns
+  daily summary, audit rows and server day/reset metadata. Identity, actor,
+  payment and claim date come from the server. Inputs are byte-bounded; cross-site
+  requests are rejected. The per-user 120 scans/minute guard is process-local;
+  the durable database constraint is what guarantees cross-device redemption safety.
+- Existing additive database setup creates `lunch_claims` and `lunch_scan_logs`
+  without wiping students, payments, parent photo URLs or earlier scan history.
+- Ticket cards are **95 × 137 mm**, on real **A6 portrait paper with 5 mm margins**.
+  A4 printing uses the identical cards in a **2 × 2 grid with 4 mm gutters**,
+  also inside 5 mm page margins. Choose the requested paper and **100% / Actual size**,
+  disable browser headers/footers, and do a physical calibration print first.
+- QR space stays **26 × 26 mm** (including its border/padding and a four-module
+  quiet zone). Bulk QRs are lightweight SVGs; encoding yields to the event loop so
+  large print jobs do not starve scanners. Print actions wait for fonts/photos,
+  fit long text without changing source names, and warn about missing images or
+  fields that cannot fit safely rather than silently clipping them.
+- Edit Student's existing Cloudinary **Father Photo / Mother Photo** fields stay
+  intact. Student cards show father / student / mother; guest cards show the
+  tagged student's father / guest / mother, using the stored dedicated URLs.
+- Bulk printing snapshots **only the selected paid IDs** (or explicit roll/filter
+  scope), refuses an empty explicit selection, and keeps the full continuous view.
+  Canonical record IDs take precedence over school-code aliases; ambiguous
+  case-folded codes never widen a selection. Display/language toggles preserve that snapshot. There is no 50/100-ticket print
+  pagination cap; 501 paid selections produce 126 physical A4 pages. Jobs expire
+  after 24 hours and missing/expired jobs fail closed — prepare the selection again.
+
+Verification: `npm run typecheck`, `npm run smoke`, `npm run test:canteen`,
+`npm run test:portal`, `npm run test:mailer`, and `npm run build`.
+The canteen regression uses isolated temporary SQLite data for payments, QR/manual
+aliases, refunds, guest purchases/revocation, concurrency, Dhaka-midnight rollover
+and audit preservation; it never uses the deployment database.
+
+Optional real-browser verification (Node 22 / Linux): install `playwright@1.64.0`
+and `@sparticuz/chromium@153.0.0` under `$HOME/.cache/okgs-browser` with npm's
+`--prefix`, `--no-save` and `--no-package-lock` flags, then run
+`npx tsx scripts/canteen-browser-fixture.ts`. Start a separate local server with
+`TURSO_DATABASE_URL` set to the **new local database URL printed by that script**,
+empty `TURSO_AUTH_TOKEN`, and
+`SESSION_SECRET=isolated-browser-verification-secret-not-production`. Run
+`BASE_URL=http://localhost:3000 node scripts/canteen-browser-regression.mjs`
+against it (localhost is a trusted loopback host for production Secure cookies). A full run requires a fresh fixture. The script refuses
+non-local targets, tests the real HTTP/UI/camera/PDF flows and 501-ticket printing,
+fulfills remote photos with labeled test graphics without contacting Cloudinary,
+and keeps generated databases/screenshots/PDFs in ignored `.screens/` paths.
+This test-only secret/fixture is **never** a production configuration.

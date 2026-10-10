@@ -24,6 +24,7 @@ import {
   ScanLine,
   Settings,
   Upload,
+  Utensils,
   UserCog,
   Users,
   Wallet,
@@ -33,6 +34,7 @@ export type SfSectionId =
   | "dashboard"
   | "students"
   | "scan"
+  | "canteen"
   | "ticker"
   | "funds"
   | "dues"
@@ -65,6 +67,7 @@ export const sfSections: SfSection[] = [
   { id: "dashboard", label: "Dashboard", hint: "Money, gate and roster totals", icon: LayoutDashboard, href: "/sf", kind: "console", primary: true },
   { id: "students", label: "Students", hint: "Roster, class payments, tickets", icon: Users, href: "/sf/students", kind: "console", primary: true },
   { id: "scan", label: "Scan", hint: "Gate scanner and scan audit log", icon: ScanLine, href: "/sf/scan", kind: "page", primary: true },
+  { id: "canteen", label: "Canteen", hint: "Lunch claims and daily audit", icon: Utensils, href: "/sf/canteen", kind: "page" },
   { id: "funds", label: "Funds", hint: "Collections and verification", icon: Wallet, href: "/sf/funds", kind: "console", primary: true },
   { id: "dues", label: "Dues", hint: "Class fees and balances", icon: Receipt, href: "/sf/dues", kind: "console" },
   { id: "expenses", label: "Expenses", hint: "Spending and settlements", icon: ClipboardList, href: "/sf/expenses", kind: "console" },

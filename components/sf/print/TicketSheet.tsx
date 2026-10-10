@@ -1,32 +1,12 @@
-/**
- * A6 portrait entry ticket (105 × 148 mm) — the GENESIS 2026 redesign.
- *
- * Layout contract (top → bottom, everything INSIDE the bordered frame):
- *   head   — school logo · "Omar Kindergarten School" over "Scholars
- *            Residential School" · Scholars logo
- *   title  — the Science Fair event name, large and bold
- *   photos — father photo + name · student/guest photo (large) · mother
- *            photo + name — followed by the student/guest full name
- *   grid   — Student ID · Roll · Class · Section · Shift · Group for a
- *            student; Guest ID · Tagged student · Contact · Status for an
- *            outside guest (tagged "GUEST ENTRY")
- *   bottom — signed QR on the left, Fair President's signature on the right
- *   foot   — "Valid until 31 December 2026" · "Issued <date>"
- *
- * Overflow contract: the sheet is exactly one A6 page on screen and in print
- * (`@page ticket-portrait { size: A6 portrait; margin: 0; }`). The bottom row
- * (QR + signature) is the only flexible member of the column, so it absorbs
- * whatever height remains and the QR can never spill over the footer.
- *
- * The very same component is set four-up on the A4 bulk sheet — the grid
- * print scales nothing and restyles nothing, it simply places four A6 sheets.
- *
- * Every word on the sheet comes from `ticketText(lang)` — see
- * lib/ticket-locale.ts. Branding constants (logos, signature, school names)
- * live in lib/ticket-brand.ts.
+/** Safe 95 × 137mm ticket on A6 paper, or the identical card four-up on A4.
+ * Father / holder / mother photos, full names, live-signed QR and signature.
+ * Physical page margins are in CSS. QR size never shrinks; long text is fitted
+ * (without truncating the source) by the shared print-readiness helper.
  */
 import { optimizedImage } from "@/lib/cloudinary";
 import { FAIR_PRESIDENT_SIGNATURE_URL, SCHOLARS_LOGO_URL, TICKET_SCHOOL_NAME, TICKET_SUB_HEADER } from "@/lib/ticket-brand";
+import { guestTicketId } from "@/lib/ticket-identifiers";
+export { guestTicketId } from "@/lib/ticket-identifiers";
 import { ticketText, ticketValue, type TicketLabel, type TicketLang } from "@/lib/ticket-locale";
 
 export interface TicketStudent {
@@ -78,11 +58,6 @@ function initialsOf(value: string) {
   return words.slice(0, 2).map((word) => word[0]).join("").toUpperCase() || "?";
 }
 
-/** Printable guest reference — the UUID shortened to a gate-friendly token. */
-export function guestTicketId(id: string) {
-  return id.replace(/[^a-z0-9]/gi, "").slice(0, 8).toUpperCase() || "—";
-}
-
 /**
  * One `Label / value` pair. In bilingual mode the English sits under the
  * Bangla. Values are printed as-is (IDs never get thousands separators —
@@ -95,7 +70,7 @@ function Field({ label, value, lang }: { label: TicketLabel; value: string; lang
         {label.primary}
         {label.secondary ? <em>{label.secondary}</em> : null}
       </dt>
-      <dd>{ticketValue(value, lang) || "—"}</dd>
+      <dd className="ticket-fit-text" data-fit-min="8">{ticketValue(value, lang) || "—"}</dd>
     </div>
   );
 }
@@ -107,7 +82,7 @@ function PhotoCell({ src, name, large, alt, optimized }: { src: string; name: st
       <span className="ticket-photo-frame">
         {optimized ? <img src={optimized} alt={alt} loading="eager" decoding="async" /> : <span className="ticket-photo-initial">{initialsOf(src || name || alt)}</span>}
       </span>
-      {name ? <figcaption>{name}</figcaption> : null}
+      {name ? <figcaption className="ticket-fit-text" data-fit-min="7">{name}</figcaption> : null}
     </figure>
   );
 }
@@ -124,15 +99,16 @@ export function TicketSheet(props: TicketSheetProps) {
   const secondaryLogo = props.secondaryLogo ?? SCHOLARS_LOGO_URL;
   const signatureUrl = props.signatureUrl ?? FAIR_PRESIDENT_SIGNATURE_URL;
 
-  // 3:4 crops, auto-format — the same sizes the single print has always used.
-  const mainPhoto = optimizedImage(isGuest ? guest?.photo_url ?? "" : student.photo_url, { width: 600, height: 800, fit: "cover" });
-  const fatherPhoto = optimizedImage(student.father_photo_url, { width: 300, height: 400, fit: "cover" });
-  const motherPhoto = optimizedImage(student.mother_photo_url, { width: 300, height: 400, fit: "cover" });
+  // Print-quality 3:4 crops (~350 DPI), without downloading full-size portraits for 500+ cards.
+  const mainPhoto = optimizedImage(isGuest ? guest?.photo_url ?? "" : student.photo_url, { width: 320, height: 427, fit: "cover" });
+  const fatherPhoto = optimizedImage(student.father_photo_url, { width: 240, height: 320, fit: "cover" });
+  const motherPhoto = optimizedImage(student.mother_photo_url, { width: 240, height: 320, fit: "cover" });
 
   return (
     <section
       className={`ticket-sheet printable-ticket ${isGuest ? "is-guest" : ""}`}
       data-lang={lang}
+      data-ticket-id={isGuest ? guest?.id : student.student_code}
       aria-label={`${isGuest ? "Guest entry ticket" : "Student ticket"} — ${headline || "unnamed"}`}
     >
       <div className="ticket-frame">
@@ -153,23 +129,17 @@ export function TicketSheet(props: TicketSheetProps) {
           )}
         </header>
 
-        <h2 className="ticket-title">{ticketValue(props.fairName, lang)}</h2>
+        <h2 className="ticket-title ticket-fit-text" data-fit-min="11">{ticketValue(props.fairName, lang)}</h2>
 
         {isGuest ? <div className="ticket-guest-tag">{t.titles.guestEntry.primary}</div> : null}
 
-        <div className={`ticket-photos${isGuest ? " is-single" : ""}`}>
-          {isGuest ? (
-            <PhotoCell src={guest?.photo_url ?? ""} name="" large alt={headline} optimized={mainPhoto} />
-          ) : (
-            <>
-              <PhotoCell src={student.father_photo_url} name={student.father_name} alt={`Father of ${student.name}`} optimized={fatherPhoto} />
-              <PhotoCell src={student.photo_url} name="" large alt={student.name} optimized={mainPhoto} />
-              <PhotoCell src={student.mother_photo_url} name={student.mother_name} alt={`Mother of ${student.name}`} optimized={motherPhoto} />
-            </>
-          )}
+        <div className="ticket-photos">
+          <PhotoCell src={student.father_photo_url} name={student.father_name} alt={`Father of ${student.name}`} optimized={fatherPhoto} />
+          <PhotoCell src={isGuest ? guest?.photo_url ?? "" : student.photo_url} name="" large alt={headline} optimized={mainPhoto} />
+          <PhotoCell src={student.mother_photo_url} name={student.mother_name} alt={`Mother of ${student.name}`} optimized={motherPhoto} />
         </div>
 
-        <h3 className="ticket-name">{headline || "—"}</h3>
+        <h3 className="ticket-name ticket-fit-text" data-fit-min="10">{headline || "—"}</h3>
 
         {isGuest ? (
           <dl className="ticket-grid">

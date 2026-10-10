@@ -24,12 +24,12 @@ export async function POST(request: Request) {
   
   try {
     // Check if mailer is available
-    if (!mailAvailable()) {
+    if (!(await mailAvailable())) {
       return fail("Email service is not configured or available", 503);
     }
     
-    // Send test email
-    await sendMail({
+    // Send test email and check the result: sendMail reports failures, not throws.
+    const result = await sendMail({
       to: test_recipient,
       subject: `SMTP Test from OKGS Science Fair`,
       html: `
@@ -66,9 +66,12 @@ If you received this email, your SMTP configuration is working properly.
 This is an automated test email from OKGS Science Fair Management System.`,
     });
     
+    if (!result.delivered) return fail(result.error || "The test message could not be sent.", 502);
+
     return ok({
       success: true,
-      message: "SMTP connection successful! Test email sent.",
+      provider: result.provider,
+      message: `Test email sent via ${result.provider}.`,
     });
     
   } catch (error) {

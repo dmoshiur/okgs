@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Languages, Printer } from "lucide-react";
 import { ticketLangOptions, type TicketLang } from "@/lib/ticket-locale";
+import { usePrintAction } from "@/components/print/usePrintAction";
 
 export interface BulkTicketScope {
   fair: string;
@@ -27,6 +28,7 @@ export function BulkTicketToolbar({
   warning: string;
 }) {
   const router = useRouter();
+  const printAction = usePrintAction(hint + (lang || "en"));
 
   const href = useCallback(
     (next: { lang?: TicketLang; auto?: boolean }) => {
@@ -66,10 +68,11 @@ export function BulkTicketToolbar({
       <button type="button" className={auto ? "is-active" : ""} aria-pressed={auto} onClick={() => router.push(href({ auto: !auto }))}>
         Open print dialog {auto ? "on" : "off"}
       </button>
-      <button type="button" className="ticket-bulk-print" onClick={() => window.print()}>
-        <Printer size={15} /> Print {sheets === 1 ? "1 A4 sheet" : `${sheets} A4 sheets`}
+      <button type="button" className="ticket-bulk-print" disabled={!printAction.ready || printAction.preparing} onClick={() => void printAction.print()}>
+        <Printer size={15} /> {!printAction.ready ? "Loading view…" : printAction.preparing ? "Preparing…" : `Print ${sheets === 1 ? "1 A4 sheet" : `${sheets} A4 sheets`}`}
       </button>
       {warning ? <p className="ticket-bulk-warning">{warning}</p> : null}
+      {printAction.notice ? <p className="print-ready-note" role="status">{printAction.notice}</p> : null}
     </div>
   );
 }

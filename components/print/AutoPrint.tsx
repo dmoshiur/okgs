@@ -1,29 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { preparePrint, printPreparationNotice } from "@/lib/print-ready";
 
-/** Wait for fonts and printable images before opening the dialog. */
+/** Only print automatically when fonts, photos, QR and safe-area text are ready. */
 export function AutoPrint() {
+  const [notice, setNotice] = useState("");
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("auto") === "0") return;
-    let cancelled = false;
-    const images = Array.from(document.querySelectorAll<HTMLImageElement>(".ticket-sheet img, .print-page img"));
-    const ready = Promise.all([
-      document.fonts?.ready ?? Promise.resolve(),
-      ...images.map((image) => image.decode?.().catch(() => undefined) ?? Promise.resolve()),
-    ]);
-    let timeout: ReturnType<typeof setTimeout>;
-    // A 500-student run can contain more than 1,500 Cloudinary photos. Give
-    // those large print sheets longer to decode before falling back, without
-    // slowing down single tickets or small print batches.
-    const isLargeBulkPrint = document.querySelectorAll(".ticket-bulk-page").length > 20;
-    const fallbackMs = isLargeBulkPrint ? 30_000 : 8_000;
-    const fallback = new Promise<void>((resolve) => { timeout = setTimeout(resolve, fallbackMs); });
-    void Promise.race([ready, fallback]).then(() => {
-      clearTimeout(timeout);
-      requestAnimationFrame(() => requestAnimationFrame(() => { if (!cancelled) window.print(); }));
-    });
-    return () => { cancelled = true; clearTimeout(timeout); };
+    const controller = new AbortController();
+    void preparePrint(controller.signal).then((state) => {
+      if (controller.signal.aborted) return;
+      const warning = printPreparationNotice(state);
+      if (warning) { setNotice(`Automatic printing paused. ${warning}`); return; }
+      requestAnimationFrame(() => requestAnimationFrame(() => { if (!controller.signal.aborted) window.print(); }));
+    }).catch(() => { if (!controller.signal.aborted) setNotice("Automatic printing paused. Use Print after reviewing the loaded preview."); });
+    return () => controller.abort();
   }, []);
-  return null;
+  return notice ? <p className="print-ready-note no-print" role="status">{notice}</p> : null;
 }
