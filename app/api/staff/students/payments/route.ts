@@ -2,6 +2,7 @@ import { defaultFairSlug, fail, ok, staff, str } from "@/lib/api";
 import { logActivity } from "@/lib/portal-db";
 import { parseRollExpression, normalizeRoll } from "@/lib/roll-range";
 import { PAYMENT_STATUSES, scopedStudents, setPaymentStatus, studentsByIds, type PaymentStatus } from "@/lib/student-db";
+import { issuePassesForStudentIds } from "@/lib/student-pass";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,10 @@ export async function POST(request: Request) {
     actor_name: session.user.name,
   });
 
+  // A student marked PAID for the fair receives their official QR pass automatically.
+  // Students never request it themselves; an unmarked student keeps no pass.
+  const passes = status === "PAID" ? await issuePassesForStudentIds(targets.map((row) => row.id), fair) : { issued: 0, skipped: 0 };
+
   await logActivity({
     actor_id: session.user.id,
     actor_name: session.user.name,
@@ -67,12 +72,14 @@ export async function POST(request: Request) {
     action: `payment.${status.toLowerCase()}`,
     entity: "payments",
     entity_id: fair,
-    detail: `${updated} student(s) marked ${status} · ${scopeLabel}`,
+    detail: `${updated} student(s) marked ${status} · ${scopeLabel}${passes.issued ? ` · ${passes.issued} QR pass issued` : ""}`,
   });
 
   return ok({
     updated,
     status,
+    passes_issued: passes.issued,
+    passes_pending_account: passes.skipped,
     rolls: targets.map((row) => row.roll).sort((a, b) => Number(a) - Number(b) || a.localeCompare(b)),
     students: targets,
   });

@@ -55,8 +55,8 @@ export default async function PassPage({ params }: { params: Promise<{ token: st
 
         <div className="v2-card" style={{ padding: 18 }}>
           <p className="v2-muted" style={{ margin: 0 }}>
-            এই কার্ডটি মেলার গেটে শিক্ষক/অ্যাডমিনের কাছে দেখান। ওয়েবসাইটের <strong>/sf/scan</strong> পাতা বা ক্যামেরা দিয়ে QR স্ক্যান করলেই স্বয়ংক্রিয়ভাবে যাচাই হয়ে যাবে।
-            ছাপতে <strong>Ctrl/Cmd + P</strong> চাপুন — ছাপার সময় ব্যাকগ্রাউন্ড সাদা হয়ে যাবে।
+            এই QR পাসটি মেলার গেটে শিক্ষক/অ্যাডমিনের কাছে দেখান। স্ক্যানার দিয়ে QR স্ক্যান করলেই স্বয়ংক্রিয়ভাবে যাচাই হবে।
+            পাস ছাপার দায়িত্ব বিদ্যালয় কর্তৃপক্ষের।
           </p>
           <p className="v2-muted" style={{ margin: "10px 0 0", fontSize: 12.5, wordBreak: "break-all" }}>
             টোকেন: {pass.token}
