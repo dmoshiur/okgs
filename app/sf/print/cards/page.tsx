@@ -4,6 +4,7 @@ import { getPortalSession } from "@/lib/portal-auth";
 import { isStaffRole } from "@/lib/roles";
 import { listUsers } from "@/lib/portal-db";
 import { getPublicContent } from "@/lib/db";
+import { ticketSchoolName } from "@/lib/ticket-locale";
 import { PrintButton } from "@/components/print/PrintButton";
 import { SchoolLogo } from "@/components/public/SchoolLogo";
 
@@ -24,7 +25,7 @@ export default async function StudentCardPrintPage({ searchParams }: { searchPar
   ]);
   const students = allStudents.filter((student) => Number(student.is_active) === 1);
   const settings = Object.fromEntries(content.settings.map((item) => [item.key, item.value]));
-  const school = settings.site_name || "OKGS School";
+  const school = ticketSchoolName(settings.site_name_en || settings.site_name);
   const logo = settings.logo_url || "";
 
   return (

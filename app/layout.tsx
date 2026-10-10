@@ -45,12 +45,12 @@ import { canBypassMaintenanceLock } from "@/lib/auth";
 import { JsonLd } from "@/components/public/JsonLd";
 import { VisualModeProvider } from "@/components/public/VisualModeProvider";
 import { ThemeModeProvider } from "@/components/public/ThemeModeProvider";
-import { activeTheme, readFlag, themeCss } from "@/lib/site";
+import { activeFair, activeTheme, readFlag, readSetting, themeCss } from "@/lib/site";
+import { ticketSchoolName } from "@/lib/ticket-locale";
 import { DesktopSidebar } from "@/components/sf/DesktopSidebar";
 import { getPortalSession } from "@/lib/portal-auth";
 import { isStaffRole } from "@/lib/roles";
 import { readFairPreference } from "@/lib/sf-preference";
-import { activeFair } from "@/lib/site";
 import { BottomNav } from "@/components/sf/BottomNav";
 import { COLOR_SCHEME_COOKIE } from "@/components/public/ThemeModeProvider";
 import { VISUAL_MODE_COOKIE, type VisualMode } from "@/lib/design-themes";
@@ -181,7 +181,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <BottomNav />
         {staffSession && isStaffRole(staffSession.role) && content ? <DesktopSidebar
           fairs={content.fairs.filter((fair) => fair.is_active !== false)} activeSlug={sidebarFair?.slug ?? ""}
-          logo={settingValue(settings, "logo_url")} schoolName={settingValue(settings, "site_name", "OKGS")}
+          logo={settingValue(settings, "logo_url")} schoolName={ticketSchoolName(readSetting(settings, "site_name_en") || settingValue(settings, "site_name"))}
           userName={staffSession.user.name} role={staffSession.role}
         /> : null}
       </body>

@@ -12,6 +12,7 @@ import { isStaffRole } from "@/lib/roles";
 import { activeFair, fairMode, readFlag, readSetting } from "@/lib/site";
 import { settingValue } from "@/lib/club-data";
 import { readFairPreference } from "@/lib/sf-preference";
+import { ticketSchoolName } from "@/lib/ticket-locale";
 import type { PublicUser } from "@/lib/portal-db";
 import type { PortalRole } from "@/lib/roles";
 import type { Fair, SiteTheme } from "@/lib/types";
@@ -67,7 +68,7 @@ export async function sfConsoleProps(section: SfSectionId): Promise<SfConsolePro
     registrationOpen: readFlag(content.settings, "fair_registration_open", true),
     categories,
     clubs: content.clubs.map((club) => ({ slug: club.slug, name: club.name })),
-    schoolName: settingValue(content.settings, "site_name", "OKGS"),
+    schoolName: ticketSchoolName(readSetting(content.settings, "site_name_en") || settingValue(content.settings, "site_name")),
     logo: readSetting(content.settings, "logo_url"),
     fairName: fair?.name ?? "Science Fair",
   };

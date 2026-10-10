@@ -16,7 +16,41 @@
  * whatever comes back, which is what keeps the three modes from drifting apart.
  */
 import { bn, en, formatDate, formatDateEn } from "@/lib/format";
-import { toBanglaDigits } from "@/lib/digits";
+import { hasBengali, toBanglaDigits, toLatinDigits } from "@/lib/digits";
+
+export const DEFAULT_TICKET_SCHOOL_NAME = "Omar Kindergarten School & Omar Garten Academy";
+
+const BANGLA_SCHOOL_NAMES: Record<string, string> = {
+  "ওমর কিন্ডারগার্টেন স্কুল এন্ড ওমর গার্টেন একাডেমি": DEFAULT_TICKET_SCHOOL_NAME,
+  "ওমর কিন্ডারগার্টেন স্কুল ও ওমর গার্টেন একাডেমি": DEFAULT_TICKET_SCHOOL_NAME,
+  "ওমর কিন্ডারগার্টেন স্কুল": "Omar Kindergarten School",
+  "ওকেজিএস": "OKGS",
+};
+
+/**
+ * Resolves the school name printed on a ticket.
+ *
+ * The public site stores `site_name` in Bangla (`ওমর কিন্ডারগার্টেন স্কুল এন্ড ওমর গার্টেন একাডেমি`),
+ * while tickets must always print the school name in English. Known Bangla names
+ * map to their exact English equivalents, any other Bangla value falls back to
+ * the English institution name, and a custom English name is kept as-is.
+ */
+export function ticketSchoolName(value?: unknown): string {
+  const text = String(value ?? "").trim();
+  if (!text) return DEFAULT_TICKET_SCHOOL_NAME;
+  if (BANGLA_SCHOOL_NAMES[text]) return BANGLA_SCHOOL_NAMES[text];
+  if (hasBengali(text)) return DEFAULT_TICKET_SCHOOL_NAME;
+  return toLatinDigits(text);
+}
+
+/** Resolves an English fair title for the ticket header. */
+export function ticketFairName(fair?: { name?: string; name_en?: string } | null, fallback = "Science Fair"): string {
+  const primary = String(fair?.name ?? "").trim();
+  const english = String(fair?.name_en ?? "").trim();
+  if (primary && !hasBengali(primary)) return primary;
+  if (english && !hasBengali(english)) return english;
+  return fallback;
+}
 
 export const TICKET_LANGS = ["en", "bn", "both"] as const;
 export type TicketLang = (typeof TICKET_LANGS)[number];
@@ -77,7 +111,7 @@ export interface TicketStrings {
   titles: {
     studentTicket: TicketLabel;
     guestPass: TicketLabel;
-    /** "Student copy" / "Parent copy" / "School copy". */
+    /** "Student copy" / "Parent copy" / "Parent copy". */
     copies: TicketLabel[];
     guestCopy: TicketLabel;
     copyOf: (index: number, total: number) => string;
@@ -134,7 +168,7 @@ export function ticketText(lang: TicketLang = "en"): TicketStrings {
     titles: {
       studentTicket: at("Student entry ticket", "শিক্ষার্থী প্রবেশ টিকিট"),
       guestPass: at("Outside guest pass", "বহিরাগত অতিথি পাস"),
-      copies: [at("Student copy", "শিক্ষার্থী কপি"), at("Parent copy", "অভিভাবক কপি"), at("School copy", "বিদ্যালয় কপি")],
+      copies: [at("Student copy", "শিক্ষার্থী কপি"), at("Parent copy", "অভিভাবক কপি"), at("Parent copy", "অভিভাবক কপি")],
       guestCopy: at("Guest copy", "অতিথি কপি"),
       copyOf: (index, total) =>
         lang === "en" ? `Copy ${number(index)} of ${number(total)}` : `কপি ${number(index)} / ${number(total)}`,

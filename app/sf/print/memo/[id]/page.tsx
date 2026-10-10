@@ -5,6 +5,7 @@ import { isStaffRole } from "@/lib/roles";
 import { getExpenseById } from "@/lib/portal-db";
 import { getPublicContent } from "@/lib/db";
 import { formatDateEn } from "@/lib/format";
+import { ticketSchoolName } from "@/lib/ticket-locale";
 import { PrintButton } from "@/components/print/PrintButton";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export default async function ExpenseMemoPage({ params }: { params: Promise<{ id
   if (!expense) notFound();
   const content = await getPublicContent();
   const settings = Object.fromEntries(content.settings.map((item) => [item.key, item.value]));
-  const school = settings.site_name || "OKGS School";
+  const school = ticketSchoolName(settings.site_name_en || settings.site_name);
 
   return (
     <main className="print-page v2">

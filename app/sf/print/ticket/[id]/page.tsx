@@ -8,7 +8,7 @@ import { settingValue } from "@/lib/club-data";
 import { qrDataUrl } from "@/lib/qr";
 import { makeTicketToken, ticketExpiry } from "@/lib/ticket-token";
 import { activeGuestsForStudent, getGuestById, getPaymentStatus, getStudentById, lastAdmission } from "@/lib/student-db";
-import { ticketDate, ticketNumber, ticketText, parseTicketLang } from "@/lib/ticket-locale";
+import { ticketDate, ticketFairName, ticketNumber, ticketSchoolName, ticketText, parseTicketLang } from "@/lib/ticket-locale";
 import { TicketSheet } from "@/components/sf/print/TicketSheet";
 import { TicketToolbar } from "@/components/sf/print/TicketToolbar";
 import { AutoPrint } from "@/components/print/AutoPrint";
@@ -64,9 +64,9 @@ export default async function StudentTicketPage({ params, searchParams }: { para
     lastAdmission(student.id, fairSlug),
   ]);
 
-  const schoolName = settingValue(content.settings, "site_name", "OKGS");
+  const schoolName = ticketSchoolName(readSetting(content.settings, "site_name_en") || settingValue(content.settings, "site_name"));
   const logo = readSetting(content.settings, "logo_url");
-  const fairName = fair?.name ?? "Science Fair";
+  const fairName = ticketFairName(fair);
   const validUntil = ticketDate(new Date(expiresAt * 1000).toISOString(), lang, "long");
   const issuedAt = ticketDate(new Date().toISOString(), lang, "long");
   const copyLabels = text.titles.copies.map((copy) => copy.primary);
