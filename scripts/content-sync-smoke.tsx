@@ -108,7 +108,7 @@ assert.match(text("components/admin/ImageField.tsx"), /useEffect\(\(\) => \{\s*s
 
 // Removing an image clears the URL, the in-flight upload and the file input.
 const imageField = text("components/admin/ImageField.tsx");
-assert.ok(imageField.includes("controllerRef.current?.abort()"), "Remove aborts an upload still in flight");
+assert.ok(imageField.includes("controller?.abort()") && imageField.includes("controllerRef.current = null"), "Remove aborts an upload still in flight and prevents a stale result from replacing the cleared value");
 assert.ok(imageField.includes("inputRef.current.value = \"\""), "Remove clears the file input");
 assert.ok(imageField.includes("onClick={clearValue}"), "the Remove button runs the full clear");
 assert.match(text("components/club/studio/fields.tsx"), /onClick=\{\(\) => \{[\s\S]*?onChange\(""\);/, "the club picker's remove clears the URL too");
