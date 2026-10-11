@@ -2633,6 +2633,7 @@ a[href^="mailto:"], a[href^="tel:"], .club-site-link, .directory-count { overflo
 }
 .image-msg svg { flex: 0 0 auto; margin-top: 2px; }
 .image-msg.is-error { color: var(--danger); font-weight: 600; }
+.image-msg.is-warning { color: var(--warn-text); font-weight: 600; }
 .image-msg.is-done { color: var(--mint-text); }
 .image-empty { color: var(--muted); font-size: 14px; }
 .image-busy { color: var(--mint-text); font-size: 13px; }

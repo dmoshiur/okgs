@@ -8,6 +8,7 @@ import { buildPayload, validatePayload, validateReferences, clubChildResources }
 import { sendAnnouncementEmail } from "@/lib/announcements";
 import { publicPathsFor, revalidatePublicSite } from "@/lib/revalidate";
 import { renameClubSiteOverride, renameFairSlug } from "@/lib/site";
+import { prepareClubImagePayload } from "@/lib/club-image-validation";
 
 const knownResources = new Set<string>(Object.keys(resourceSchema));
 
@@ -68,8 +69,22 @@ export async function PATCH(
     if (!existing) return NextResponse.json({ error: "That entry could not be found." }, { status: 404 });
 
     const raw = (await request.json()) as Record<string, unknown>;
-    const payload = buildPayload(resource, raw, false);
-    if (!Object.keys(payload).length) return NextResponse.json({ error: "There is nothing to update." }, { status: 422 });
+    const builtPayload = buildPayload(resource, raw, false);
+    const preparedImages = resource === "clubs"
+      ? prepareClubImagePayload(builtPayload, "update")
+      : { payload: builtPayload, warnings: {} as Record<string, string> };
+    const payload = preparedImages.payload as Record<string, string | number>;
+    if (!Object.keys(payload).length) {
+      if (Object.keys(preparedImages.warnings).length) {
+        return NextResponse.json({
+          success: true,
+          message: "No other changes were made; invalid image links were left unchanged.",
+          item: existing,
+          warnings: preparedImages.warnings,
+        });
+      }
+      return NextResponse.json({ error: "There is nothing to update." }, { status: 422 });
+    }
 
     // Guards duplicate slugs (409) and generates one when it was cleared.
     const slugProblem = await resolveSlug(resource, payload, id);
@@ -112,7 +127,13 @@ export async function PATCH(
     // Every save — not just fairs/settings/themes — changes a public page, so the
     // whole public tree is revalidated and the affected routes are named as well.
     revalidatePublicSite([...publicPathsFor(resource, result.row as unknown as Record<string, unknown>), ...publicPathsFor(resource, existing as unknown as Record<string, unknown>)]);
-    return NextResponse.json({ success: true, message: ["fairs", "settings", "themes"].includes(resource) ? "Settings updated" : "Entry updated", item: result.row, notification });
+    return NextResponse.json({
+      success: true,
+      message: ["fairs", "settings", "themes"].includes(resource) ? "Settings updated" : "Entry updated",
+      item: result.row,
+      notification,
+      warnings: preparedImages.warnings,
+    });
   } catch (error) {
     if (unauthorized(error)) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     console.error("[admin:update]", error);

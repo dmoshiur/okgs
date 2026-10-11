@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, CloudUpload, Image as ImageIcon, Link2, Loader2, Settings2, Trash2, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CloudUpload, Image as ImageIcon, Link2, Loader2, Settings2, Trash2, X } from "lucide-react";
 import { isCloudinaryUrl, optimizedImage } from "@/lib/cloudinary";
+import { checkImageUrl, secureCloudinaryUrl } from "@/lib/image-url";
 import { formatBytes, loadMediaConfig, uploadToCloudinary, type MediaConfig } from "@/lib/upload-client";
 
 interface ImageFieldProps {
@@ -17,12 +18,14 @@ interface ImageFieldProps {
   onError?: (message: string) => void;
   accept?: string;
   previewFit?: "cover" | "contain";
+  /** Club images are optional, so a bad pasted URL can be skipped on save. */
+  saveCanSkipInvalid?: boolean;
   onFileSelected?: (file: File) => void;
 }
 
 type Status = { kind: "idle" | "uploading" | "done" | "error"; percent?: number; message?: string };
 
-export function ImageField({ value, onChange, label, help, prefix, title, onError, accept = "image/*", previewFit = "cover", onFileSelected }: ImageFieldProps) {
+export function ImageField({ value, onChange, label, help, prefix, title, onError, accept = "image/*", previewFit = "cover", saveCanSkipInvalid = false, onFileSelected }: ImageFieldProps) {
   const [config, setConfig] = useState<MediaConfig | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [localPreview, setLocalPreview] = useState<string>("");
@@ -30,8 +33,6 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
   const [urlMode, setUrlMode] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
-  const valueRef = useRef(value);
-  valueRef.current = value;
 
   useEffect(() => {
     let alive = true;
@@ -58,7 +59,10 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
     setPreviewBroken(false);
   }, [value]);
 
-  const remotePreview = optimizedImage(value, { width: 420, fit: "cover" });
+  const imageUrlCheck = checkImageUrl(value);
+  const imageUrlWarning = imageUrlCheck.valid ? "" : imageUrlCheck.message;
+  const safeValue = imageUrlCheck.valid ? imageUrlCheck.value : "";
+  const remotePreview = optimizedImage(safeValue, { width: 420, fit: "cover" });
   const preview = previewBroken ? "" : localPreview || remotePreview;
 
   /**
@@ -68,8 +72,9 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
    * that came back on the next save or stayed visible on the public page.
    */
   const clearValue = useCallback(() => {
-    controllerRef.current?.abort();
+    const controller = controllerRef.current;
     controllerRef.current = null;
+    controller?.abort();
     if (inputRef.current) inputRef.current.value = "";
     onChange("");
     setLocalPreview("");
@@ -77,12 +82,26 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
     setStatus({ kind: "idle" });
   }, [onChange]);
 
+  function handleManualUrlChange(next: string) {
+    const controller = controllerRef.current;
+    controllerRef.current = null;
+    controller?.abort();
+    setLocalPreview("");
+    setStatus({ kind: "idle" });
+    onChange(next);
+  }
+
   async function handleFiles(file: File | undefined | null) {
     if (!file) return;
+    const previous = controllerRef.current;
+    controllerRef.current = null;
+    previous?.abort();
+
+    const controller = new AbortController();
+    controllerRef.current = controller;
     const previewUrl = URL.createObjectURL(file);
     setLocalPreview(previewUrl);
     setStatus({ kind: "uploading", percent: 4 });
-    controllerRef.current = new AbortController();
 
     try {
       const result = await uploadToCloudinary({
@@ -90,26 +109,32 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
         prefix,
         label: title || label,
         tags: ["okgs", prefix || "studio"].filter(Boolean),
-        onProgress: (percent) => setStatus({ kind: "uploading", percent }),
-        signal: controllerRef.current.signal,
+        onProgress: (percent) => {
+          if (controllerRef.current === controller) setStatus({ kind: "uploading", percent });
+        },
+        signal: controller.signal,
       });
+      if (controllerRef.current !== controller) return;
+      const secureUrl = secureCloudinaryUrl(result.url);
+      if (!secureUrl) throw new Error("Cloudinary did not return a valid HTTPS image URL. The image was not saved; please try again.");
       onFileSelected?.(file);
-      onChange(result.url);
+      onChange(secureUrl);
       setLocalPreview("");
       setStatus({
         kind: "done",
         message: `${formatBytes(result.bytes)} · ${result.width}×${result.height} · ${result.publicId}`,
       });
     } catch (error) {
+      if (controllerRef.current !== controller) return;
       // The upload never reached Cloudinary, so the blob preview is a lie —
-      // drop it and fall back to whatever URL is actually saved.
+      // drop it and keep the last saved URL so other club changes can still save.
       setLocalPreview("");
       setPreviewBroken(false);
       const message = error instanceof Error ? error.message : "The upload failed.";
       setStatus({ kind: "error", message });
       onError?.(message);
     } finally {
-      controllerRef.current = null;
+      if (controllerRef.current === controller) controllerRef.current = null;
     }
   }
 
@@ -193,14 +218,16 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
                 <label className="inline-url-field">
                   <span>Image URL</span>
                   <input
-                    type="url"
+                    type="text"
+                    inputMode="url"
                     value={value}
                     placeholder="https://res.cloudinary.com/…"
+                    aria-invalid={Boolean(imageUrlWarning)}
                     onClick={(event) => event.stopPropagation()}
-                    onChange={(event) => onChange(event.target.value)}
+                    onChange={(event) => handleManualUrlChange(event.target.value)}
                   />
                 </label>
-                <small>Paste a Cloudinary, Google Drive or any other public image URL.</small>
+                <small>Paste a valid public HTTPS image URL. Existing same-site assets such as /media/club.svg are supported too.</small>
               </>
             ) : notConfigured ? (
               <>
@@ -218,7 +245,9 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
                   className="ghost-button"
                   onClick={(event) => {
                     event.stopPropagation();
-                    controllerRef.current?.abort();
+                    const controller = controllerRef.current;
+                    controllerRef.current = null;
+                    controller?.abort();
                     setStatus({ kind: "idle" });
                     setLocalPreview("");
                   }}
@@ -249,6 +278,11 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
         <div className="image-field-foot">
           {status.kind === "error" ? (
             <p className="image-msg is-error"><X size={13} /> {status.message}</p>
+          ) : null}
+          {imageUrlWarning ? (
+            <p className="image-msg is-warning" role="status">
+              <AlertTriangle size={13} /> {imageUrlWarning}{saveCanSkipInvalid ? " This optional club image will be skipped without blocking other club changes." : " Correct the link or upload a valid image before saving."}
+            </p>
           ) : status.kind === "done" ? (
             <p className="image-msg is-done"><CheckCircle2 size={13} /> Uploaded to Cloudinary — {status.message}</p>
           ) : value ? (
@@ -258,8 +292,8 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
           ) : help ? (
             <p className="image-msg image-help">{help}</p>
           ) : null}
-          {value ? (
-            <a className="image-open" href={value} target="_blank" rel="noreferrer">Open ↗</a>
+          {value && imageUrlCheck.valid ? (
+            <a className="image-open" href={imageUrlCheck.value} target="_blank" rel="noreferrer">Open ↗</a>
           ) : null}
         </div>
 
@@ -270,7 +304,8 @@ export function ImageField({ value, onChange, label, help, prefix, title, onErro
             rows={1}
             spellCheck={false}
             aria-label={`${label} — image URL`}
-            onChange={(event) => onChange(event.target.value)}
+            aria-invalid={Boolean(imageUrlWarning)}
+            onChange={(event) => handleManualUrlChange(event.target.value)}
           />
         ) : null}
       </div>

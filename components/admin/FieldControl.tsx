@@ -80,6 +80,7 @@ export function FieldControl({ def, resource, value, update, clubs, fairs, form,
             title={title}
             accept={isClubLogo ? "image/png,image/svg+xml,.png,.svg" : "image/*"}
             previewFit={isClubLogo ? "contain" : "cover"}
+            saveCanSkipInvalid={resource === "clubs"}
             onFileSelected={isClubLogo ? (file) => {
               void extractDominantLogoColor(file).then((color) => {
                 if (color) update("accent", color);

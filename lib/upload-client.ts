@@ -17,6 +17,8 @@
  * Uses XMLHttpRequest so we can report real upload progress.
  */
 
+import { secureCloudinaryUrl } from "./image-url";
+
 export interface MediaConfig {
   enabled: boolean;
   /** True when the server holds an API key + secret and signs each upload. */
@@ -256,16 +258,21 @@ export function uploadToCloudinary({ file, prefix, label, tags = [], onProgress,
         const data = xhr.response as
           | { secure_url?: string; public_id?: string; width?: number; height?: number; bytes?: number; format?: string; version?: number; error?: { message?: string } }
           | null;
-        if (xhr.status >= 200 && xhr.status < 300 && data?.secure_url) {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const secureUrl = secureCloudinaryUrl(data?.secure_url);
+          if (!secureUrl) {
+            reject(new Error("Cloudinary did not return a valid HTTPS image URL. The image was not saved; please try again."));
+            return;
+          }
           onProgress?.(100);
           resolve({
-            url: data.secure_url,
-            publicId: data.public_id ?? "",
-            width: data.width ?? 0,
-            height: data.height ?? 0,
-            bytes: data.bytes ?? file.size,
-            format: data.format ?? "",
-            version: data.version ?? 0,
+            url: secureUrl,
+            publicId: data?.public_id ?? "",
+            width: data?.width ?? 0,
+            height: data?.height ?? 0,
+            bytes: data?.bytes ?? file.size,
+            format: data?.format ?? "",
+            version: data?.version ?? 0,
           });
           return;
         }

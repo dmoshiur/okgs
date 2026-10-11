@@ -6,6 +6,8 @@ import { findUniqueConflict, insertRow, listRows, resolveSlug, rowExists } from 
 import type { ResourceName } from "@/lib/types";
 import { sendAnnouncementEmail } from "@/lib/announcements";
 import { publicPathsFor, revalidatePublicSite } from "@/lib/revalidate";
+import { checkImageUrl } from "@/lib/image-url";
+import { prepareClubImagePayload } from "@/lib/club-image-validation";
 
 const resources = new Set(Object.keys(resourceSchema) as ResourceName[]);
 
@@ -44,8 +46,11 @@ export function validatePayload(resource: ResourceName, payload: Record<string, 
     if (field.pattern && value && !new RegExp(field.pattern, "u").test(value)) {
       return { error: field.patternError || `“${field.label}” is not in the right format.`, status: 422 as const };
     }
-    if ((field.type === "url" || field.type === "image") && value && !/^https?:\/\//i.test(value)) {
+    if (field.type === "url" && value && !/^https?:\/\//i.test(value)) {
       return { error: `“${field.label}” needs a full URL starting with https://`, status: 422 as const };
+    }
+    if (field.type === "image" && value && !checkImageUrl(value).valid) {
+      return { error: `“${field.label}” needs a valid HTTPS image URL starting with https:// (or a site-relative asset path).`, status: 422 as const };
     }
   }
   return null;
@@ -109,7 +114,11 @@ export async function POST(request: Request, context: { params: Promise<{ resour
     }
 
     const raw = (await request.json()) as Record<string, unknown>;
-    const payload = buildPayload(resource, raw, true);
+    const builtPayload = buildPayload(resource, raw, true);
+    const preparedImages = resource === "clubs"
+      ? prepareClubImagePayload(builtPayload, "create")
+      : { payload: builtPayload, warnings: {} as Record<string, string> };
+    const payload = preparedImages.payload as Record<string, string | number>;
 
     // Slugs are resolved first so an omitted one can be generated from the title.
     const slugProblem = await resolveSlug(resource, payload);
@@ -138,7 +147,7 @@ export async function POST(request: Request, context: { params: Promise<{ resour
     // A new entry is public the moment it is published — flush the cached
     // renders so it shows up on the very next visit.
     revalidatePublicSite(publicPathsFor(resource, item as unknown as Record<string, unknown>));
-    return NextResponse.json({ item, notification }, { status: 201 });
+    return NextResponse.json({ item, notification, warnings: preparedImages.warnings }, { status: 201 });
   } catch (error) {
     if (unauthorized(error)) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     console.error("[admin:create]", error);

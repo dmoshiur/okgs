@@ -38,6 +38,7 @@ import {
   type OverviewItem,
 } from "@/components/admin/DashboardMetrics";
 import { ContentListTable, type ContentItem } from "@/components/admin/ContentListTable";
+import { prepareClubImagePayload } from "@/lib/club-image-validation";
 
 type Item = ContentItem;
 type DataMap = Record<ResourceName, Item[]>;
@@ -91,6 +92,7 @@ export function AdminStudio({ session, maintenanceEnabled = false }: { session: 
   const [modal, setModal] = useState<{ resource: ResourceName; item?: Item; mode: "create" | "edit" } | null>(null);
   const [form, setForm] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [fieldWarnings, setFieldWarnings] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState<{ resource: ResourceName; item: Item } | null>(null);
   const [toast, setToast] = useState<{ kind: "success" | "error"; message: string } | null>(null);
@@ -211,12 +213,14 @@ export function AdminStudio({ session, maintenanceEnabled = false }: { session: 
 
   function openCreate(resource: ResourceName) {
     setErrors({});
+    setFieldWarnings({});
     setForm(initialForm(resource));
     setModal({ resource, mode: "create" });
   }
 
   function openEdit(resource: ResourceName, item: Item) {
     setErrors({});
+    setFieldWarnings({});
     setForm(initialForm(resource, item));
     setModal({ resource, item, mode: "edit" });
   }
@@ -229,6 +233,7 @@ export function AdminStudio({ session, maintenanceEnabled = false }: { session: 
     if (hasField(resource, "name")) copy.name = `${String(item.name || "")} (copy)`;
     if (hasField(resource, "key")) copy.key = `${String(item.key || "copy")}_2`;
     setErrors({});
+    setFieldWarnings({});
     setForm(copy);
     setModal({ resource, mode: "create" });
   }
@@ -236,11 +241,13 @@ export function AdminStudio({ session, maintenanceEnabled = false }: { session: 
   function closeModal() {
     setModal(null);
     setErrors({});
+    setFieldWarnings({});
   }
 
   function update(field: string, value: any) {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => (current[field] ? { ...current, [field]: "" } : current));
+    setFieldWarnings((current) => (current[field] ? { ...current, [field]: "" } : current));
   }
 
   function mergeItem(resource: ResourceName, item: Item) {
@@ -256,6 +263,10 @@ export function AdminStudio({ session, maintenanceEnabled = false }: { session: 
     event.preventDefault();
     if (!modal) return;
     const { resource, item, mode } = modal;
+    const preparedImages = resource === "clubs"
+      ? prepareClubImagePayload(form, mode === "edit" ? "update" : "create")
+      : { payload: form, warnings: {} as Record<string, string> };
+    setFieldWarnings(preparedImages.warnings);
 
     const missing: Record<string, string> = {};
     for (const field of fieldsFor(resource)) {
@@ -268,13 +279,14 @@ export function AdminStudio({ session, maintenanceEnabled = false }: { session: 
       notify("error", "Check the fields marked as required.");
       return;
     }
+    setErrors({});
 
     setSaving(true);
     try {
       const response = await fetch(mode === "edit" ? `/api/admin/${resource}/${item!.id}` : `/api/admin/${resource}`, {
         method: mode === "edit" ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(preparedImages.payload),
       });
       const result = await response.json();
       if (response.status === 401) {
@@ -284,8 +296,21 @@ export function AdminStudio({ session, maintenanceEnabled = false }: { session: 
       if (!response.ok) throw new Error(result.error || "Could not save.");
       mergeItem(resource, result.item as Item);
       if (["fairs", "settings", "themes"].includes(resource)) router.refresh();
-      closeModal();
-      notify("success", mode === "edit" ? "Changes saved." : "New entry added — it is live on the site.");
+
+      const serverWarnings = result.warnings && typeof result.warnings === "object" ? result.warnings as Record<string, string> : {};
+      const warnings = { ...preparedImages.warnings, ...serverWarnings };
+      const warningFields = fieldsFor(resource).filter((field) => warnings[field.name]).map((field) => field.label);
+      if (warningFields.length && mode === "edit" && resource === "clubs") {
+        // The valid club changes have already been saved. Keep the editor open
+        // so the skipped image link and its warning remain visible for review.
+        setModal({ resource, item: result.item as Item, mode });
+        setFieldWarnings(warnings);
+        notify("success", `Other changes were saved. Invalid image link(s) were ignored: ${warningFields.join(", ")}.`);
+      } else {
+        closeModal();
+        const message = mode === "edit" ? "Changes saved." : "New entry added — it is live on the site.";
+        notify("success", warningFields.length ? `${message} Invalid image link(s) were skipped: ${warningFields.join(", ")}.` : message);
+      }
     } catch (error) {
       notify("error", error instanceof Error ? error.message : "Could not save.");
     } finally {
@@ -567,6 +592,7 @@ export function AdminStudio({ session, maintenanceEnabled = false }: { session: 
           mode={modal.mode}
           form={form}
           errors={errors}
+          warnings={fieldWarnings}
           saving={saving}
           clubs={clubs as unknown as any}
           fairs={(data.fairs ?? []) as unknown as any[]}
@@ -667,6 +693,7 @@ function EditorModal({
   mode,
   form,
   errors,
+  warnings,
   saving,
   clubs,
   fairs,
@@ -679,6 +706,7 @@ function EditorModal({
   mode: "create" | "edit";
   form: Record<string, any>;
   errors: Record<string, string>;
+  warnings: Record<string, string>;
   saving: boolean;
   clubs: any[];
   fairs: any[];
@@ -735,6 +763,7 @@ function EditorModal({
                           title={String(form.title || form.name || form.caption || "")}
                         />
                         {errors[field.name] ? <p className="field-error">{errors[field.name]}</p> : null}
+                        {warnings[field.name] ? <p className="field-warn" role="status">{warnings[field.name]}</p> : null}
                       </div>
                     ))}
                   </div>
