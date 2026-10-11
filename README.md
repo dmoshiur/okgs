@@ -145,11 +145,13 @@ CLOUDINARY_MAX_BYTES=12582912         # ঐচ্ছিক, ক্লায়�
   School**, the sub-header **Scholars Residential School** and the Scholars logo.
   The fair name (e.g. **OKGS GENESIS 2026**) is printed large and bold above a
   three-photo row — father (named) · student (large) · mother (named) — with the
-  student's full name underneath. Details list Student ID (no thousands
-  separators), Roll, Class, Section, Shift and Group. The signed QR sits
+  student's full name underneath. The tagline **Exploring The Universe Of Science**
+  sits directly under the fair title. Details list Student ID (no thousands
+  separators), Roll, Class, Section, Shift and Group. Below them: the five club
+  logos (live from the club records), the website **okgs.info**, and the three
+  official numbers (Telephone, President, Help Line). The signed QR (22 mm) sits
   bottom-left with no caption; the Fair President's signature sits bottom-right.
-  The footer carries **Valid until 31 December 2026** and the issue date. There
-  are no "STUDENT ENTRY TICKET", "Student copy", "Copy N of 1", HMAC or
+  Nothing is printed below the QR. There are no "STUDENT ENTRY TICKET", "Student copy", "Copy N of 1", HMAC or
   "Printed by" marks anywhere on the paper.
 - **Guest tickets:** `/sf/students` → **Register outside guest** opens a modal
   that captures the guest's face with the live camera (`getUserMedia`, mirrored

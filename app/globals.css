@@ -7546,21 +7546,24 @@ html[data-color-scheme="dark"] .ticket-print-root {
 .ticket-frame { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 1.2mm; min-height: 0; padding: 2.6mm; border: .7mm solid var(--t-accent); border-radius: 8px; overflow: hidden; }
 .ticket-frame::before { content: ""; position: absolute; inset: 1mm; border: .25mm solid var(--t-gold); border-radius: 5px; pointer-events: none; }
 .ticket-head { position: relative; flex: 0 0 auto; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 1.6mm; min-width: 0; padding: 1.1mm 1.6mm; border: .3mm solid var(--t-accent); border-radius: 6px; background: #edf2fa; }
-.ticket-school-copy { min-width: 0; text-align: center; }
-.ticket-school-copy strong { display: block; font-size: 3.8mm; line-height: 1.35; color: var(--t-accent); letter-spacing: -.01em; overflow-wrap: anywhere; }
-.ticket-school-copy small { display: block; margin-top: .3mm; color: var(--t-gold); font-size: 2.2mm; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; overflow-wrap: anywhere; }
+.ticket-school-copy { min-width: 0; display: grid; gap: .5mm; justify-items: center; text-align: center; }
+/* Both school names are the same style: one size, one weight, one colour. */
+.ticket-school-name { display: block; min-width: 0; max-width: 100%; font-size: 3.3mm; line-height: 1.2; font-weight: 800; color: var(--t-accent); letter-spacing: -.01em; overflow-wrap: anywhere; }
 .ticket-logo { width: 8.6mm; height: 8.6mm; object-fit: contain; flex: 0 0 auto; padding: .5mm; background: #fff; border: .3mm solid var(--t-line); border-radius: 6px; }
 .ticket-logo-fallback { display: grid; place-items: center; border-radius: 50%; background: var(--t-accent); color: #fff; font-size: 2.6mm; font-weight: 800; }
-.ticket-title { margin: 0; flex: 0 0 auto; max-height: 10mm; text-align: center; font-size: 4.5mm; line-height: 1.1; font-weight: 900; letter-spacing: .01em; text-transform: uppercase; color: var(--t-accent); overflow-wrap: anywhere; }
+.ticket-title-block { flex: 0 0 auto; display: grid; justify-items: center; gap: .4mm; min-width: 0; }
+.ticket-title { margin: 0; flex: 0 0 auto; max-height: 7.5mm; text-align: center; font-size: 4.5mm; line-height: 1.1; font-weight: 900; letter-spacing: .01em; text-transform: uppercase; color: var(--t-accent); overflow-wrap: anywhere; }
+/* Event tagline: directly under the fair title, clean and readable. */
+.ticket-tagline { margin: 0; max-width: 100%; color: var(--t-soft); font-size: 2.6mm; line-height: 1.25; font-weight: 600; letter-spacing: .01em; text-align: center; overflow-wrap: anywhere; }
 .ticket-guest-tag { flex: 0 0 auto; align-self: center; margin: 0 auto; padding: .5mm 3mm; border: .35mm solid var(--t-gold); border-radius: 999px; background: #fff7e6; color: var(--t-gold); font-size: 2.5mm; line-height: 1.2; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
 /* Dedicated, bounded photo frames leave enough space for names, metadata and QR. */
 .ticket-photos { flex: 0 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr) minmax(0, 1fr); align-items: start; gap: 1.5mm; width: 100%; min-width: 0; }
 .ticket-photo-cell { display: flex; flex-direction: column; align-items: center; gap: .6mm; margin: 0; min-width: 0; }
-.ticket-photo-frame { display: grid; place-items: center; width: 17.4mm; height: 23.2mm; flex: 0 0 auto; aspect-ratio: 3 / 4; overflow: hidden; border: .4mm solid var(--t-accent); border-radius: 6px; background: #f0f4f8; }
-.ticket-photo-cell.is-large .ticket-photo-frame { width: 22.5mm; height: 30mm; border-width: .5mm; border-radius: 7px; }
+.ticket-photo-frame { display: grid; place-items: center; width: 16.5mm; height: 22mm; flex: 0 0 auto; aspect-ratio: 3 / 4; overflow: hidden; border: .4mm solid var(--t-accent); border-radius: 6px; background: #f0f4f8; }
+.ticket-photo-cell.is-large .ticket-photo-frame { width: 20.25mm; height: 27mm; border-width: .5mm; border-radius: 7px; }
 .ticket-photo-frame img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
 .ticket-photo-initial { font-size: 5mm; font-weight: 800; color: #64748b; }
-.ticket-photo-cell figcaption { max-width: 100%; max-height: 8.5mm; color: var(--t-soft); font-size: 2.1mm; line-height: 1.16; font-weight: 700; text-align: center; overflow-wrap: anywhere; }
+.ticket-photo-cell figcaption { max-width: 100%; max-height: 7mm; color: var(--t-soft); font-size: 2.1mm; line-height: 1.16; font-weight: 700; text-align: center; overflow-wrap: anywhere; }
 .ticket-name { margin: 0; flex: 0 0 auto; max-height: 9.4mm; text-align: center; font-size: 4mm; line-height: 1.14; font-weight: 800; color: var(--t-ink); letter-spacing: -.01em; overflow-wrap: anywhere; }
 .ticket-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.2mm 2mm; margin: 0; min-width: 0; padding: 1.1mm .6mm; border-top: .3mm solid var(--t-line); border-bottom: .3mm solid var(--t-line); flex: 0 0 auto; }
 .ticket-field { min-width: 0; }
@@ -7570,19 +7573,27 @@ html[data-color-scheme="dark"] .ticket-print-root {
 .ticket-fit-text { overflow: hidden; line-height: 1.4; }
 .ticket-field dd.ticket-fit-text, .ticket-photo-cell figcaption.ticket-fit-text { line-height: 1.4; }
 .ticket-sheet[data-lang="bn"] .ticket-fit-text, .ticket-sheet[data-lang="both"] .ticket-fit-text { line-height: 1.5; }
-.ticket-sheet[data-lang="bn"] .ticket-foot, .ticket-sheet[data-lang="both"] .ticket-foot { line-height: 1.5; }
-/* A permanent 26mm square includes a clear quiet zone; no flex shrink. */
-.ticket-bottom { flex: 1 0 26mm; min-height: 26mm; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: end; gap: 3mm; width: 100%; min-width: 0; }
-.ticket-qr { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; width: 26mm; height: 26mm; flex: 0 0 auto; }
-.ticket-qr-fit { width: 26mm; height: 26mm; flex: 0 0 auto; display: flex; align-items: flex-end; justify-content: flex-start; }
-.ticket-qr img, .ticket-qr svg { display: block; width: 26mm; height: 26mm; min-width: 26mm; min-height: 26mm; aspect-ratio: 1; object-fit: contain; padding: .7mm; background: #fff; border: .3mm solid var(--t-ink); border-radius: 4px; }
+/* Club logos, website and the three official numbers, between details and QR. */
+.ticket-clubs { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-evenly; gap: 1mm; margin: 0; padding: 0; list-style: none; width: 100%; min-width: 0; }
+.ticket-club { flex: 0 0 auto; display: grid; place-items: center; width: 12mm; height: 9mm; min-width: 0; }
+.ticket-club img { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center; }
+.ticket-club-fallback { display: grid; place-items: center; width: 8.5mm; height: 8.5mm; border-radius: 50%; background: var(--t-accent); color: #fff; font-size: 1.9mm; line-height: 1; font-weight: 800; letter-spacing: .02em; }
+.ticket-web { flex: 0 0 auto; margin: 0; text-align: center; color: var(--t-accent); font-size: 3mm; line-height: 1.2; font-weight: 800; letter-spacing: .04em; }
+.ticket-contacts { flex: 0 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 1.5mm; margin: 0; min-width: 0; padding: 1mm .4mm; border-top: .3mm solid var(--t-line); border-bottom: .3mm solid var(--t-line); }
+.ticket-contact { min-width: 0; text-align: center; }
+.ticket-contact dt { color: var(--t-faint); font-size: 1.8mm; line-height: 1.2; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; overflow-wrap: anywhere; }
+.ticket-contact dt em { display: block; font-size: 1.7mm; line-height: 1.2; font-style: normal; font-weight: 600; letter-spacing: .01em; text-transform: none; }
+.ticket-contact dd { margin: 0; color: var(--t-ink); font-size: 2.6mm; line-height: 1.25; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+/* A permanent 22mm square includes a clear quiet zone; no flex shrink. */
+.ticket-bottom { flex: 1 0 22mm; min-height: 22mm; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: end; gap: 3mm; width: 100%; min-width: 0; }
+.ticket-qr { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; width: 22mm; height: 22mm; flex: 0 0 auto; }
+.ticket-qr-fit { width: 22mm; height: 22mm; flex: 0 0 auto; display: flex; align-items: flex-end; justify-content: flex-start; }
+.ticket-qr img, .ticket-qr svg { display: block; width: 22mm; height: 22mm; min-width: 22mm; min-height: 22mm; aspect-ratio: 1; object-fit: contain; padding: .7mm; background: #fff; border: .3mm solid var(--t-ink); border-radius: 4px; }
 .ticket-signature { display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-end; gap: .6mm; min-width: 0; padding-right: 1mm; }
 .ticket-signature-img { display: block; width: 30mm; max-width: 100%; height: auto; max-height: 12mm; object-fit: contain; object-position: right bottom; }
 .ticket-signature-rule { width: 28mm; border-top: .3mm solid var(--t-ink); }
 .ticket-signature-caption { color: var(--t-soft); font-size: 2mm; line-height: 1.2; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; text-align: right; }
 .ticket-signature-caption em { display: block; font-style: normal; font-weight: 600; text-transform: none; letter-spacing: .01em; }
-.ticket-foot { position: relative; flex: 0 0 auto; display: flex; justify-content: space-between; gap: 2mm; padding-top: 1mm; border-top: .3mm solid var(--t-line); color: var(--t-soft); font-size: 2mm; line-height: 1.2; font-weight: 600; min-width: 0; }
-.ticket-foot span { overflow-wrap: anywhere; }
 /* Guest identification adds a row: make portraits slightly smaller, never QR. */
 .ticket-sheet.is-guest .ticket-photo-frame { width: 15.6mm; height: 20.8mm; }
 .ticket-sheet.is-guest .ticket-photo-cell.is-large .ticket-photo-frame { width: 20.25mm; height: 27mm; }

@@ -1,10 +1,21 @@
 /** Safe 95 × 137mm ticket on A6 paper, or the identical card four-up on A4.
- * Father / holder / mother photos, full names, live-signed QR and signature.
- * Physical page margins are in CSS. QR size never shrinks; long text is fitted
- * (without truncating the source) by the shared print-readiness helper.
+ * Header (two matched school names + logos) → fair title and tagline → photos
+ * → details → club logos → website → contact numbers → QR (bottom-left) and the
+ * president's signature (bottom-right). Physical page margins are in CSS. The
+ * QR never shrinks; long text is fitted without truncating the source.
  */
 import { optimizedImage } from "@/lib/cloudinary";
-import { FAIR_PRESIDENT_SIGNATURE_URL, SCHOLARS_LOGO_URL, TICKET_SCHOOL_NAME, TICKET_SUB_HEADER } from "@/lib/ticket-brand";
+import {
+  FAIR_PRESIDENT_SIGNATURE_URL,
+  SCHOLARS_LOGO_URL,
+  TICKET_CONTACTS,
+  TICKET_SCHOOL_NAME,
+  TICKET_SUB_HEADER,
+  TICKET_TAGLINE,
+  TICKET_WEBSITE,
+  ticketClubs,
+  type TicketClub,
+} from "@/lib/ticket-brand";
 import { guestTicketId } from "@/lib/ticket-identifiers";
 export { guestTicketId } from "@/lib/ticket-identifiers";
 import { ticketText, ticketValue, type TicketLabel, type TicketLang } from "@/lib/ticket-locale";
@@ -48,9 +59,11 @@ export interface TicketSheetProps {
   student: TicketStudent;
   guest?: TicketGuestInfo | null;
   qr: string;
-  /** Already formatted for the sheet's language ("31 December 2026"). */
-  validUntil: string;
-  issuedAt: string;
+  /**
+   * The five club logos, in ticket order. Pass `ticketClubs(content.clubs)`
+   * from the page; omitted, the bundled artwork is used.
+   */
+  clubs?: TicketClub[];
 }
 
 function initialsOf(value: string) {
@@ -98,11 +111,14 @@ export function TicketSheet(props: TicketSheetProps) {
   const headline = isGuest ? guest?.name ?? "" : student.name;
   const secondaryLogo = props.secondaryLogo ?? SCHOLARS_LOGO_URL;
   const signatureUrl = props.signatureUrl ?? FAIR_PRESIDENT_SIGNATURE_URL;
+  const clubs = props.clubs ?? ticketClubs();
 
   // Print-quality 3:4 crops (~350 DPI), without downloading full-size portraits for 500+ cards.
   const mainPhoto = optimizedImage(isGuest ? guest?.photo_url ?? "" : student.photo_url, { width: 320, height: 427, fit: "cover" });
   const fatherPhoto = optimizedImage(student.father_photo_url, { width: 240, height: 320, fit: "cover" });
   const motherPhoto = optimizedImage(student.mother_photo_url, { width: 240, height: 320, fit: "cover" });
+  // Club logos are drawn inside a fixed box: pad keeps the whole mark visible.
+  const clubLogo = (url: string) => optimizedImage(url, { width: 200, height: 200, fit: "pad" });
 
   return (
     <section
@@ -119,8 +135,9 @@ export function TicketSheet(props: TicketSheetProps) {
             <span className="ticket-logo ticket-logo-fallback">{initialsOf(schoolName)}</span>
           )}
           <div className="ticket-school-copy">
-            <strong>{schoolName}</strong>
-            <small>{TICKET_SUB_HEADER}</small>
+            {/* Both names share one class: identical size, weight and colour. */}
+            <span className="ticket-school-name">{schoolName}</span>
+            <span className="ticket-school-name">{TICKET_SUB_HEADER}</span>
           </div>
           {secondaryLogo ? (
             <img src={secondaryLogo} alt="" className="ticket-logo ticket-logo-right" />
@@ -129,7 +146,10 @@ export function TicketSheet(props: TicketSheetProps) {
           )}
         </header>
 
-        <h2 className="ticket-title ticket-fit-text" data-fit-min="11">{ticketValue(props.fairName, lang)}</h2>
+        <div className="ticket-title-block">
+          <h2 className="ticket-title ticket-fit-text" data-fit-min="11">{ticketValue(props.fairName, lang)}</h2>
+          <p className="ticket-tagline">{TICKET_TAGLINE}</p>
+        </div>
 
         {isGuest ? <div className="ticket-guest-tag">{t.titles.guestEntry.primary}</div> : null}
 
@@ -161,6 +181,38 @@ export function TicketSheet(props: TicketSheetProps) {
           </dl>
         )}
 
+        <ul className="ticket-clubs" aria-label={t.labels.ourClubs.primary}>
+          {clubs.map((club) => (
+            <li className="ticket-club" key={club.code} title={club.name}>
+              {club.logo ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={clubLogo(club.logo)} alt={club.name} />
+              ) : (
+                <span className="ticket-club-fallback" aria-hidden="true">
+                  {club.code}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+
+        <p className="ticket-web">{TICKET_WEBSITE}</p>
+
+        <dl className="ticket-contacts">
+          {TICKET_CONTACTS.map((contact) => {
+            const label = t.labels[contact.key];
+            return (
+              <div className="ticket-contact" key={contact.key}>
+                <dt>
+                  {label.primary}
+                  {label.secondary ? <em>{label.secondary}</em> : null}
+                </dt>
+                <dd>{ticketValue(contact.number, lang)}</dd>
+              </div>
+            );
+          })}
+        </dl>
+
         <div className="ticket-bottom">
           <div className="ticket-qr">
             <div className="ticket-qr-fit">
@@ -178,15 +230,6 @@ export function TicketSheet(props: TicketSheetProps) {
             </span>
           </div>
         </div>
-
-        <footer className="ticket-foot">
-          <span>
-            {t.notes.validUntil.primary} {props.validUntil}
-          </span>
-          <span>
-            {t.notes.issued.primary} {props.issuedAt}
-          </span>
-        </footer>
       </div>
     </section>
   );

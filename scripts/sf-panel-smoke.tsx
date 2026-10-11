@@ -134,8 +134,6 @@ const html = renderToStaticMarkup(
       mother_photo_url: "https://cdn.okgs.info/photo/101-mother.jpg",
     }}
     qr="/api/qr?token=demo"
-    validUntil="31 December 2026"
-    issuedAt="8 Oct 2026"
   />,
 );
 assert.match(html, /class="ticket-sheet/, "one sheet per copy");
@@ -148,7 +146,9 @@ assert.ok(html.includes("101-father.jpg") && html.includes("101-mother.jpg"), "f
 assert.ok(html.includes("মোঃ রফিকুল ইসলাম") && html.includes("সালমা বেগম"), "the parents' names sit under their photos");
 assert.match(html, /src="\/api\/qr\?token=demo"/, "the QR is rendered by the server from the signed token");
 assert.match(html, /ticket-signature/, "the president's signature prints bottom-right");
-assert.match(html, /Valid until 31 December 2026/, "validity is pinned to 31 December 2026");
+assert.doesNotMatch(html, /Valid until|Issued/, "no footer text is printed under the QR");
+assert.match(html, /Exploring The Universe Of Science/, "the event tagline prints under the title");
+assert.match(html, /okgs\.info/, "the website prints under the club logos");
 assert.doesNotMatch(html, /STUDENT ENTRY TICKET|Student copy|Copy 1 of 1/i, "the old badges are gone");
 assert.doesNotMatch(html, /HMAC|Printed by/i, "…and so are the HMAC note and the printed-by line");
 assert.match(css, /@page ticket-portrait\s*\{ size: 105mm 148mm; margin: 5mm; \}/, "true A6 paper has a 5mm physical printer safe area");
