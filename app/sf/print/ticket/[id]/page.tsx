@@ -9,7 +9,8 @@ import { settingValue } from "@/lib/club-data";
 import { qrDataUrl } from "@/lib/qr";
 import { makeTicketToken, ticketExpiry } from "@/lib/ticket-token";
 import { getStudentById } from "@/lib/student-db";
-import { parseTicketLang, ticketDate, ticketFairName, ticketSchoolName, ticketValidUntil } from "@/lib/ticket-locale";
+import { parseTicketLang, ticketFairName, ticketSchoolName } from "@/lib/ticket-locale";
+import { ticketClubs } from "@/lib/ticket-brand";
 import { TicketSheet } from "@/components/sf/print/TicketSheet";
 import { TicketToolbar } from "@/components/sf/print/TicketToolbar";
 import { AutoPrint } from "@/components/print/AutoPrint";
@@ -62,8 +63,6 @@ export default async function StudentTicketPage({ params, searchParams }: { para
   const schoolName = ticketSchoolName(readSetting(content.settings, "site_name_en") || settingValue(content.settings, "site_name"));
   const logo = readSetting(content.settings, "logo_url");
   const fairName = ticketFairName(fair);
-  const validUntil = ticketValidUntil(lang);
-  const issuedAt = ticketDate(new Date().toISOString(), lang, "long");
   const autoPrint = canPrint && String(query.auto ?? "1") !== "0";
 
   const sheetProps = {
@@ -87,8 +86,7 @@ export default async function StudentTicketPage({ params, searchParams }: { para
       mother_photo_url: student.mother_photo_url,
     },
     qr,
-    validUntil,
-    issuedAt,
+    clubs: ticketClubs(content.clubs),
   };
 
   return (

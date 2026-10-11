@@ -112,6 +112,12 @@ export interface TicketStrings {
     /** The student an outside guest is tagged to. */
     taggedStudent: TicketLabel;
     status: TicketLabel;
+    /** Contact line labels under the club logos. */
+    telephone: TicketLabel;
+    president: TicketLabel;
+    helpLine: TicketLabel;
+    /** Screen-reader name of the club logo strip. */
+    ourClubs: TicketLabel;
   };
   titles: {
     studentTicket: TicketLabel;
@@ -169,6 +175,10 @@ export function ticketText(lang: TicketLang = "en"): TicketStrings {
       guestId: at("Guest ID", "অতিথি আইডি"),
       taggedStudent: at("Tagged student", "ট্যাগ করা শিক্ষার্থী"),
       status: at("Status", "অবস্থা"),
+      telephone: at("Telephone", "টেলিফোন"),
+      president: at("President", "সভাপতি"),
+      helpLine: at("Help Line", "হেল্পলাইন"),
+      ourClubs: at("Our clubs", "আমাদের ক্লাব"),
     },
     titles: {
       studentTicket: at("Student entry ticket", "শিক্ষার্থী প্রবেশ টিকিট"),

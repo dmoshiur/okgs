@@ -29,7 +29,7 @@ import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TicketSheet, guestTicketId } from "../components/sf/print/TicketSheet";
 import { DEFAULT_TICKET_SCHOOL_NAME, parseTicketLang, ticketNumber, ticketSchoolName, ticketText, ticketValidUntil } from "../lib/ticket-locale";
-import { FAIR_PRESIDENT_SIGNATURE_URL, SCHOLARS_LOGO_URL, TICKET_SUB_HEADER, TICKET_VALID_UNTIL_ISO } from "../lib/ticket-brand";
+import { FAIR_PRESIDENT_SIGNATURE_URL, SCHOLARS_LOGO_URL, TICKET_CONTACTS, TICKET_SUB_HEADER, TICKET_TAGLINE, TICKET_VALID_UNTIL_ISO, TICKET_WEBSITE, ticketClubs } from "../lib/ticket-brand";
 import { GUEST_ENTRY_FEE, GUEST_LUNCH_FEE, guestFeeBreakdown } from "../lib/guest-fees";
 import { parsePhotoCsv, parsePhotoSheet, photoTemplateCsv, isCloudinaryPhoto } from "../lib/photo-import";
 import { toBanglaDigits, toLatinDigits } from "../lib/digits";
@@ -89,8 +89,6 @@ function renderSheet(lang: "en" | "bn" | "both", studentCode = student.student_c
       logo="https://res.cloudinary.com/okgs/image/upload/v1/okgs/logo.png"
       student={{ ...student, student_code: studentCode }}
       qr="data:image/png;base64,QR"
-      validUntil={ticketValidUntil(lang)}
-      issuedAt={lang === "en" ? "10 October 2026" : "১০ অক্টোবর ২০২৬"}
     />,
   );
 }
@@ -119,7 +117,8 @@ for (const label of ["রোল", "শ্রেণি", "শিফট", "শি�
 }
 assert.ok(!/<dt>Roll<\/dt>/.test(bangla) && !/<dt>Class<\/dt>/.test(bangla), "a Bangla sheet has no English label left over");
 assert.match(bangla, /<dd[^>]*>৫<\/dd>/, "the roll is written in Bangla digits on a Bangla sheet");
-assert.match(bangla, /৩১ ডিসেম্বর ২০২৬/, "the fixed validity date is Bangla on a Bangla sheet");
+assert.match(bangla, /০৫৭২৫-৫৬৩৫১-৫২/, "the contact numbers carry Bangla digits on a Bangla sheet");
+assert.doesNotMatch(bangla, /৩১ ডিসেম্বর|Valid until|মেয়াদ/, "no validity line is printed under the QR on a Bangla sheet");
 
 const bilingual = renderSheet("both");
 assert.ok(bilingual.includes("রোল") && /<dt>রোল<em>Roll<\/em><\/dt>/.test(bilingual), "bilingual mode prints both words on every field");
@@ -181,6 +180,11 @@ assert.match(english, /Omar Kindergarten School/, "the school name prints");
 assert.ok(english.includes(TICKET_SUB_HEADER), "the sub-header prints under the school name");
 assert.match(english, /ticket-title/, "the fair title has its own block");
 assert.match(english, /OKGS GENESIS 2026/, "the Science Fair event name prints prominently");
+assert.ok(english.indexOf("OKGS GENESIS 2026") < english.indexOf(TICKET_TAGLINE) && english.indexOf(TICKET_TAGLINE) < english.indexOf("ticket-photos"), "the tagline sits directly under the fair title, above the photos");
+assert.match(english, /<p class="ticket-tagline">Exploring The Universe Of Science<\/p>/, "the tagline prints verbatim");
+assert.equal((english.match(/class="ticket-school-name"/g) ?? []).length, 2, "both school names share one style class");
+assert.match(css, /\.ticket-school-name\s*\{[^}]*font-size: 3\.3mm[^}]*font-weight: 800/, "the two school names are one size and one weight");
+assert.doesNotMatch(css, /\.ticket-school-copy small|\.ticket-school-copy strong/, "no leftover distinct style for the sub-header");
 // Photos: father + mother flanking the student photo, names under the sides.
 assert.ok(english.includes("f_auto,q_auto,w_320,h_427,c_fill"), "the main photo is a 320×427 print-quality auto-format Cloudinary crop");
 assert.ok(english.includes("f_auto,q_auto,w_240,h_320,c_fill"), "the parents' photos use the 240×320 print-quality crop");
@@ -190,9 +194,28 @@ assert.match(english, /src="data:image\/png;base64,QR"/, "the signed QR prints")
 assert.match(english, /ticket-signature/, "the signature block prints");
 assert.ok(english.includes(FAIR_PRESIDENT_SIGNATURE_URL.replaceAll("&", "&amp;")), "the president's signature image is the configured one");
 assert.match(english, /Fair President/, "the signature carries its caption");
-// Footer rules.
-assert.match(english, /Valid until 31 December 2026/, "validity is strictly 31 December 2026");
-assert.match(english, /Issued 10 October 2026/, "the issued date stays");
+// Club logos, website and the three official numbers sit between the details and the QR row.
+assert.equal((english.match(/<li class="ticket-club"/g) ?? []).length, 5, "all five club logos print");
+for (const club of ticketClubs()) assert.ok(english.includes(club.logo), `club logo ${club.code} is printed`);
+// Club logos come from the live club records; a missing record uses the bundled artwork.
+const resolvedClubs = ticketClubs([
+  { slug: "ALSSM", name_en: "Association Of Little Scientists And Math Maniacs", logo_url: "https://res.cloudinary.com/okgs/image/upload/v1/clubs/alssm.png" },
+  { slug: "artds", name: "ART Debating Society", logo_url: "" },
+]);
+assert.equal(resolvedClubs.length, 5, "always five clubs, in ticket order");
+assert.deepEqual(resolvedClubs.map((club) => club.code), ["ALSSM", "AYPG", "ALPCG", "AYGSM", "ARTDS"], "the ticket order is fixed");
+assert.equal(resolvedClubs[0].logo, "https://res.cloudinary.com/okgs/image/upload/v1/clubs/alssm.png", "a club's own logo is used (slug match ignores case)");
+assert.equal(resolvedClubs[1].logo, "/media/club-language.svg", "a club missing from the database falls back to the bundled artwork");
+assert.equal(resolvedClubs[4].logo, "", "a club record with no logo prints as a monogram, not a stale picture");
+assert.ok(english.indexOf("ticket-clubs") > english.indexOf("ticket-grid") && english.indexOf("ticket-clubs") < english.indexOf("ticket-bottom"), "the club strip sits below the details and above the QR row");
+assert.match(english, new RegExp(`<p class="ticket-web">${TICKET_WEBSITE.replace(".", "\\.")}</p>`), "the website okgs.info prints under the club logos");
+assert.match(english, /<dt>Telephone<\/dt><dd[^>]*>05725-56351-52<\/dd>/, "telephone number prints");
+assert.match(english, /<dt>President<\/dt><dd[^>]*>01329-625713<\/dd>/, "president number prints");
+assert.match(english, /<dt>Help Line<\/dt><dd[^>]*>01711-857205<\/dd>/, "help line number prints");
+assert.equal(TICKET_CONTACTS.length, 3, "exactly three contact numbers");
+assert.match(renderSheet("bn"), /<dt>টেলিফোন<\/dt><dd[^>]*>০৫৭২৫-৫৬৩৫১-৫২<\/dd>/, "contacts follow the Bangla sheet: label and digits");
+// Nothing is printed below the QR code: no validity or issue line at all.
+assert.doesNotMatch(english, /Valid until|Issued|ticket-foot/, "the footer text under the QR code is removed");
 assert.doesNotMatch(english, /HMAC/i, "the HMAC-SHA256 note is gone");
 assert.doesNotMatch(english, /Printed by/i, "the printed-by line is gone");
 // Retired badges never come back.
@@ -215,8 +238,6 @@ const guestHtml = renderToStaticMarkup(
     student={{ ...student, student_code: "2026-0101" }}
     guest={{ id: "abcd1234-dead-beef-0000-000000000000", name: "Kamal Hossain", relation: "Mama (maternal uncle)", contact: "01712345678", status: "active", photo_url: "https://res.cloudinary.com/okgs/image/upload/v1/okgs/guests/kamal.jpg" }}
     qr="data:image/png;base64,GUESTQR"
-    validUntil={ticketValidUntil("en")}
-    issuedAt="10 October 2026"
   />,
 );
 assert.match(guestHtml, /GUEST ENTRY/, "outside guests are tagged GUEST ENTRY");
@@ -230,7 +251,8 @@ assert.equal(guestTicketId("abcd1234-dead-beef"), "ABCD1234");
 assert.ok(guestHtml.includes("okgs/fathers/") && guestHtml.includes("okgs/mothers/"), "related parents flank the guest portrait too");
 assert.equal((guestHtml.match(/ticket-photo-frame/g) || []).length, 3, "guest tickets use the same clean three-photo row");
 assert.ok(guestHtml.indexOf("okgs/fathers/") < guestHtml.indexOf("guests/kamal.jpg") && guestHtml.indexOf("guests/kamal.jpg") < guestHtml.indexOf("okgs/mothers/"), "guest stays centered between father and mother");
-assert.match(css, /\.ticket-bottom\s*\{[^}]*flex: 1 0 26mm/, "QR space never flex-shrinks");
+assert.match(css, /\.ticket-bottom\s*\{[^}]*flex: 1 0 22mm/, "QR space never flex-shrinks");
+assert.match(css, /\.ticket-qr img, \.ticket-qr svg \{[^}]*width: 22mm/, "the QR is scaled down to 22mm, still scannable");
 assert.match(css, /width: 95mm !important; max-width: 95mm !important; height: 137mm !important/, "the final important print override agrees with the safe geometry");
 pass("redesigned A6 sheet: dual logos, fair title, photo row, QR-left + signature-right, pinned validity, no badges");
 
@@ -256,7 +278,7 @@ assert.match(bulkPage, /openTicketPrintJob/, "large selections are restored from
 assert.doesNotMatch(bulkPage, /getTicketPrintJob\(/, "the print route never dereferences the nullable snapshot itself — it asks for a state");
 assert.match(bulkPage, /student_ids: directSelection\.ids/, "directly supplied student IDs are applied to the print query");
 assert.match(bulkPage, /<TicketSheet/, "the bulk page reuses the very same A6 ticket component");
-assert.match(bulkPage, /ticketValidUntil/, "bulk tickets carry the pinned validity date");
+assert.match(bulkPage, /ticketClubs\(content\.clubs\)/, "bulk tickets carry the live club logos");
 assert.doesNotMatch(bulkPage, /MAX_RUN|MIN_RUN|query\.page|query\.size|limit: size/, "the print view does not cap or page selected students");
 assert.match(studentDb, /studentFilterSql\(\{ \.\.\.filter, payment: "PAID" \}\)/, "the PAID rule is applied in SQL, not in the markup");
 assert.match(studentDb, /json_each\(\?\)/, "large explicit ID selections use one bounded JSON SQL parameter");
@@ -331,8 +353,6 @@ const renderedPages = pages.map(
             logo=""
             student={item}
             qr="data:image/png;base64,QR"
-            validUntil={ticketValidUntil("en")}
-            issuedAt="10 October 2026"
           />
         ))}
         {Array.from({ length: 4 - page.length }, (_, index) => (
@@ -346,8 +366,9 @@ assert.equal((renderedPages[1].match(/ticket-bulk-slot-empty/g) ?? []).length, 3
 assert.match(renderedPages[0], /<dt>Student ID<\/dt><dd[^>]*>202405102<\/dd>/, "bulk ticket IDs stay plain text");
 assert.doesNotMatch(renderedPages[0], /202,405,102/, "bulk ticket IDs never get thousands separators");
 assert.ok(renderedPages[0].includes("f_auto,q_auto,w_320,h_427,c_fill"), "bulk photos use the same Cloudinary crop as the single print");
-assert.ok(renderedPages[0].includes("Valid until 31 December 2026"), "every bulk ticket carries the pinned validity");
-assert.match(TICKET_VALID_UNTIL_ISO, /^2026-12-31$/, "the validity constant is the ISO date behind the footer line");
+assert.doesNotMatch(renderedPages[0], /Valid until|Issued/, "no footer text is printed on any bulk ticket");
+assert.equal((renderedPages[0].match(/<li class="ticket-club"/g) ?? []).length, 20, "every bulk ticket prints five club logos");
+assert.match(TICKET_VALID_UNTIL_ISO, /^2026-12-31$/, "the validity constant is still the pinned ISO date (used by ticketValidUntil)");
 pass("bulk printing lays out four identical safe-area tickets per A4 page and only prints PAID students");
 
 /* ---------- 4 · photo-mapping spreadsheet --------------------------------- */

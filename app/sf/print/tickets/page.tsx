@@ -10,7 +10,8 @@ import { makeTicketToken, ticketExpiry } from "@/lib/ticket-token";
 import { openTicketPrintJob, paidStudentsForPrint, printableStudentCounts, type PrintableStudent, type TicketPrintJobLookup } from "@/lib/student-db";
 import { MAX_BULK_PRINT_TICKETS, MAX_STUDENT_SELECTION, normalizeStudentIdentifiers } from "@/lib/student-selection";
 import { parseRollExpression } from "@/lib/roll-range";
-import { parseTicketLang, ticketDate, ticketFairName, ticketSchoolName, ticketText, ticketValidUntil, type TicketLang } from "@/lib/ticket-locale";
+import { parseTicketLang, ticketFairName, ticketSchoolName, ticketText, type TicketLang } from "@/lib/ticket-locale";
+import { ticketClubs, type TicketClub } from "@/lib/ticket-brand";
 import { AutoPrint } from "@/components/print/AutoPrint";
 import { TicketSheet } from "@/components/sf/print/TicketSheet";
 import { BulkTicketToolbar } from "@/components/sf/print/BulkTicketToolbar";
@@ -59,8 +60,7 @@ interface BulkTicketView {
   hint: string;
   warning: string;
   autoPrint: boolean;
-  validUntil: string;
-  issuedAt: string;
+  clubs: TicketClub[];
   emptySlotLabel: string;
 }
 
@@ -398,8 +398,7 @@ async function loadPrintView(query: Query, requestedJobId: string): Promise<Load
       hint,
       warning,
       autoPrint: one(query.auto) !== "0",
-      validUntil: ticketValidUntil(lang),
-      issuedAt: ticketDate(new Date().toISOString(), lang, "long"),
+      clubs: ticketClubs(content.clubs),
       emptySlotLabel: text.notes.emptySlot.primary,
     },
   };
@@ -416,7 +415,7 @@ function describeUnpaid(scope: { class_name: string; section: string; shift: str
 
 /** The paper itself: one A4 page box per four tickets, and nothing else. */
 function BulkTicketSheets({ view }: { view: BulkTicketView }) {
-  const { lang, sheets, fairSlug, hint, warning, autoPrint, schoolName, fairName, logo, validUntil, issuedAt, emptySlotLabel } = view;
+  const { lang, sheets, fairSlug, hint, warning, autoPrint, schoolName, fairName, logo, clubs, emptySlotLabel } = view;
   const ticketCount = sheets.reduce((sum, group) => sum + group.length, 0);
 
   return (
@@ -447,8 +446,7 @@ function BulkTicketSheets({ view }: { view: BulkTicketView }) {
                 mother_photo_url: card.student.mother_photo_url,
               }}
               qr={card.qr}
-              validUntil={validUntil}
-              issuedAt={issuedAt}
+              clubs={clubs}
             />
           ))}
           {Array.from({ length: TICKETS_PER_PAGE - group.length }, (_, index) => (

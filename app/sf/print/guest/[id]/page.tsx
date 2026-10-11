@@ -8,7 +8,8 @@ import { settingValue } from "@/lib/club-data";
 import { qrDataUrl } from "@/lib/qr";
 import { makeTicketToken, ticketExpiry } from "@/lib/ticket-token";
 import { getGuestById, getStudentById } from "@/lib/student-db";
-import { parseTicketLang, ticketDate, ticketFairName, ticketSchoolName, ticketText, ticketValidUntil } from "@/lib/ticket-locale";
+import { parseTicketLang, ticketFairName, ticketSchoolName, ticketText } from "@/lib/ticket-locale";
+import { ticketClubs } from "@/lib/ticket-brand";
 import { TicketSheet } from "@/components/sf/print/TicketSheet";
 import { TicketToolbar } from "@/components/sf/print/TicketToolbar";
 import { AutoPrint } from "@/components/print/AutoPrint";
@@ -86,8 +87,7 @@ export default async function GuestPassPage({ params, searchParams }: { params: 
             photo_url: guest.photo_url,
           }}
           qr={qr}
-          validUntil={ticketValidUntil(lang)}
-          issuedAt={ticketDate(new Date().toISOString(), lang, "long")}
+          clubs={ticketClubs(content.clubs)}
         />
       </div>
       {String(query.auto ?? "1") !== "0" ? <AutoPrint /> : null}
